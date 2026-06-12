@@ -1,4 +1,4 @@
-import { BadgePercent, Headphones, ShieldCheck, Truck, WalletCards } from "lucide-react";
+import { ArrowUpRight, BadgePercent, Headphones, ShieldCheck, Truck, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -99,17 +99,23 @@ export function HomePage() {
             <Link
               key={category._id}
               to={`/products?category=${category.slug}`}
-              className="surface-card overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.1)]"
+              className="surface-card group relative h-48 overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.1)]"
             >
               {category.image ? (
-                <div className="h-28 w-full overflow-hidden bg-slate-100">
-                  <img src={category.image} alt={getLocalizedText(category.name, language)} className="h-full w-full object-cover" />
-                </div>
-              ) : null}
-              <div className="p-5">
-                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{translate(language, "categories")}</div>
-                <div className="mt-3 text-xl font-semibold text-slate-950">{getLocalizedText(category.name, language)}</div>
-                <div className="mt-2 text-sm text-slate-600">{translate(language, "browseCategory")}</div>
+                <img
+                  src={category.image}
+                  alt={getLocalizedText(category.name, language)}
+                  className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-slate-100" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-5">
+                <div className="text-xl font-semibold text-white">{getLocalizedText(category.name, language)}</div>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15 text-white transition group-hover:bg-white/25">
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
               </div>
             </Link>
           ))}
