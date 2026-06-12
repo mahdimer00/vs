@@ -5,6 +5,7 @@ import { AffiliateModel } from "../models/affiliate.model.js";
 import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel, WebsiteSettingModel } from "../models/catalog.model.js";
 import { WilayaModel } from "../models/shipping.model.js";
 import { bannerSeed, categorySeed, brandSeed, productSeed, wilayaSeed } from "./data.js";
+import { communesByWilaya } from "./communes.js";
 
 export async function runSeed() {
   const existingAdmin = await UserModel.findOne({ email: env.ADMIN_EMAIL.toLowerCase() });
@@ -24,7 +25,7 @@ export async function runSeed() {
       {
         code,
         name: { ar: name, fr: name, en: name },
-        communes: [`${name} Centre`],
+        communes: communesByWilaya[code] ?? [`${name} Centre`],
         homeDeliveryFee,
         deskPickupFee,
         isActive: true,

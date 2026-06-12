@@ -134,6 +134,8 @@
   "phone": "رقم الهاتف",
   "wilaya": "الولاية",
   "commune": "البلدية",
+  "communeOther": "أخرى (كتابة يدوية)",
+  "communeChooseFromList": "اختر من القائمة",
   "address": "العنوان",
   "deliveryType": "نوع التوصيل",
   "homeDelivery": "توصيل إلى المنزل",

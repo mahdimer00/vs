@@ -56,13 +56,20 @@ const upload = multer({
 export const app = express();
 
 app.set("trust proxy", 1);
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(corsMiddleware);
 app.use(rateLimitMiddleware);
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(uploadDir));
+app.use(
+  "/uploads",
+  express.static(uploadDir, {
+    setHeaders: (res) => {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  }),
+);
 
 app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), upload.single("file"), (req, res) => {
   if (!req.file) {

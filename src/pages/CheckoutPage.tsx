@@ -20,6 +20,7 @@ export function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [wilayaCode, setWilayaCode] = useState("16");
   const [commune, setCommune] = useState("");
+  const [communeOther, setCommuneOther] = useState(false);
   const [address, setAddress] = useState("");
   const [deliveryType, setDeliveryType] = useState<DeliveryType>("DESK_PICKUP");
   const [promoCode, setPromoCode] = useState("");
@@ -212,17 +213,43 @@ export function CheckoutPage() {
                   </option>
                 ))}
               </select>
-              {selectedWilaya?.communes?.length ? (
-                <select value={commune} onChange={(event) => setCommune(event.target.value)} className="field-select">
+              {selectedWilaya?.communes?.length && !communeOther ? (
+                <select
+                  value={commune}
+                  onChange={(event) => {
+                    if (event.target.value === "__other__") {
+                      setCommuneOther(true);
+                      setCommune("");
+                      return;
+                    }
+                    setCommune(event.target.value);
+                  }}
+                  className="field-select"
+                >
                   <option value="">{translate(language, "commune")}</option>
                   {selectedWilaya.communes.map((entry) => (
                     <option key={entry} value={entry}>
                       {entry}
                     </option>
                   ))}
+                  <option value="__other__">{translate(language, "communeOther")}</option>
                 </select>
               ) : (
-                <input required value={commune} onChange={(event) => setCommune(event.target.value)} className="field-input" placeholder={translate(language, "commune")} />
+                <div className="flex flex-col gap-2">
+                  <input required value={commune} onChange={(event) => setCommune(event.target.value)} className="field-input" placeholder={translate(language, "commune")} />
+                  {selectedWilaya?.communes?.length ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCommuneOther(false);
+                        setCommune("");
+                      }}
+                      className="self-start text-xs font-semibold text-teal-700 underline"
+                    >
+                      {translate(language, "communeChooseFromList")}
+                    </button>
+                  ) : null}
+                </div>
               )}
             </div>
             <div className="grid gap-3 md:grid-cols-2">

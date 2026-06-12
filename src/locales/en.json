@@ -134,6 +134,8 @@
   "phone": "Phone number",
   "wilaya": "Wilaya",
   "commune": "Commune",
+  "communeOther": "Other (type manually)",
+  "communeChooseFromList": "Choose from list instead",
   "address": "Address",
   "deliveryType": "Delivery type",
   "homeDelivery": "Home delivery",
