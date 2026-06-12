@@ -1,4 +1,4 @@
-import { ArrowRight, BadgePercent, KeyRound, Mail } from "lucide-react";
+import { ArrowRight, BadgePercent, KeyRound, Mail, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
@@ -81,6 +81,10 @@ export function AffiliateLoginPage() {
         </Link>
       </section>
       <section className="surface-card p-8">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700">
+          <ShieldCheck className="h-4 w-4" />
+          {translate(language, "authSecureLogin")}
+        </div>
         <form onSubmit={submit} className="space-y-4">
           <IconField icon={Mail}>
             <input

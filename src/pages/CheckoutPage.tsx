@@ -193,12 +193,18 @@ export function CheckoutPage() {
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <IconField icon={UserRound}>
-                <input required value={fullName} onChange={(event) => setFullName(event.target.value)} className="field-input field-input-icon" placeholder={translate(language, "fullName")} />
-              </IconField>
-              <IconField icon={Phone}>
-                <input required value={phone} onChange={(event) => setPhone(event.target.value)} className="field-input field-input-icon" placeholder="05 / 06 / 07..." />
-              </IconField>
+              <div className="space-y-1.5">
+                <IconField icon={UserRound}>
+                  <input required value={fullName} onChange={(event) => setFullName(event.target.value)} className="field-input field-input-icon" placeholder={translate(language, "fullName")} />
+                </IconField>
+                <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <IconField icon={Phone}>
+                  <input required value={phone} onChange={(event) => setPhone(event.target.value)} className="field-input field-input-icon" placeholder="0555 12 34 56" />
+                </IconField>
+                <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
+              </div>
             </div>
           </section>
 
@@ -286,9 +292,12 @@ export function CheckoutPage() {
               </button>
             </div>
 
-            <IconField icon={Home} className="mt-4">
-              <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea field-input-icon" placeholder={translate(language, "address")} />
-            </IconField>
+            <div className="mt-4 space-y-1.5">
+              <IconField icon={Home}>
+                <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea field-input-icon" placeholder={translate(language, "address")} />
+              </IconField>
+              <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintAddress")}</p>
+            </div>
           </section>
 
           {siteSettings?.promoCodeEnabled !== false ? (

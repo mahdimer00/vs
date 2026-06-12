@@ -242,6 +242,8 @@ router.get(
   }),
 );
 
+const RESTOCKABLE_STATUSES = ["CANCELLED", "RETURNED", "FAILED"];
+
 router.patch(
   "/admin/orders/:id/status",
   authMiddleware,
@@ -262,6 +264,24 @@ router.patch(
       ]),
     }).parse(req.body);
 
+    const existing = await OrderModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const wasRestockable = RESTOCKABLE_STATUSES.includes(existing.status);
+    const willBeRestockable = RESTOCKABLE_STATUSES.includes(input.status);
+
+    if (existing.aiConfirmed && willBeRestockable && !wasRestockable) {
+      for (const item of existing.items) {
+        await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+      }
+    } else if (existing.aiConfirmed && !willBeRestockable && wasRestockable) {
+      for (const item of existing.items) {
+        await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -item.quantity } });
+      }
+    }
+
     const order = await OrderModel.findByIdAndUpdate(req.params.id, { status: input.status }, { new: true })
       .populate("customer.wilaya")
       .populate("affiliate");
@@ -272,6 +292,27 @@ router.patch(
 
     await syncCommissionForOrder(String(order._id), "admin");
     return res.json(order);
+  }),
+);
+
+router.delete(
+  "/admin/orders/:id",
+  authMiddleware,
+  roleMiddleware(["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"]),
+  asyncHandler(async (req, res) => {
+    const existing = await OrderModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (existing.aiConfirmed && !RESTOCKABLE_STATUSES.includes(existing.status)) {
+      for (const item of existing.items) {
+        await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+      }
+    }
+
+    await OrderModel.findByIdAndDelete(req.params.id);
+    return res.json({ success: true });
   }),
 );
 

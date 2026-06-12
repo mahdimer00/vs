@@ -1,13 +1,40 @@
-import { Heart, Menu, ShoppingBag } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Heart, LayoutDashboard, LogOut, Menu, ShoppingBag, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
 
 export function Header() {
-  const { cart, language, setLanguage, wishlist, siteSettings } = useApp();
+  const { cart, language, setLanguage, wishlist, siteSettings, adminSession, setAdminSession, affiliateSession, setAffiliateSession } = useApp();
+  const navigate = useNavigate();
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
   const storeName = siteSettings?.storeName || "VisaStore";
+  const session = adminSession ?? affiliateSession;
+  const dashboardPath = adminSession ? "/admin" : "/affiliate";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  const handleLogout = () => {
+    if (adminSession) {
+      setAdminSession(null);
+    } else {
+      setAffiliateSession(null);
+    }
+    setMenuOpen(false);
+    navigate("/");
+  };
   const links = [
     { to: "/", label: translate(language, "home") },
     { to: "/products", label: translate(language, "products") },
@@ -81,6 +108,46 @@ export function Header() {
                 {count}
               </span>
             </Link>
+            {session ? (
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((value) => !value)}
+                  className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pe-3 shadow-sm transition hover:border-slate-300"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 via-orange-400 to-teal-500 text-sm font-bold text-slate-950">
+                    {session.user.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
+                  </span>
+                  <span className="hidden max-w-[8rem] truncate text-sm font-semibold text-slate-800 sm:inline">
+                    {session.user.name || session.user.email}
+                  </span>
+                </button>
+                {menuOpen ? (
+                  <div className="absolute end-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <div className="truncate text-sm font-semibold text-slate-900">{session.user.name || session.user.email}</div>
+                      <div className="truncate text-xs text-slate-500">{session.user.email}</div>
+                    </div>
+                    <Link
+                      to={dashboardPath}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <LayoutDashboard className="h-4 w-4" />
+                      {translate(language, "dashboard")}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {translate(language, "logout")}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 

@@ -13,6 +13,7 @@ export function ProductCard({ product, language }: { product: Product; language:
   const discountPercent = hasDiscount ? Math.round(((product.basePrice - price) / product.basePrice) * 100) : 0;
   const wishlisted = isWishlisted(product._id);
   const legacyHint = formatLegacyDinarHint(price, language);
+  const soldOut = product.stock <= 0;
 
   return (
     <article className="group overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_18px_55px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_65px_rgba(15,23,42,0.12)]">
@@ -21,8 +22,15 @@ export function ProductCard({ product, language }: { product: Product; language:
           <img
             src={product.images[0]}
             alt={getLocalizedText(product.name, language)}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-60 grayscale" : ""}`}
           />
+          {soldOut ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/30">
+              <span className="rounded-full bg-slate-950 px-5 py-2 text-sm font-bold uppercase tracking-[0.2em] text-white">
+                {translate(language, "productSoldOut")}
+              </span>
+            </div>
+          ) : null}
           <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
             <span className="rounded-full bg-slate-950/85 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
               {brandName}
@@ -63,7 +71,9 @@ export function ProductCard({ product, language }: { product: Product; language:
               <ShieldCheck className="h-4 w-4 text-teal-700" />
               {translate(language, "trustQuality")}
             </span>
-            <span className="font-semibold text-emerald-700">{translate(language, "productInStock")}</span>
+            <span className={`font-semibold ${soldOut ? "text-rose-600" : "text-emerald-700"}`}>
+              {translate(language, soldOut ? "productSoldOut" : "productInStock")}
+            </span>
           </div>
           <div className="flex items-end justify-between gap-3">
             <div>

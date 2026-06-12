@@ -15,6 +15,9 @@ export const adminService = {
       body: JSON.stringify({ status }),
     });
   },
+  deleteOrder(token: string, orderId: string) {
+    return apiRequest<{ success: boolean }>(`/api/admin/orders/${orderId}`, { method: "DELETE", token });
+  },
   uploadImage(token: string, file: File) {
     return apiUpload<{ url: string; filename: string }>("/api/admin/uploads", file, token);
   },

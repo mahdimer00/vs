@@ -1034,6 +1034,19 @@ export function AdminDashboardPage() {
                     </option>
                   ))}
                 </select>
+                <button
+                  onClick={() => {
+                    if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
+                      void adminService
+                        .deleteOrder(token, order._id)
+                        .then(loadAll)
+                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
+                    }
+                  }}
+                  className="w-full text-sm font-semibold text-rose-600"
+                >
+                  {translate(language, "adminDelete")}
+                </button>
               </div>
             </div>
           </div>
