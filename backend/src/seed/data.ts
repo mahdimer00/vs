@@ -60,10 +60,26 @@ export const wilayaSeed = [
 ] as const;
 
 export const categorySeed = [
-  { slug: "phones", name: { ar: "هواتف", fr: "Telephones", en: "Phones" } },
-  { slug: "pcs", name: { ar: "حواسيب", fr: "Ordinateurs", en: "PCs" } },
-  { slug: "tablets", name: { ar: "ألواح", fr: "Tablettes", en: "Tablets" } },
-  { slug: "accessories", name: { ar: "ملحقات", fr: "Accessoires", en: "Accessories" } },
+  {
+    slug: "phones",
+    name: { ar: "هواتف", fr: "Telephones", en: "Phones" },
+    image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    slug: "pcs",
+    name: { ar: "حواسيب", fr: "Ordinateurs", en: "PCs" },
+    image: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    slug: "tablets",
+    name: { ar: "ألواح", fr: "Tablettes", en: "Tablets" },
+    image: "https://images.unsplash.com/photo-1561154464-82e9adf32764?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    slug: "accessories",
+    name: { ar: "ملحقات", fr: "Accessoires", en: "Accessories" },
+    image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&q=80&w=800",
+  },
 ];
 
 function brandLogo(domain: string) {

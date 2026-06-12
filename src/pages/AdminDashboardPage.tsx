@@ -157,7 +157,7 @@ export function AdminDashboardPage() {
   const [categoryForm, setCategoryForm] = useState({ ar: "", fr: "", en: "", slug: "", image: "" });
   const [brandForm, setBrandForm] = useState({ name: "", logo: "" });
   const [bannerForm, setBannerForm] = useState<BannerFormState>(defaultBannerForm);
-  const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0" });
+  const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "" });
   const [shippingDrafts, setShippingDrafts] = useState<Record<string, { homeDeliveryFee: string; deskPickupFee: string }>>({});
   const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string }>>({});
   const [bannerDrafts, setBannerDrafts] = useState<Record<string, BannerFormState>>({});
@@ -1077,7 +1077,7 @@ export function AdminDashboardPage() {
 
   const renderPromos = () => (
     <div className="space-y-6">
-      <Panel title={translate(language, "adminPromoTitle")}>
+      <Panel title={translate(language, "adminPromoTitle")} description={translate(language, "adminPromoCreateDescription")}>
         <div className="grid gap-4 md:grid-cols-4">
           <input value={promoForm.code} onChange={(event) => setPromoForm({ ...promoForm, code: event.target.value.toUpperCase() })} className="field-input uppercase" placeholder={translate(language, "promoCode")} />
           <select value={promoForm.type} onChange={(event) => setPromoForm({ ...promoForm, type: event.target.value })} className="field-select">
@@ -1087,6 +1087,11 @@ export function AdminDashboardPage() {
           </select>
           <input value={promoForm.value} onChange={(event) => setPromoForm({ ...promoForm, value: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} />
           <input value={promoForm.minimumOrderAmount} onChange={(event) => setPromoForm({ ...promoForm, minimumOrderAmount: event.target.value })} className="field-input" placeholder={translate(language, "subtotal")} />
+          <input value={promoForm.usageLimit} onChange={(event) => setPromoForm({ ...promoForm, usageLimit: event.target.value })} className="field-input" placeholder={translate(language, "adminPromoUsageLimit")} />
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">{translate(language, "adminPromoExpiry")}</label>
+            <input type="date" value={promoForm.expiresAt} onChange={(event) => setPromoForm({ ...promoForm, expiresAt: event.target.value })} className="field-input" />
+          </div>
         </div>
         <button
           onClick={() =>
@@ -1096,13 +1101,19 @@ export function AdminDashboardPage() {
                 type: promoForm.type as PromoCode["type"],
                 value: Number(promoForm.value),
                 minimumOrderAmount: Number(promoForm.minimumOrderAmount),
+                usageLimit: promoForm.usageLimit ? Number(promoForm.usageLimit) : null,
+                expiresAt: promoForm.expiresAt || null,
                 isActive: true,
                 usedCount: 0,
                 productRestrictions: [],
                 categoryRestrictions: [],
                 oneUsePerPhone: true,
               })
-              .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+              .then(async () => {
+                setPromoForm({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "" });
+                await loadAll();
+              })
+              .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
           }
           className="primary-button mt-4"
         >
@@ -1125,7 +1136,7 @@ export function AdminDashboardPage() {
                   ))}
                 </select>
                 <input value={draft.value} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, value: event.target.value } }))} className="field-input" placeholder={translate(language, "adminBasePrice")} />
-                <input value={draft.usageLimit} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, usageLimit: event.target.value } }))} className="field-input" placeholder="Usage limit" />
+                <input value={draft.usageLimit} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, usageLimit: event.target.value } }))} className="field-input" placeholder={translate(language, "adminPromoUsageLimit")} />
                 <input type="date" value={draft.expiresAt} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, expiresAt: event.target.value } }))} className="field-input" />
                 <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
                   <input
@@ -1165,12 +1176,31 @@ export function AdminDashboardPage() {
             );
           }
 
+          const isExpired = Boolean(promo.expiresAt && new Date(promo.expiresAt).getTime() < Date.now());
+          const isExhausted = Boolean(promo.usageLimit && promo.usedCount >= promo.usageLimit);
+
           return (
             <div key={promo._id} className="surface-card p-5">
-              <div className="text-lg font-semibold text-slate-950">{promo.code}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-lg font-semibold text-slate-950">{promo.code}</div>
+                {promo.isActive && !isExpired && !isExhausted ? (
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">{translate(language, "enabled")}</span>
+                ) : (
+                  <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">{translate(language, "disabled")}</span>
+                )}
+              </div>
               <div className="mt-1 text-sm text-slate-500">
                 {promo.type} · {promo.value}
+                {promo.minimumOrderAmount ? ` · ${translate(language, "subtotal")} >= ${formatCurrency(promo.minimumOrderAmount, language)}` : ""}
               </div>
+              <div className="mt-2 text-sm text-slate-500">
+                {translate(language, "adminPromoUsageLimit")}: {promo.usedCount}{promo.usageLimit ? ` / ${promo.usageLimit}` : ` (${translate(language, "adminPromoUnlimited")})`}
+              </div>
+              {promo.expiresAt ? (
+                <div className={`mt-1 text-sm ${isExpired ? "text-rose-600" : "text-slate-500"}`}>
+                  {translate(language, "adminPromoExpiry")}: {formatDate(promo.expiresAt, language)}
+                </div>
+              ) : null}
               <div className="mt-4 flex items-center gap-3">
                 <button onClick={() => setEditingPromoId(promo._id)} className="text-sm font-semibold text-teal-700">
                   {translate(language, "adminEdit")}

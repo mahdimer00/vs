@@ -148,7 +148,12 @@ export function HomePage() {
                 className="flex aspect-square items-center justify-center rounded-2xl border border-slate-100 bg-white p-3 transition hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
                 title={brand.name}
               >
-                <img src={brand.logo} alt={brand.name} className="h-full w-full object-contain" loading="lazy" />
+                <img
+                  src={brand.logo}
+                  alt={brand.name}
+                  className="h-8 w-8 object-contain sm:h-10 sm:w-10 md:h-12 md:w-12"
+                  loading="lazy"
+                />
               </Link>
             ))}
           </div>
