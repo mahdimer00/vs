@@ -15,6 +15,10 @@ export function App() {
     }
   }, [location.search, setAffiliateRef]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+  }, [location.pathname]);
+
   return (
     <MainLayout />
   );

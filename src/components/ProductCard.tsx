@@ -52,10 +52,6 @@ export function ProductCard({ product, language }: { product: Product; language:
           </div>
         </div>
         <div className="space-y-4 p-5">
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-slate-400">
-            <span>{translate(language, "productStock")}</span>
-            <span>{product.stock}</span>
-          </div>
           <div>
             <h3 className="line-clamp-2 text-xl font-semibold text-slate-950">{getLocalizedText(product.name, language)}</h3>
             <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">

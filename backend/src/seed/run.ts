@@ -42,20 +42,22 @@ export async function runSeed() {
     await BrandModel.findOneAndUpdate({ name: brand.name }, { name: brand.name, logo: brand.logo, isActive: true }, { upsert: true, new: true });
   }
 
-  await WebsiteSettingModel.findOneAndUpdate(
-    {},
-    {
+  const hasSettings = (await WebsiteSettingModel.countDocuments()) > 0;
+  if (!hasSettings) {
+    await WebsiteSettingModel.create({
       storeName: "VisaStore",
-      phone: "+213555000000",
-      whatsapp: "+213770000000",
-      socialLinks: { instagram: "https://instagram.com/visastore" },
+      phone: "+213782675328",
+      whatsapp: "+213782675328",
+      socialLinks: {
+        facebook: "https://www.facebook.com/share/18v1h2ptqo/?mibextid=wwXIfr",
+        tiktok: "https://www.tiktok.com/@visastoredz?_r=1&_t=ZS-979mIlGpx0D",
+      },
       defaultLanguage: "ar",
       currency: "DZD",
       aiEnabled: true,
       maintenanceMode: false,
-    },
-    { upsert: true, new: true },
-  );
+    });
+  }
 
   const hasBanners = (await BannerModel.countDocuments()) > 0;
   if (!hasBanners) {

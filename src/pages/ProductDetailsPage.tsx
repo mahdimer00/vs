@@ -316,7 +316,7 @@ export function ProductDetailsPage() {
               </div>
               {lowStock ? (
                 <div className="rounded-full bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 animate-pulse">
-                  {translate(language, "productOnlyLeft")} ({selectedVariant.stock})
+                  {translate(language, "productOnlyLeft")}
                 </div>
               ) : null}
               <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700">
@@ -338,7 +338,9 @@ export function ProductDetailsPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-[1.4rem] border border-teal-100 bg-white/80 px-4 py-4 text-sm shadow-sm">
                 <div className="text-slate-500">{translate(language, "productStock")}</div>
-                <div className="mt-2 font-semibold text-slate-950">{selectedVariant.stock}</div>
+                <div className="mt-2 font-semibold text-emerald-600">
+                  {selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productOutOfStock")}
+                </div>
               </div>
               <div className="rounded-[1.4rem] border border-sky-100 bg-white/80 px-4 py-4 text-sm shadow-sm">
                 <div className="text-slate-500">{translate(language, "deliveryType")}</div>
