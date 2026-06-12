@@ -70,7 +70,7 @@ export function CheckoutPage() {
     if (!commune.trim()) {
       return translate(language, "checkoutValidationCommune");
     }
-    if (deliveryType === "HOME_DELIVERY" && !address.trim()) {
+    if (!address.trim()) {
       return translate(language, "checkoutValidationAddress");
     }
     return "";
@@ -135,7 +135,7 @@ export function CheckoutPage() {
           phone,
           wilayaCode,
           commune,
-          address: deliveryType === "HOME_DELIVERY" ? address : translate(language, "checkoutDeliveryDeskDesc"),
+          address,
         },
         items: cart.map((item) => ({
           productId: item.product._id,
@@ -248,9 +248,7 @@ export function CheckoutPage() {
               </button>
             </div>
 
-            {deliveryType === "HOME_DELIVERY" ? (
-              <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea mt-4" placeholder={translate(language, "address")} />
-            ) : null}
+            <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea mt-4" placeholder={translate(language, "address")} />
           </section>
 
           {siteSettings?.promoCodeEnabled !== false ? (
