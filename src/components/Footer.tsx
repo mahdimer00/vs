@@ -3,7 +3,8 @@ import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
 
 export function Footer() {
-  const { language } = useApp();
+  const { language, siteSettings } = useApp();
+  const storeName = siteSettings?.storeName || "VisaStore";
   const trustItems = [
     { icon: WalletCards, label: translate(language, "trustCod") },
     { icon: Truck, label: translate(language, "trustDelivery") },
@@ -15,7 +16,7 @@ export function Footer() {
     <footer className="border-t border-white/70 bg-white/70 backdrop-blur">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
         <div>
-          <div className="font-serif text-2xl font-semibold text-slate-950">VisaStore</div>
+          <div className="font-serif text-2xl font-semibold text-slate-950">{storeName}</div>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "footerDescription")}</p>
           <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">{translate(language, "footerBadge")}</div>
         </div>

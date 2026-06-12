@@ -32,6 +32,8 @@ const productSchema = new Schema(
     discountPrice: Number,
     specifications: { type: Schema.Types.Mixed, default: {} },
     stock: { type: Number, required: true },
+    condition: { type: String, enum: ["NEW", "USED"], default: "NEW" },
+    adminNote: String,
     status: { type: String, enum: ["ACTIVE", "DRAFT", "ARCHIVED"], default: "ACTIVE" },
     isFeatured: { type: Boolean, default: false },
     affiliateEnabled: { type: Boolean, default: false },

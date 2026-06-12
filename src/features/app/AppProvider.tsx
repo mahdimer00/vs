@@ -1,7 +1,8 @@
 import { createContext, useEffect, useMemo, useState } from "react";
 import { STORAGE_KEYS } from "@/constants/storage";
 import { affiliateService } from "@/services/affiliate.service";
-import type { AuthSession, CartItem, Locale, PendingOrderPayload } from "@/types";
+import { settingsService } from "@/services/settings.service";
+import type { AuthSession, CartItem, Locale, PendingOrderPayload, WebsiteSetting } from "@/types";
 import { buildVariantLabel, getLocalizedText, isRTL } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { readStorage, writeStorage } from "@/utils/storage";
@@ -32,6 +33,7 @@ interface AppContextValue {
   pushToast: (message: string, tone?: "success" | "error") => void;
   dismissToast: (id: number) => void;
   toasts: Toast[];
+  siteSettings: WebsiteSetting | null;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);
@@ -56,6 +58,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
   const [wishlist, setWishlist] = useState<string[]>(() => readStorage(STORAGE_KEYS.wishlist, []));
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [siteSettings, setSiteSettings] = useState<WebsiteSetting | null>(null);
+
+  useEffect(() => {
+    void settingsService
+      .getSettings()
+      .then((data) => setSiteSettings(data))
+      .catch(() => setSiteSettings(null));
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -149,8 +159,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pushToast,
       dismissToast: (id) => setToasts((current) => current.filter((toast) => toast.id !== id)),
       toasts,
+      siteSettings,
     }),
-    [adminSession, affiliateRef, affiliateSession, cart, confirmedOrder, language, pendingOrder, toasts, wishlist],
+    [adminSession, affiliateRef, affiliateSession, cart, confirmedOrder, language, pendingOrder, siteSettings, toasts, wishlist],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

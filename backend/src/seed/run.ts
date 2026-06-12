@@ -41,7 +41,11 @@ export async function runSeed() {
     await BrandModel.findOneAndUpdate({ name: brand }, { name: brand, isActive: true }, { upsert: true, new: true });
   }
 
+  const hasProducts = (await ProductModel.countDocuments()) > 0;
   for (const item of productSeed) {
+    if (hasProducts) {
+      break;
+    }
     const category = await CategoryModel.findOne({ slug: item.category });
     const brand = await BrandModel.findOne({ name: item.brand });
     if (!category || !brand) {
@@ -86,12 +90,15 @@ export async function runSeed() {
     { upsert: true, new: true },
   );
 
-  for (const banner of bannerSeed) {
-    await BannerModel.findOneAndUpdate(
-      { priority: banner.priority },
-      banner,
-      { upsert: true, new: true },
-    );
+  const hasBanners = (await BannerModel.countDocuments()) > 0;
+  if (!hasBanners) {
+    for (const banner of bannerSeed) {
+      await BannerModel.findOneAndUpdate(
+        { priority: banner.priority },
+        banner,
+        { upsert: true, new: true },
+      );
+    }
   }
 
   const existingAffiliate = await AffiliateModel.findOne({ email: env.AFFILIATE_EMAIL.toLowerCase() });

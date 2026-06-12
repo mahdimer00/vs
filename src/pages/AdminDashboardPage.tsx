@@ -39,6 +39,8 @@ type ProductFormState = {
   basePrice: string;
   discountPrice: string;
   stock: string;
+  condition: "NEW" | "USED";
+  adminNote: string;
   affiliateEnabled: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: string;
@@ -58,6 +60,8 @@ const defaultProductForm: ProductFormState = {
   basePrice: "",
   discountPrice: "",
   stock: "1",
+  condition: "NEW",
+  adminNote: "",
   affiliateEnabled: false,
   commissionType: "PERCENTAGE",
   commissionValue: "",
@@ -149,14 +153,14 @@ export function AdminDashboardPage() {
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([{ ...defaultVariantDraft }]);
-  const [categoryForm, setCategoryForm] = useState({ ar: "", fr: "", en: "", slug: "" });
+  const [categoryForm, setCategoryForm] = useState({ ar: "", fr: "", en: "", slug: "", image: "" });
   const [brandForm, setBrandForm] = useState({ name: "", logo: "" });
   const [bannerForm, setBannerForm] = useState<BannerFormState>(defaultBannerForm);
   const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0" });
   const [shippingDrafts, setShippingDrafts] = useState<Record<string, { homeDeliveryFee: string; deskPickupFee: string }>>({});
   const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string }>>({});
   const [bannerDrafts, setBannerDrafts] = useState<Record<string, BannerFormState>>({});
-  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, { ar: string; fr: string; en: string; slug: string; isActive: boolean }>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, { ar: string; fr: string; en: string; slug: string; image: string; isActive: boolean }>>({});
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [brandDrafts, setBrandDrafts] = useState<Record<string, { name: string; logo: string; isActive: boolean }>>({});
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
@@ -294,6 +298,7 @@ export function AdminDashboardPage() {
             fr: category.name.fr,
             en: category.name.en,
             slug: category.slug,
+            image: category.image || "",
             isActive: category.isActive,
           },
         ]),
@@ -395,6 +400,8 @@ export function AdminDashboardPage() {
       basePrice: String(product.basePrice),
       discountPrice: product.discountPrice ? String(product.discountPrice) : "",
       stock: String(product.stock),
+      condition: product.condition || "NEW",
+      adminNote: product.adminNote || "",
       affiliateEnabled: product.affiliateEnabled,
       commissionType: product.commissionType,
       commissionValue: product.commissionValue ? String(product.commissionValue) : "",
@@ -440,6 +447,8 @@ export function AdminDashboardPage() {
       discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
       specifications: {},
       stock: Number(productForm.stock),
+      condition: productForm.condition,
+      adminNote: productForm.adminNote.trim() || undefined,
       status: "ACTIVE",
       isFeatured: false,
       affiliateEnabled: productForm.affiliateEnabled,
@@ -599,6 +608,18 @@ export function AdminDashboardPage() {
           <input value={productForm.basePrice} onChange={(event) => setProductForm({ ...productForm, basePrice: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} />
           <input value={productForm.discountPrice} onChange={(event) => setProductForm({ ...productForm, discountPrice: event.target.value })} className="field-input" placeholder={translate(language, "adminDiscountPrice")} />
           <input value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} className="field-input" placeholder={translate(language, "adminTotalStock")} />
+          <select value={productForm.condition} onChange={(event) => setProductForm({ ...productForm, condition: event.target.value as "NEW" | "USED" })} className="field-select">
+            <option value="NEW">{translate(language, "adminConditionNew")}</option>
+            <option value="USED">{translate(language, "adminConditionUsed")}</option>
+          </select>
+
+          <textarea
+            value={productForm.adminNote}
+            onChange={(event) => setProductForm({ ...productForm, adminNote: event.target.value })}
+            className="field-input md:col-span-2 xl:col-span-4"
+            rows={2}
+            placeholder={translate(language, "adminNotePlaceholder")}
+          />
 
           <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
             <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
@@ -655,7 +676,12 @@ export function AdminDashboardPage() {
             </button>
           </div>
 
-          <button className="primary-button xl:col-span-4">{translate(language, editingProductId ? "adminSave" : "adminCreate")}</button>
+          <div className="flex flex-wrap gap-3 xl:col-span-4">
+            <button className="primary-button">{translate(language, editingProductId ? "adminSave" : "adminCreate")}</button>
+            <button type="button" onClick={cancelEditProduct} className="ghost-button">
+              {translate(language, "adminClearForm")}
+            </button>
+          </div>
         </form>
       </Panel>
 
@@ -704,15 +730,23 @@ export function AdminDashboardPage() {
           <input value={categoryForm.en} onChange={(event) => setCategoryForm({ ...categoryForm, en: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
           <input value={categoryForm.slug} onChange={(event) => setCategoryForm({ ...categoryForm, slug: event.target.value })} className="field-input" placeholder={translate(language, "adminSlug")} />
         </div>
+        <div className="mt-4 max-w-sm">
+          <ImageUploadField token={token} value={categoryForm.image} onChange={(url) => setCategoryForm({ ...categoryForm, image: url })} />
+        </div>
         <button
           onClick={() =>
             void adminService
               .createCategory(token, {
                 name: { ar: categoryForm.ar, fr: categoryForm.fr, en: categoryForm.en },
                 slug: categoryForm.slug,
+                image: categoryForm.image || undefined,
                 isActive: true,
               })
-              .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+              .then(async () => {
+                setCategoryForm({ ar: "", fr: "", en: "", slug: "", image: "" });
+                await loadAll();
+              })
+              .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
           }
           className="primary-button mt-4"
         >
@@ -732,6 +766,7 @@ export function AdminDashboardPage() {
                 <input value={draft.fr} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, fr: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameFr")} />
                 <input value={draft.en} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, en: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
                 <input value={draft.slug} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, slug: event.target.value } }))} className="field-input" placeholder={translate(language, "adminSlug")} />
+                <ImageUploadField token={token} value={draft.image} onChange={(url) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, image: url } }))} />
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() =>
@@ -739,6 +774,7 @@ export function AdminDashboardPage() {
                         .updateCategory(token, category._id, {
                           name: { ar: draft.ar, fr: draft.fr, en: draft.en },
                           slug: draft.slug,
+                          image: draft.image || undefined,
                           isActive: draft.isActive,
                         })
                         .then(async () => {
@@ -761,6 +797,9 @@ export function AdminDashboardPage() {
 
           return (
             <div key={category._id} className="surface-card p-5">
+              {category.image ? (
+                <img src={category.image} alt="" className="mb-3 h-24 w-full rounded-[1rem] object-cover" />
+              ) : null}
               <div className="text-lg font-semibold text-slate-950">{getLocalizedText(category.name, language)}</div>
               <div className="mt-1 text-sm text-slate-500">{category.slug}</div>
               <div className="mt-4 flex items-center gap-3">
@@ -1187,6 +1226,10 @@ export function AdminDashboardPage() {
             <input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} className="field-input" placeholder={translate(language, "phone")} />
             <input value={settings.whatsapp || ""} onChange={(event) => setSettings({ ...settings, whatsapp: event.target.value })} className="field-input" placeholder="WhatsApp" />
             <input value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} className="field-input" placeholder={translate(language, "currency")} />
+          </div>
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">{translate(language, "adminSiteLogo")}</label>
+            <ImageUploadField token={token} value={settings.logo || ""} onChange={(url) => setSettings({ ...settings, logo: url })} />
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <button onClick={() => setSettings({ ...settings, aiEnabled: !settings.aiEnabled })} className="ghost-button">

@@ -57,8 +57,10 @@ export interface Product {
   basePrice: number;
   discountPrice?: number | null;
   variants: ProductVariant[];
-  specifications: Record<string, string>;
+  specifications?: Record<string, string>;
   stock: number;
+  condition: "NEW" | "USED";
+  adminNote?: string;
   status: "ACTIVE" | "DRAFT" | "ARCHIVED";
   isFeatured: boolean;
   affiliateEnabled: boolean;

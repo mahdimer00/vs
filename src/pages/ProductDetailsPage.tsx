@@ -11,6 +11,26 @@ import type { Product, ProductVariant } from "@/types";
 import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
+function hashSeed(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) % 97;
+  }
+  return hash;
+}
+
+function getTimeUntilMidnight(): { hours: number; minutes: number; seconds: number } {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const diff = Math.max(0, midnight.getTime() - now.getTime());
+  return {
+    hours: Math.floor(diff / (1000 * 60 * 60)),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
+    seconds: Math.floor((diff / 1000) % 60),
+  };
+}
+
 function pickMatchingVariant(
   variants: ProductVariant[],
   next: { ram?: string; storage?: string; color?: string },
@@ -47,6 +67,12 @@ export function ProductDetailsPage() {
   const [answer, setAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [countdown, setCountdown] = useState(getTimeUntilMidnight());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCountdown(getTimeUntilMidnight()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!slug) {
@@ -132,6 +158,8 @@ export function ProductDetailsPage() {
   const gallery = selectedVariant.images.length ? selectedVariant.images : product.images;
   const saving = Math.max(0, product.basePrice - price);
   const lowStock = selectedVariant.stock <= 5;
+  const viewerCount = 8 + hashSeed(product._id);
+  const pad = (value: number) => String(value).padStart(2, "0");
 
   const selectVariantBy = (change: { ram?: string; storage?: string; color?: string }) => {
     const nextVariant = pickMatchingVariant(product.variants, {
@@ -254,11 +282,22 @@ export function ProductDetailsPage() {
               <span className="text-emerald-600">{translate(language, "productInStock")}</span>
               <span>•</span>
               <span className="text-amber-600">{translate(language, "productBestChoice")}</span>
+              <span>•</span>
+              <span className={product.condition === "USED" ? "text-orange-600" : "text-teal-600"}>
+                {translate(language, product.condition === "USED" ? "productConditionUsed" : "productConditionNew")}
+              </span>
             </div>
             <h1 className="mt-3 font-serif text-4xl font-semibold leading-tight text-slate-950">
               {getLocalizedText(product.name, language)}
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-600">{getLocalizedText(product.description, language)}</p>
+
+            {product.adminNote ? (
+              <div className="mt-4 rounded-[1.4rem] border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
+                <span className="font-semibold">⚠️ {translate(language, "productAdminNoteTitle")}: </span>
+                {product.adminNote}
+              </div>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap items-end gap-4">
               <div className="text-4xl font-bold text-slate-950">
@@ -276,11 +315,25 @@ export function ProductDetailsPage() {
                 {translate(language, "productFastDecision")}
               </div>
               {lowStock ? (
-                <div className="rounded-full bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700">
+                <div className="rounded-full bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 animate-pulse">
                   {translate(language, "productOnlyLeft")} ({selectedVariant.stock})
                 </div>
               ) : null}
+              <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700">
+                👀 {viewerCount} {translate(language, "productViewingNow")}
+              </div>
             </div>
+
+            {saving > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[1.4rem] border border-rose-200 bg-gradient-to-r from-rose-50 to-amber-50 px-4 py-3">
+                <span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  {translate(language, "productHotDeal")}
+                </span>
+                <span className="text-sm font-semibold text-slate-700">
+                  {translate(language, "productOfferEndsIn")} {pad(countdown.hours)}:{pad(countdown.minutes)}:{pad(countdown.seconds)}
+                </span>
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-[1.4rem] border border-teal-100 bg-white/80 px-4 py-4 text-sm shadow-sm">
@@ -415,7 +468,7 @@ export function ProductDetailsPage() {
         <div className="surface-card p-6">
           <h2 className="text-lg font-semibold text-slate-950">{translate(language, "productSpecifications")}</h2>
           <div className="mt-4 grid gap-3">
-            {Object.entries(product.specifications).map(([key, value]) => (
+            {Object.entries(product.specifications ?? {}).map(([key, value]) => (
               <div
                 key={key}
                 className="flex items-center justify-between rounded-[1.35rem] border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm"

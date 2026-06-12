@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { roleMiddleware } from "../../middleware/role.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
-import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel } from "../../models/catalog.model.js";
+import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 
 const router = Router();
 
@@ -18,6 +18,8 @@ const productSchema = z.object({
   discountPrice: z.number().nonnegative().optional(),
   specifications: z.record(z.string(), z.string()).default({}),
   stock: z.number().nonnegative(),
+  condition: z.enum(["NEW", "USED"]).default("NEW"),
+  adminNote: z.string().optional(),
   status: z.enum(["ACTIVE", "DRAFT", "ARCHIVED"]).default("ACTIVE"),
   isFeatured: z.boolean().default(false),
   affiliateEnabled: z.boolean().default(false),
@@ -137,6 +139,15 @@ router.delete(
 
 router.get("/categories", asyncHandler(async (_req, res) => res.json(await CategoryModel.find().lean())));
 router.get("/brands", asyncHandler(async (_req, res) => res.json(await BrandModel.find().lean())));
+router.get(
+  "/settings",
+  asyncHandler(async (_req, res) => {
+    const settings = await WebsiteSettingModel.findOne()
+      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode")
+      .lean();
+    return res.json(settings);
+  }),
+);
 router.get("/admin/banners", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
   return res.json(await BannerModel.find().sort({ priority: 1, createdAt: -1 }).lean());
 }));

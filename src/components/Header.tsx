@@ -5,8 +5,9 @@ import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
 
 export function Header() {
-  const { cart, language, setLanguage, wishlist } = useApp();
+  const { cart, language, setLanguage, wishlist, siteSettings } = useApp();
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const storeName = siteSettings?.storeName || "VisaStore";
   const links = [
     { to: "/", label: translate(language, "home") },
     { to: "/products", label: translate(language, "products") },
@@ -20,11 +21,15 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-[1.25rem] bg-gradient-to-br from-amber-300 via-orange-400 to-teal-500 text-sm font-extrabold text-slate-950 shadow-lg shadow-amber-300/35">
-              VS
-            </div>
+            {siteSettings?.logo ? (
+              <img src={siteSettings.logo} alt={storeName} className="h-12 w-12 rounded-[1.25rem] object-cover shadow-lg shadow-amber-300/35" />
+            ) : (
+              <div className="grid h-12 w-12 place-items-center rounded-[1.25rem] bg-gradient-to-br from-amber-300 via-orange-400 to-teal-500 text-sm font-extrabold text-slate-950 shadow-lg shadow-amber-300/35">
+                VS
+              </div>
+            )}
             <div>
-              <div className="font-serif text-xl font-semibold tracking-wide text-slate-950">VisaStore</div>
+              <div className="font-serif text-xl font-semibold tracking-wide text-slate-950">{storeName}</div>
               <div className="text-xs uppercase tracking-[0.28em] text-slate-500">Algerian tech commerce</div>
             </div>
           </Link>

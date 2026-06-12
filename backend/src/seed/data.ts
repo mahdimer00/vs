@@ -66,7 +66,28 @@ export const categorySeed = [
   { slug: "accessories", name: { ar: "ملحقات", fr: "Accessoires", en: "Accessories" } },
 ];
 
-export const brandSeed = ["Samsung", "Apple", "Lenovo", "Logitech", "Xiaomi", "HP"];
+export const brandSeed = [
+  "Samsung",
+  "Apple",
+  "Lenovo",
+  "Logitech",
+  "Xiaomi",
+  "HP",
+  "Dell",
+  "Asus",
+  "Acer",
+  "Huawei",
+  "Honor",
+  "Oppo",
+  "Vivo",
+  "Realme",
+  "Infinix",
+  "Tecno",
+  "Sony",
+  "LG",
+  "JBL",
+  "Anker",
+];
 
 export const bannerSeed = [
   {

@@ -22,8 +22,23 @@ import { AppError } from "./utils/app-error.js";
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
 fs.mkdirSync(uploadDir, { recursive: true });
+
+const mimeToExtension: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/avif": ".avif",
+};
+
 const upload = multer({
-  dest: uploadDir,
+  storage: multer.diskStorage({
+    destination: uploadDir,
+    filename(_req, file, callback) {
+      const extension = mimeToExtension[file.mimetype] ?? path.extname(file.originalname) ?? "";
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+      callback(null, uniqueName);
+    },
+  }),
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
