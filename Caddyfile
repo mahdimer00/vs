@@ -1,0 +1,5 @@
+api.visadz.store {
+	encode gzip
+	reverse_proxy backend:4000
+}
+

@@ -1,0 +1,1336 @@
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { EmptyState } from "@/components/EmptyState";
+import { ImageUploadField } from "@/components/ImageUploadField";
+import { LoadingState } from "@/components/LoadingState";
+import { StatusBadge } from "@/components/StatusBadge";
+import { useApp } from "@/hooks/useApp";
+import { DashboardShell } from "@/layout/DashboardShell";
+import { ApiError } from "@/services/apiClient";
+import { adminService } from "@/services/admin.service";
+import { productService } from "@/services/product.service";
+import type {
+  Affiliate,
+  Banner,
+  Brand,
+  Category,
+  Commission,
+  DashboardStats,
+  Order,
+  Product,
+  PromoCode,
+  WebsiteSetting,
+  Wilaya,
+} from "@/types";
+import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
+import { translate } from "@/utils/i18n";
+
+type ProductFormState = {
+  nameAr: string;
+  nameFr: string;
+  nameEn: string;
+  descriptionAr: string;
+  descriptionFr: string;
+  descriptionEn: string;
+  slug: string;
+  categoryId: string;
+  brandId: string;
+  images: string[];
+  basePrice: string;
+  discountPrice: string;
+  stock: string;
+  affiliateEnabled: boolean;
+  commissionType: "PERCENTAGE" | "FIXED";
+  commissionValue: string;
+};
+
+const defaultProductForm: ProductFormState = {
+  nameAr: "",
+  nameFr: "",
+  nameEn: "",
+  descriptionAr: "",
+  descriptionFr: "",
+  descriptionEn: "",
+  slug: "",
+  categoryId: "",
+  brandId: "",
+  images: [""],
+  basePrice: "",
+  discountPrice: "",
+  stock: "1",
+  affiliateEnabled: false,
+  commissionType: "PERCENTAGE",
+  commissionValue: "",
+};
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+type VariantDraft = {
+  ram: string;
+  storage: string;
+  color: string;
+  price: string;
+  stock: string;
+};
+
+const defaultVariantDraft: VariantDraft = {
+  ram: "",
+  storage: "",
+  color: "",
+  price: "",
+  stock: "",
+};
+
+type BannerFormState = {
+  titleAr: string;
+  titleFr: string;
+  titleEn: string;
+  image: string;
+  link: string;
+  priority: string;
+  isActive: boolean;
+};
+
+const defaultBannerForm: BannerFormState = {
+  titleAr: "",
+  titleFr: "",
+  titleEn: "",
+  image: "",
+  link: "",
+  priority: "1",
+  isActive: true,
+};
+
+function Panel({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="surface-card p-6">
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
+        {description ? <p className="mt-2 text-sm leading-7 text-slate-600">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function AdminDashboardPage() {
+  const location = useLocation();
+  const tab = location.pathname.replace("/admin", "").replace(/^\//, "") || "dashboard";
+  const { adminSession, setAdminSession, language, pushToast } = useApp();
+  const token = adminSession?.token ?? "";
+
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [wilayas, setWilayas] = useState<Wilaya[]>([]);
+  const [promos, setPromos] = useState<PromoCode[]>([]);
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [settings, setSettings] = useState<WebsiteSetting | null>(null);
+
+  const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
+  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([{ ...defaultVariantDraft }]);
+  const [categoryForm, setCategoryForm] = useState({ ar: "", fr: "", en: "", slug: "" });
+  const [brandForm, setBrandForm] = useState({ name: "", logo: "" });
+  const [bannerForm, setBannerForm] = useState<BannerFormState>(defaultBannerForm);
+  const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0" });
+  const [shippingDrafts, setShippingDrafts] = useState<Record<string, { homeDeliveryFee: string; deskPickupFee: string }>>({});
+  const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string }>>({});
+  const [bannerDrafts, setBannerDrafts] = useState<Record<string, BannerFormState>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, { ar: string; fr: string; en: string; slug: string; isActive: boolean }>>({});
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [brandDrafts, setBrandDrafts] = useState<Record<string, { name: string; logo: string; isActive: boolean }>>({});
+  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
+  const [promoDrafts, setPromoDrafts] = useState<Record<string, { type: string; value: string; usageLimit: string; expiresAt: string; isActive: boolean }>>({});
+  const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [orderFilters, setOrderFilters] = useState({
+    status: "all",
+    wilaya: "all",
+    date: "",
+    phone: "",
+  });
+
+  const links = [
+    { href: "/admin", label: translate(language, "dashboard") },
+    { href: "/admin/products", label: translate(language, "products") },
+    { href: "/admin/categories", label: translate(language, "categories") },
+    { href: "/admin/brands", label: translate(language, "brands") },
+    { href: "/admin/orders", label: translate(language, "orders") },
+    { href: "/admin/shipping", label: translate(language, "shippingFees") },
+    { href: "/admin/promo-codes", label: translate(language, "promoCodes") },
+    { href: "/admin/affiliates", label: translate(language, "affiliates") },
+    { href: "/admin/commissions", label: translate(language, "commissions") },
+    { href: "/admin/settings", label: translate(language, "settings") },
+  ];
+
+  const loadAll = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      const [
+        statsData,
+        productData,
+        categoryData,
+        brandData,
+        bannerData,
+        orderData,
+        wilayaData,
+        promoData,
+        affiliateData,
+        commissionData,
+        settingsData,
+      ] = await Promise.all([
+        adminService.getStats(token),
+        productService.getProducts(),
+        adminService.getCategories(),
+        adminService.getBrands(),
+        adminService.getBanners(token),
+        adminService.getOrders(token),
+        adminService.getWilayas(),
+        adminService.getPromoCodes(token),
+        adminService.getAffiliates(token),
+        adminService.getCommissions(token),
+        adminService.getSettings(token),
+      ]);
+
+      setStats(statsData);
+      setProducts(productData);
+      setCategories(categoryData);
+      setBrands(brandData);
+      setBanners(bannerData);
+      setOrders(orderData);
+      setWilayas(wilayaData);
+      setPromos(promoData);
+      setAffiliates(affiliateData);
+      setCommissions(commissionData);
+      setSettings(settingsData);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to load admin data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      void loadAll();
+    }
+  }, [token]);
+
+  useEffect(() => {
+    setShippingDrafts(
+      Object.fromEntries(
+        wilayas.map((wilaya) => [
+          wilaya._id,
+          {
+            homeDeliveryFee: String(wilaya.homeDeliveryFee),
+            deskPickupFee: String(wilaya.deskPickupFee),
+          },
+        ]),
+      ),
+    );
+  }, [wilayas]);
+
+  useEffect(() => {
+    setAffiliateDrafts(
+      Object.fromEntries(
+        affiliates.map((affiliate) => [
+          affiliate._id,
+          {
+            status: affiliate.status,
+            commissionRate: String(affiliate.commissionRate),
+          },
+        ]),
+      ),
+    );
+  }, [affiliates]);
+
+  useEffect(() => {
+    setBannerDrafts(
+      Object.fromEntries(
+        banners.map((banner) => [
+          banner._id,
+          {
+            titleAr: banner.title.ar,
+            titleFr: banner.title.fr,
+            titleEn: banner.title.en,
+            image: banner.image,
+            link: banner.link || "",
+            priority: String(banner.priority),
+            isActive: banner.isActive,
+          },
+        ]),
+      ),
+    );
+  }, [banners]);
+
+  useEffect(() => {
+    setCategoryDrafts(
+      Object.fromEntries(
+        categories.map((category) => [
+          category._id,
+          {
+            ar: category.name.ar,
+            fr: category.name.fr,
+            en: category.name.en,
+            slug: category.slug,
+            isActive: category.isActive,
+          },
+        ]),
+      ),
+    );
+  }, [categories]);
+
+  useEffect(() => {
+    setBrandDrafts(
+      Object.fromEntries(
+        brands.map((brand) => [
+          brand._id,
+          {
+            name: brand.name,
+            logo: brand.logo || "",
+            isActive: brand.isActive,
+          },
+        ]),
+      ),
+    );
+  }, [brands]);
+
+  useEffect(() => {
+    setPromoDrafts(
+      Object.fromEntries(
+        promos.map((promo) => [
+          promo._id,
+          {
+            type: promo.type,
+            value: String(promo.value),
+            usageLimit: promo.usageLimit ? String(promo.usageLimit) : "",
+            expiresAt: promo.expiresAt ? promo.expiresAt.slice(0, 10) : "",
+            isActive: promo.isActive,
+          },
+        ]),
+      ),
+    );
+  }, [promos]);
+
+  const ordersById = useMemo(() => new Map(orders.map((order) => [order._id, order])), [orders]);
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const wilayaLabel =
+        typeof order.customer.wilaya === "string"
+          ? order.customer.wilaya
+          : language === "ar"
+            ? order.customer.wilaya.name.ar
+            : language === "fr"
+              ? order.customer.wilaya.name.fr
+              : order.customer.wilaya.name.en;
+
+      return (
+        (orderFilters.status === "all" || order.status === orderFilters.status) &&
+        (orderFilters.wilaya === "all" || wilayaLabel === orderFilters.wilaya) &&
+        (!orderFilters.phone || order.customer.phone.includes(orderFilters.phone)) &&
+        (!orderFilters.date || order.createdAt.slice(0, 10) >= orderFilters.date)
+      );
+    });
+  }, [language, orderFilters, orders]);
+
+  if (loading) {
+    return <LoadingState label={translate(language, "loading")} />;
+  }
+
+  if (errorMessage) {
+    return (
+      <DashboardShell
+        title={translate(language, "dashboard")}
+        description={translate(language, "authAdminDescription")}
+        links={links}
+        onLogout={() => setAdminSession(null)}
+      >
+        <EmptyState
+          title={translate(language, "adminDataLoadErrorTitle")}
+          description={errorMessage}
+          action={
+            <button onClick={() => void loadAll()} className="primary-button">
+              {translate(language, "adminRetry")}
+            </button>
+          }
+        />
+      </DashboardShell>
+    );
+  }
+
+  const startEditProduct = (product: Product) => {
+    setEditingProductId(product._id);
+    setProductForm({
+      nameAr: product.name.ar,
+      nameFr: product.name.fr,
+      nameEn: product.name.en,
+      descriptionAr: product.description.ar,
+      descriptionFr: product.description.fr,
+      descriptionEn: product.description.en,
+      slug: product.slug,
+      categoryId: typeof product.category === "string" ? product.category : product.category._id,
+      brandId: typeof product.brand === "string" ? product.brand : product.brand._id,
+      images: product.images.length > 0 ? product.images : [""],
+      basePrice: String(product.basePrice),
+      discountPrice: product.discountPrice ? String(product.discountPrice) : "",
+      stock: String(product.stock),
+      affiliateEnabled: product.affiliateEnabled,
+      commissionType: product.commissionType,
+      commissionValue: product.commissionValue ? String(product.commissionValue) : "",
+    });
+    setVariantDrafts(
+      product.variants.length > 0
+        ? product.variants.map((variant) => ({
+            ram: variant.ram || "",
+            storage: variant.storage || "",
+            color: variant.color || "",
+            price: String(variant.price),
+            stock: String(variant.stock),
+          }))
+        : [{ ...defaultVariantDraft }],
+    );
+  };
+
+  const cancelEditProduct = () => {
+    setEditingProductId(null);
+    setProductForm(defaultProductForm);
+    setVariantDrafts([{ ...defaultVariantDraft }]);
+  };
+
+  const submitProduct = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const images = productForm.images.map((image) => image.trim()).filter(Boolean);
+    if (images.length === 0) {
+      pushToast(translate(language, "adminActionError"), "error");
+      return;
+    }
+
+    const slug = productForm.slug.trim() || slugify(productForm.nameEn || productForm.nameFr || productForm.nameAr);
+    const filledDrafts = variantDrafts.filter((draft) => draft.ram || draft.storage || draft.color || draft.price || draft.stock);
+    const variantSource = filledDrafts.length > 0 ? filledDrafts : [defaultVariantDraft];
+    const basePayload = {
+      name: { ar: productForm.nameAr, fr: productForm.nameFr, en: productForm.nameEn },
+      description: { ar: productForm.descriptionAr, fr: productForm.descriptionFr, en: productForm.descriptionEn },
+      slug,
+      category: productForm.categoryId,
+      brand: productForm.brandId,
+      images,
+      basePrice: Number(productForm.basePrice),
+      discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
+      specifications: {},
+      stock: Number(productForm.stock),
+      status: "ACTIVE",
+      isFeatured: false,
+      affiliateEnabled: productForm.affiliateEnabled,
+      commissionType: productForm.commissionType,
+      commissionValue: Number(productForm.commissionValue || 0),
+      variants: variantSource.map((draft, index) => ({
+        sku: `${slug}-${String(index + 1).padStart(3, "0")}`,
+        ram: draft.ram || undefined,
+        storage: draft.storage || undefined,
+        color: draft.color || undefined,
+        price: Number(draft.price || productForm.basePrice),
+        stock: Number(draft.stock || productForm.stock),
+        images,
+      })),
+    };
+
+    try {
+      if (editingProductId) {
+        await adminService.updateProduct(token, editingProductId, basePayload);
+        cancelEditProduct();
+      } else {
+        await adminService.createProduct(token, basePayload);
+        setProductForm(defaultProductForm);
+        setVariantDrafts([{ ...defaultVariantDraft }]);
+      }
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    }
+  };
+
+  const updateProductImage = (index: number, url: string) => {
+    setProductForm((current) => ({
+      ...current,
+      images: current.images.map((image, imageIndex) => (imageIndex === index ? url : image)),
+    }));
+  };
+
+  const addProductImage = () => {
+    setProductForm((current) => ({ ...current, images: [...current.images, ""] }));
+  };
+
+  const removeProductImage = (index: number) => {
+    setProductForm((current) => ({
+      ...current,
+      images: current.images.length > 1 ? current.images.filter((_, imageIndex) => imageIndex !== index) : current.images,
+    }));
+  };
+
+  const updateVariantDraft = (index: number, patch: Partial<VariantDraft>) => {
+    setVariantDrafts((current) => current.map((draft, draftIndex) => (draftIndex === index ? { ...draft, ...patch } : draft)));
+  };
+
+  const renderDashboard = () =>
+    stats ? (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            [translate(language, "orders"), String(stats.totalOrders)],
+            [translate(language, "dashboardPending"), String(stats.pendingOrders)],
+            [translate(language, "dashboardDelivered"), String(stats.deliveredOrders)],
+            [translate(language, "dashboardRevenue"), formatCurrency(stats.revenue, language)],
+          ].map(([label, value]) => (
+            <div key={label} className="stat-card">
+              <div className="text-sm text-slate-500">{label}</div>
+              <div className="mt-3 text-3xl font-semibold text-slate-950">{value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Panel title={translate(language, "dashboardLowStock")}>
+            <div className="space-y-3">
+              {stats.lowStockProducts.map((product) => (
+                <div key={product._id} className="muted-card flex items-center justify-between px-4 py-3 text-sm">
+                  <span>{getLocalizedText(product.name, language)}</span>
+                  <span className="font-semibold text-slate-900">{product.stock}</span>
+                </div>
+              ))}
+            </div>
+          </Panel>
+          <Panel title={translate(language, "dashboardTopProducts")}>
+            <div className="space-y-3">
+              {stats.topProducts.map((product) => (
+                <div key={product._id} className="muted-card flex items-center justify-between px-4 py-3 text-sm">
+                  <span>{getLocalizedText(product.name, language)}</span>
+                  <span className="font-semibold text-slate-900">{formatCurrency(product.basePrice, language)}</span>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+      </div>
+    ) : null;
+
+  const renderProducts = () => (
+    <div className="space-y-6">
+      <Panel title={editingProductId ? translate(language, "adminEditingProduct") : translate(language, "adminProductCreate")} description={translate(language, "adminProductsTitle")}>
+        {editingProductId ? (
+          <div className="mb-4 flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span>{translate(language, "adminEditingProductHint")}</span>
+            <button type="button" onClick={cancelEditProduct} className="font-semibold underline">
+              {translate(language, "adminCancel")}
+            </button>
+          </div>
+        ) : null}
+        <form onSubmit={submitProduct} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <input value={productForm.nameAr} onChange={(event) => setProductForm({ ...productForm, nameAr: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameAr")} />
+          <input value={productForm.nameFr} onChange={(event) => setProductForm({ ...productForm, nameFr: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameFr")} />
+          <input value={productForm.nameEn} onChange={(event) => setProductForm({ ...productForm, nameEn: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
+          <div className="md:col-span-2 xl:col-span-1">
+            <input value={productForm.slug} onChange={(event) => setProductForm({ ...productForm, slug: event.target.value })} className="field-input w-full" placeholder={translate(language, "adminSlug")} />
+            <p className="mt-1 text-xs leading-5 text-slate-500">{translate(language, "adminSlugHint")}</p>
+          </div>
+          <select value={productForm.categoryId} onChange={(event) => setProductForm({ ...productForm, categoryId: event.target.value })} className="field-select">
+            <option value="">{translate(language, "adminCategory")}</option>
+            {categories.map((category) => (
+              <option key={category._id} value={category._id}>
+                {getLocalizedText(category.name, language)}
+              </option>
+            ))}
+          </select>
+          <select value={productForm.brandId} onChange={(event) => setProductForm({ ...productForm, brandId: event.target.value })} className="field-select">
+            <option value="">{translate(language, "adminBrand")}</option>
+            {brands.map((brand) => (
+              <option key={brand._id} value={brand._id}>
+                {brand.name}
+              </option>
+            ))}
+          </select>
+
+          <textarea value={productForm.descriptionAr} onChange={(event) => setProductForm({ ...productForm, descriptionAr: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionAr")} />
+          <textarea value={productForm.descriptionFr} onChange={(event) => setProductForm({ ...productForm, descriptionFr: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionFr")} />
+          <textarea value={productForm.descriptionEn} onChange={(event) => setProductForm({ ...productForm, descriptionEn: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionEn")} />
+
+          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+            <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductImages")}</div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {productForm.images.map((image, index) => (
+                <div key={index} className="space-y-2">
+                  <ImageUploadField token={token} value={image} onChange={(url) => updateProductImage(index, url)} />
+                  <button
+                    type="button"
+                    onClick={() => removeProductImage(index)}
+                    disabled={productForm.images.length <= 1}
+                    className="text-sm font-semibold text-rose-600 disabled:opacity-30"
+                  >
+                    {translate(language, "adminRemoveImage")}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addProductImage} className="ghost-button">
+              {translate(language, "adminAddImage")}
+            </button>
+          </div>
+
+          <input value={productForm.basePrice} onChange={(event) => setProductForm({ ...productForm, basePrice: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} />
+          <input value={productForm.discountPrice} onChange={(event) => setProductForm({ ...productForm, discountPrice: event.target.value })} className="field-input" placeholder={translate(language, "adminDiscountPrice")} />
+          <input value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} className="field-input" placeholder={translate(language, "adminTotalStock")} />
+
+          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+            <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                checked={productForm.affiliateEnabled}
+                onChange={(event) => setProductForm({ ...productForm, affiliateEnabled: event.target.checked })}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              {translate(language, "adminAffiliateProgramLabel")}
+            </label>
+            {productForm.affiliateEnabled ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <select
+                  value={productForm.commissionType}
+                  onChange={(event) => setProductForm({ ...productForm, commissionType: event.target.value as "PERCENTAGE" | "FIXED" })}
+                  className="field-select"
+                >
+                  <option value="PERCENTAGE">{translate(language, "adminCommissionTypePercentage")}</option>
+                  <option value="FIXED">{translate(language, "adminCommissionTypeFixed")}</option>
+                </select>
+                <input
+                  value={productForm.commissionValue}
+                  onChange={(event) => setProductForm({ ...productForm, commissionValue: event.target.value })}
+                  className="field-input"
+                  placeholder={translate(language, "adminCommissionValue")}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+            <div className="text-sm font-semibold text-slate-700">{translate(language, "adminVariantsTitle")}</div>
+            <p className="text-xs leading-6 text-slate-500">{translate(language, "adminVariantsHint")}</p>
+            {variantDrafts.map((draft, index) => (
+              <div key={index} className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <input value={draft.ram} onChange={(event) => updateVariantDraft(index, { ram: event.target.value })} className="field-input" placeholder={translate(language, "adminRam")} />
+                <input value={draft.storage} onChange={(event) => updateVariantDraft(index, { storage: event.target.value })} className="field-input" placeholder={translate(language, "adminStorage")} />
+                <input value={draft.color} onChange={(event) => updateVariantDraft(index, { color: event.target.value })} className="field-input" placeholder={translate(language, "adminColor")} />
+                <input value={draft.price} onChange={(event) => updateVariantDraft(index, { price: event.target.value })} className="field-input" placeholder={translate(language, "adminVariantPrice")} />
+                <input value={draft.stock} onChange={(event) => updateVariantDraft(index, { stock: event.target.value })} className="field-input" placeholder={translate(language, "adminVariantStock")} />
+                <button
+                  type="button"
+                  onClick={() => setVariantDrafts((current) => current.filter((_, draftIndex) => draftIndex !== index))}
+                  disabled={variantDrafts.length <= 1}
+                  className="text-sm font-semibold text-rose-600 disabled:opacity-30"
+                >
+                  {translate(language, "adminRemoveVariant")}
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setVariantDrafts((current) => [...current, { ...defaultVariantDraft }])} className="ghost-button">
+              {translate(language, "adminAddVariant")}
+            </button>
+          </div>
+
+          <button className="primary-button xl:col-span-4">{translate(language, editingProductId ? "adminSave" : "adminCreate")}</button>
+        </form>
+      </Panel>
+
+      <div className="table-wrap">
+        <table className="table-base">
+          <thead>
+            <tr>
+              <th>{translate(language, "products")}</th>
+              <th>{translate(language, "adminBrand")}</th>
+              <th>{translate(language, "adminBasePrice")}</th>
+              <th>{translate(language, "productStock")}</th>
+              <th>{translate(language, "settings")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((product) => (
+              <tr key={product._id}>
+                <td>{getLocalizedText(product.name, language)}</td>
+                <td>{typeof product.brand === "string" ? product.brand : product.brand.name}</td>
+                <td>{formatCurrency(product.basePrice, language)}</td>
+                <td>{product.stock}</td>
+                <td>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => startEditProduct(product)} className="text-sm font-semibold text-teal-700">
+                      {translate(language, "adminEdit")}
+                    </button>
+                    <button onClick={() => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                      {translate(language, "adminDelete")}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderCategories = () => (
+    <div className="space-y-6">
+      <Panel title={translate(language, "adminCategoriesTitle")}>
+        <div className="grid gap-4 md:grid-cols-4">
+          <input value={categoryForm.ar} onChange={(event) => setCategoryForm({ ...categoryForm, ar: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameAr")} />
+          <input value={categoryForm.fr} onChange={(event) => setCategoryForm({ ...categoryForm, fr: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameFr")} />
+          <input value={categoryForm.en} onChange={(event) => setCategoryForm({ ...categoryForm, en: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
+          <input value={categoryForm.slug} onChange={(event) => setCategoryForm({ ...categoryForm, slug: event.target.value })} className="field-input" placeholder={translate(language, "adminSlug")} />
+        </div>
+        <button
+          onClick={() =>
+            void adminService
+              .createCategory(token, {
+                name: { ar: categoryForm.ar, fr: categoryForm.fr, en: categoryForm.en },
+                slug: categoryForm.slug,
+                isActive: true,
+              })
+              .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+          }
+          className="primary-button mt-4"
+        >
+          {translate(language, "adminCreate")}
+        </button>
+      </Panel>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {categories.map((category) => {
+          const draft = categoryDrafts[category._id];
+          const isEditing = editingCategoryId === category._id;
+
+          if (isEditing && draft) {
+            return (
+              <div key={category._id} className="surface-card space-y-3 p-5">
+                <input value={draft.ar} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, ar: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameAr")} />
+                <input value={draft.fr} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, fr: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameFr")} />
+                <input value={draft.en} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, en: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
+                <input value={draft.slug} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, slug: event.target.value } }))} className="field-input" placeholder={translate(language, "adminSlug")} />
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() =>
+                      void adminService
+                        .updateCategory(token, category._id, {
+                          name: { ar: draft.ar, fr: draft.fr, en: draft.en },
+                          slug: draft.slug,
+                          isActive: draft.isActive,
+                        })
+                        .then(async () => {
+                          setEditingCategoryId(null);
+                          await loadAll();
+                        })
+                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                    }
+                    className="primary-button"
+                  >
+                    {translate(language, "adminSave")}
+                  </button>
+                  <button type="button" onClick={() => setEditingCategoryId(null)} className="ghost-button">
+                    {translate(language, "adminCancel")}
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={category._id} className="surface-card p-5">
+              <div className="text-lg font-semibold text-slate-950">{getLocalizedText(category.name, language)}</div>
+              <div className="mt-1 text-sm text-slate-500">{category.slug}</div>
+              <div className="mt-4 flex items-center gap-3">
+                <button onClick={() => setEditingCategoryId(category._id)} className="text-sm font-semibold text-teal-700">
+                  {translate(language, "adminEdit")}
+                </button>
+                <button onClick={() => void adminService.deleteCategory(token, category._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                  {translate(language, "adminDelete")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderBrands = () => (
+    <div className="space-y-6">
+      <Panel title={translate(language, "adminBrandsTitle")}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <input value={brandForm.name} onChange={(event) => setBrandForm({ ...brandForm, name: event.target.value })} className="field-input" placeholder={translate(language, "adminBrand")} />
+          <ImageUploadField token={token} value={brandForm.logo} onChange={(url) => setBrandForm({ ...brandForm, logo: url })} />
+        </div>
+        <button onClick={() => void adminService.createBrand(token, { ...brandForm, isActive: true }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button mt-4">
+          {translate(language, "adminCreate")}
+        </button>
+      </Panel>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {brands.map((brand) => {
+          const draft = brandDrafts[brand._id];
+          const isEditing = editingBrandId === brand._id;
+
+          if (isEditing && draft) {
+            return (
+              <div key={brand._id} className="surface-card space-y-3 p-5">
+                <input value={draft.name} onChange={(event) => setBrandDrafts((current) => ({ ...current, [brand._id]: { ...draft, name: event.target.value } }))} className="field-input" placeholder={translate(language, "adminBrand")} />
+                <ImageUploadField token={token} value={draft.logo} onChange={(url) => setBrandDrafts((current) => ({ ...current, [brand._id]: { ...draft, logo: url } }))} />
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() =>
+                      void adminService
+                        .updateBrand(token, brand._id, { name: draft.name, logo: draft.logo, isActive: draft.isActive })
+                        .then(async () => {
+                          setEditingBrandId(null);
+                          await loadAll();
+                        })
+                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                    }
+                    className="primary-button"
+                  >
+                    {translate(language, "adminSave")}
+                  </button>
+                  <button type="button" onClick={() => setEditingBrandId(null)} className="ghost-button">
+                    {translate(language, "adminCancel")}
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={brand._id} className="surface-card p-5">
+              <div className="text-lg font-semibold text-slate-950">{brand.name}</div>
+              <div className="mt-4 flex items-center gap-3">
+                <button onClick={() => setEditingBrandId(brand._id)} className="text-sm font-semibold text-teal-700">
+                  {translate(language, "adminEdit")}
+                </button>
+                <button onClick={() => void adminService.deleteBrand(token, brand._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                  {translate(language, "adminDelete")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderOrders = () => (
+    <div className="space-y-6">
+      <Panel title={translate(language, "adminOrdersTitle")} description={translate(language, "adminOrdersDescription")}>
+        <div className="grid gap-4 md:grid-cols-4">
+          <select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))} className="field-select">
+            <option value="all">{translate(language, "filterAllStatuses")}</option>
+            {["PENDING_AI_CONFIRMATION", "AWAITING_CALL_CONFIRMATION", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED", "FAILED"].map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          <select value={orderFilters.wilaya} onChange={(event) => setOrderFilters((current) => ({ ...current, wilaya: event.target.value }))} className="field-select">
+            <option value="all">{translate(language, "filterAllWilayas")}</option>
+            {[...new Set(
+              orders.map((order) =>
+                typeof order.customer.wilaya === "string"
+                  ? order.customer.wilaya
+                  : language === "ar"
+                    ? order.customer.wilaya.name.ar
+                    : language === "fr"
+                      ? order.customer.wilaya.name.fr
+                      : order.customer.wilaya.name.en,
+              ),
+            )].map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
+              </option>
+            ))}
+          </select>
+          <input type="date" value={orderFilters.date} onChange={(event) => setOrderFilters((current) => ({ ...current, date: event.target.value }))} className="field-input" />
+          <input value={orderFilters.phone} onChange={(event) => setOrderFilters((current) => ({ ...current, phone: event.target.value }))} className="field-input" placeholder={translate(language, "filterPhonePlaceholder")} />
+        </div>
+      </Panel>
+
+      <div className="space-y-4">
+        {filteredOrders.map((order) => (
+          <div key={order._id} className="surface-card p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-3">
+                <div>
+                  <div className="text-sm uppercase tracking-[0.24em] text-slate-400">{order.orderNumber}</div>
+                  <div className="mt-1 text-xl font-semibold text-slate-950">{order.customer.fullName}</div>
+                  <div className="mt-1 text-sm text-slate-500">{order.customer.phone}</div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="muted-card px-4 py-3 text-sm">
+                    <div className="text-slate-500">{translate(language, "wilaya")}</div>
+                    <div className="mt-1 font-semibold text-slate-950">
+                      {typeof order.customer.wilaya === "string"
+                        ? order.customer.wilaya
+                        : language === "ar"
+                          ? order.customer.wilaya.name.ar
+                          : language === "fr"
+                            ? order.customer.wilaya.name.fr
+                            : order.customer.wilaya.name.en}
+                    </div>
+                  </div>
+                  <div className="muted-card px-4 py-3 text-sm">
+                    <div className="text-slate-500">{translate(language, "adminOrderTotal")}</div>
+                    <div className="mt-1 font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
+                  </div>
+                  <div className="muted-card px-4 py-3 text-sm">
+                    <div className="text-slate-500">{translate(language, "adminOrderCreated")}</div>
+                    <div className="mt-1 font-semibold text-slate-950">{formatDate(order.createdAt, language)}</div>
+                  </div>
+                </div>
+                <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                  {order.items.map((item) => `${item.productName.en} (${item.variantLabel}) x${item.quantity}`).join(", ")}
+                </div>
+              </div>
+              <div className="w-full max-w-xs space-y-3">
+                <StatusBadge label={order.status} language={language} />
+                <select value={order.status} onChange={(event) => void adminService.updateOrderStatus(token, order._id, event.target.value).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="field-select">
+                  {["PENDING_AI_CONFIRMATION", "AWAITING_CALL_CONFIRMATION", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED", "FAILED"].map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderShipping = () => (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {wilayas.map((wilaya) => (
+        <div key={wilaya._id} className="surface-card p-5">
+          <div className="text-lg font-semibold text-slate-950">
+            {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <input
+              value={shippingDrafts[wilaya._id]?.homeDeliveryFee || ""}
+              onChange={(event) =>
+                setShippingDrafts((current) => ({
+                  ...current,
+                  [wilaya._id]: { ...current[wilaya._id], homeDeliveryFee: event.target.value, deskPickupFee: current[wilaya._id]?.deskPickupFee || String(wilaya.deskPickupFee) },
+                }))
+              }
+              className="field-input"
+              placeholder={translate(language, "homeDelivery")}
+            />
+            <input
+              value={shippingDrafts[wilaya._id]?.deskPickupFee || ""}
+              onChange={(event) =>
+                setShippingDrafts((current) => ({
+                  ...current,
+                  [wilaya._id]: { ...current[wilaya._id], deskPickupFee: event.target.value, homeDeliveryFee: current[wilaya._id]?.homeDeliveryFee || String(wilaya.homeDeliveryFee) },
+                }))
+              }
+              className="field-input"
+              placeholder={translate(language, "deskPickup")}
+            />
+          </div>
+          <button
+            onClick={() =>
+              void adminService
+                .updateWilaya(token, wilaya._id, {
+                  homeDeliveryFee: Number(shippingDrafts[wilaya._id]?.homeDeliveryFee || wilaya.homeDeliveryFee),
+                  deskPickupFee: Number(shippingDrafts[wilaya._id]?.deskPickupFee || wilaya.deskPickupFee),
+                })
+                .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+            }
+            className="primary-button mt-4"
+          >
+            {translate(language, "adminSave")}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderPromos = () => (
+    <div className="space-y-6">
+      <Panel title={translate(language, "adminPromoTitle")}>
+        <div className="grid gap-4 md:grid-cols-4">
+          <input value={promoForm.code} onChange={(event) => setPromoForm({ ...promoForm, code: event.target.value.toUpperCase() })} className="field-input uppercase" placeholder={translate(language, "promoCode")} />
+          <select value={promoForm.type} onChange={(event) => setPromoForm({ ...promoForm, type: event.target.value })} className="field-select">
+            {["FIXED", "PERCENTAGE", "FREE_SHIPPING"].map((type) => (
+              <option key={type}>{type}</option>
+            ))}
+          </select>
+          <input value={promoForm.value} onChange={(event) => setPromoForm({ ...promoForm, value: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} />
+          <input value={promoForm.minimumOrderAmount} onChange={(event) => setPromoForm({ ...promoForm, minimumOrderAmount: event.target.value })} className="field-input" placeholder={translate(language, "subtotal")} />
+        </div>
+        <button
+          onClick={() =>
+            void adminService
+              .createPromoCode(token, {
+                code: promoForm.code,
+                type: promoForm.type as PromoCode["type"],
+                value: Number(promoForm.value),
+                minimumOrderAmount: Number(promoForm.minimumOrderAmount),
+                isActive: true,
+                usedCount: 0,
+                productRestrictions: [],
+                categoryRestrictions: [],
+                oneUsePerPhone: true,
+              })
+              .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+          }
+          className="primary-button mt-4"
+        >
+          {translate(language, "adminCreate")}
+        </button>
+      </Panel>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {promos.map((promo) => {
+          const draft = promoDrafts[promo._id];
+          const isEditing = editingPromoId === promo._id;
+
+          if (isEditing && draft) {
+            return (
+              <div key={promo._id} className="surface-card space-y-3 p-5">
+                <div className="text-lg font-semibold text-slate-950">{promo.code}</div>
+                <select value={draft.type} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, type: event.target.value } }))} className="field-select">
+                  {["FIXED", "PERCENTAGE", "FREE_SHIPPING"].map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </select>
+                <input value={draft.value} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, value: event.target.value } }))} className="field-input" placeholder={translate(language, "adminBasePrice")} />
+                <input value={draft.usageLimit} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, usageLimit: event.target.value } }))} className="field-input" placeholder="Usage limit" />
+                <input type="date" value={draft.expiresAt} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, expiresAt: event.target.value } }))} className="field-input" />
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={draft.isActive}
+                    onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, isActive: event.target.checked } }))}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  {translate(language, "enabled")}
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() =>
+                      void adminService
+                        .updatePromoCode(token, promo._id, {
+                          type: draft.type as PromoCode["type"],
+                          value: Number(draft.value),
+                          usageLimit: draft.usageLimit ? Number(draft.usageLimit) : null,
+                          expiresAt: draft.expiresAt || null,
+                          isActive: draft.isActive,
+                        })
+                        .then(async () => {
+                          setEditingPromoId(null);
+                          await loadAll();
+                        })
+                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                    }
+                    className="primary-button"
+                  >
+                    {translate(language, "adminSave")}
+                  </button>
+                  <button type="button" onClick={() => setEditingPromoId(null)} className="ghost-button">
+                    {translate(language, "adminCancel")}
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={promo._id} className="surface-card p-5">
+              <div className="text-lg font-semibold text-slate-950">{promo.code}</div>
+              <div className="mt-1 text-sm text-slate-500">
+                {promo.type} · {promo.value}
+              </div>
+              <div className="mt-4 flex items-center gap-3">
+                <button onClick={() => setEditingPromoId(promo._id)} className="text-sm font-semibold text-teal-700">
+                  {translate(language, "adminEdit")}
+                </button>
+                <button onClick={() => void adminService.deletePromoCode(token, promo._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                  {translate(language, "adminDelete")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderAffiliates = () => (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {affiliates.map((affiliate) => (
+        <div key={affiliate._id} className="surface-card p-6">
+          <div className="text-lg font-semibold text-slate-950">{affiliate.name}</div>
+          <div className="mt-1 text-sm text-slate-500">
+            {affiliate.email} · {affiliate.referralCode}
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <select
+              value={affiliateDrafts[affiliate._id]?.status || affiliate.status}
+              onChange={(event) =>
+                setAffiliateDrafts((current) => ({
+                  ...current,
+                  [affiliate._id]: {
+                    status: event.target.value as Affiliate["status"],
+                    commissionRate: current[affiliate._id]?.commissionRate || String(affiliate.commissionRate),
+                  },
+                }))
+              }
+              className="field-select"
+            >
+              {["PENDING", "ACTIVE", "BLOCKED"].map((status) => (
+                <option key={status}>{status}</option>
+              ))}
+            </select>
+            <input
+              value={affiliateDrafts[affiliate._id]?.commissionRate || ""}
+              onChange={(event) =>
+                setAffiliateDrafts((current) => ({
+                  ...current,
+                  [affiliate._id]: {
+                    status: current[affiliate._id]?.status || affiliate.status,
+                    commissionRate: event.target.value,
+                  },
+                }))
+              }
+              className="field-input"
+              placeholder="%"
+            />
+          </div>
+          <button
+            onClick={() =>
+              void adminService
+                .updateAffiliate(token, affiliate._id, {
+                  status: affiliateDrafts[affiliate._id]?.status || affiliate.status,
+                  commissionRate: Number(affiliateDrafts[affiliate._id]?.commissionRate || affiliate.commissionRate),
+                })
+                .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+            }
+            className="primary-button mt-4"
+          >
+            {translate(language, "adminSave")}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderCommissions = () => (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {commissions.map((commission) => {
+        const orderId = typeof commission.order === "string" ? commission.order : commission.order._id;
+        const order = ordersById.get(orderId);
+        const affiliateName = typeof commission.affiliate === "string" ? commission.affiliate : commission.affiliate.name;
+
+        return (
+          <div key={commission._id} className="surface-card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{affiliateName}</div>
+                <div className="mt-1 text-sm text-slate-500">{order?.orderNumber || orderId}</div>
+              </div>
+              <StatusBadge label={commission.status} language={language} />
+            </div>
+            <div className="mt-4 text-sm text-slate-600">
+              {formatCurrency(commission.amount, language)} at {commission.rate}%
+            </div>
+            {commission.status !== "PAID" ? (
+              <button onClick={() => void adminService.markCommissionPaid(token, commission._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button mt-4">
+                {translate(language, "adminMarkPaid")}
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderSettings = () =>
+    settings ? (
+      <div className="space-y-6">
+        <Panel title={translate(language, "adminSettingsTitle")}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <input value={settings.storeName} onChange={(event) => setSettings({ ...settings, storeName: event.target.value })} className="field-input" placeholder={translate(language, "storeName")} />
+            <input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} className="field-input" placeholder={translate(language, "phone")} />
+            <input value={settings.whatsapp || ""} onChange={(event) => setSettings({ ...settings, whatsapp: event.target.value })} className="field-input" placeholder="WhatsApp" />
+            <input value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} className="field-input" placeholder={translate(language, "currency")} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button onClick={() => setSettings({ ...settings, aiEnabled: !settings.aiEnabled })} className="ghost-button">
+              AI: {settings.aiEnabled ? translate(language, "enabled") : translate(language, "disabled")}
+            </button>
+            <button onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className="ghost-button">
+              {translate(language, "maintenanceMode")}: {settings.maintenanceMode ? translate(language, "on") : translate(language, "off")}
+            </button>
+            <button onClick={() => void adminService.updateSettings(token, settings).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button">
+              {translate(language, "adminSave")}
+            </button>
+          </div>
+        </Panel>
+
+        <Panel title="Homepage slider ads" description="Small responsive slides for phone and desktop. Add image, title, link, priority, and active state.">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <input value={bannerForm.titleAr} onChange={(event) => setBannerForm({ ...bannerForm, titleAr: event.target.value })} className="field-input" placeholder="Arabic title" />
+            <input value={bannerForm.titleFr} onChange={(event) => setBannerForm({ ...bannerForm, titleFr: event.target.value })} className="field-input" placeholder="French title" />
+            <input value={bannerForm.titleEn} onChange={(event) => setBannerForm({ ...bannerForm, titleEn: event.target.value })} className="field-input" placeholder="English title" />
+            <ImageUploadField token={token} value={bannerForm.image} onChange={(url) => setBannerForm({ ...bannerForm, image: url })} />
+            <input value={bannerForm.link} onChange={(event) => setBannerForm({ ...bannerForm, link: event.target.value })} className="field-input" placeholder="/products?category=phones" />
+            <input value={bannerForm.priority} onChange={(event) => setBannerForm({ ...bannerForm, priority: event.target.value })} className="field-input" placeholder="Priority" />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              onClick={() =>
+                void adminService
+                  .createBanner(token, {
+                    title: {
+                      ar: bannerForm.titleAr,
+                      fr: bannerForm.titleFr,
+                      en: bannerForm.titleEn,
+                    },
+                    image: bannerForm.image,
+                    link: bannerForm.link || undefined,
+                    priority: Number(bannerForm.priority || 0),
+                    isActive: bannerForm.isActive,
+                  })
+                  .then(async () => {
+                    setBannerForm(defaultBannerForm);
+                    await loadAll();
+                  })
+              }
+              className="primary-button"
+            >
+              Add slide
+            </button>
+          </div>
+        </Panel>
+
+        <div className="grid gap-4">
+          {banners.map((banner) => {
+            const draft = bannerDrafts[banner._id];
+            if (!draft) {
+              return null;
+            }
+
+            return (
+              <div key={banner._id} className="surface-card p-5">
+                <div className="grid gap-5 xl:grid-cols-[220px_1fr]">
+                  <img src={draft.image} alt="" className="h-36 w-full rounded-[1.4rem] object-cover" />
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <input value={draft.titleAr} onChange={(event) => setBannerDrafts((current) => ({ ...current, [banner._id]: { ...draft, titleAr: event.target.value } }))} className="field-input" placeholder="Arabic title" />
+                      <input value={draft.titleFr} onChange={(event) => setBannerDrafts((current) => ({ ...current, [banner._id]: { ...draft, titleFr: event.target.value } }))} className="field-input" placeholder="French title" />
+                      <input value={draft.titleEn} onChange={(event) => setBannerDrafts((current) => ({ ...current, [banner._id]: { ...draft, titleEn: event.target.value } }))} className="field-input" placeholder="English title" />
+                      <div className="md:col-span-2">
+                        <ImageUploadField token={token} value={draft.image} onChange={(url) => setBannerDrafts((current) => ({ ...current, [banner._id]: { ...draft, image: url } }))} />
+                      </div>
+                      <input value={draft.link} onChange={(event) => setBannerDrafts((current) => ({ ...current, [banner._id]: { ...draft, link: event.target.value } }))} className="field-input" placeholder="Link" />
+                      <input value={draft.priority} onChange={(event) => setBannerDrafts((current) => ({ ...current, [banner._id]: { ...draft, priority: event.target.value } }))} className="field-input" placeholder="Priority" />
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() =>
+                          void adminService
+                            .updateBanner(token, banner._id, {
+                              title: { ar: draft.titleAr, fr: draft.titleFr, en: draft.titleEn },
+                              image: draft.image,
+                              link: draft.link || undefined,
+                              priority: Number(draft.priority || 0),
+                              isActive: draft.isActive,
+                            })
+                            .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                        }
+                        className="primary-button"
+                      >
+                        {translate(language, "adminSave")}
+                      </button>
+                      <button
+                        onClick={() =>
+                          void adminService
+                            .updateBanner(token, banner._id, { isActive: !draft.isActive })
+                            .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                        }
+                        className="ghost-button"
+                      >
+                        {draft.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => void adminService.deleteBanner(token, banner._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+                        className="ghost-button text-rose-600"
+                      >
+                        {translate(language, "adminDelete")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
+
+  const currentView =
+    tab === "products"
+      ? renderProducts()
+      : tab === "categories"
+        ? renderCategories()
+        : tab === "brands"
+          ? renderBrands()
+          : tab === "orders"
+            ? renderOrders()
+            : tab === "shipping"
+              ? renderShipping()
+              : tab === "promo-codes"
+                ? renderPromos()
+                : tab === "affiliates"
+                  ? renderAffiliates()
+                  : tab === "commissions"
+                    ? renderCommissions()
+                    : tab === "settings"
+                      ? renderSettings()
+                      : renderDashboard();
+
+  return (
+    <DashboardShell
+      title={translate(language, "dashboard")}
+      description={translate(language, "authAdminDescription")}
+      links={links}
+      onLogout={() => setAdminSession(null)}
+    >
+      {currentView}
+    </DashboardShell>
+  );
+}

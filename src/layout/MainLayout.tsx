@@ -1,0 +1,35 @@
+import { CheckCircle2, CircleAlert } from "lucide-react";
+import { Outlet, useLocation } from "react-router-dom";
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
+import { useApp } from "@/hooks/useApp";
+
+export function MainLayout() {
+  const { toasts, dismissToast } = useApp();
+  const location = useLocation();
+  const isDashboard = location.pathname.startsWith("/admin") || location.pathname.startsWith("/affiliate");
+
+  return (
+    <div className="min-h-screen text-slate-900">
+      {!isDashboard ? <Header /> : null}
+      <main className="mx-auto min-h-[calc(100vh-160px)] max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Outlet />
+      </main>
+      {!isDashboard ? <Footer /> : null}
+      <div className="fixed bottom-4 right-4 z-50 space-y-3">
+        {toasts.map((toast) => (
+          <button
+            key={toast.id}
+            onClick={() => dismissToast(toast.id)}
+            className={`flex items-center gap-3 rounded-[1.5rem] px-4 py-3 text-sm font-medium text-white shadow-xl ${
+              toast.tone === "error" ? "bg-rose-600" : "bg-slate-950"
+            }`}
+          >
+            {toast.tone === "error" ? <CircleAlert className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+            <span>{toast.message}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

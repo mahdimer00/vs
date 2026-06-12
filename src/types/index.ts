@@ -1,0 +1,213 @@
+export type Locale = "ar" | "fr" | "en";
+
+export interface LocalizedText {
+  ar: string;
+  fr: string;
+  en: string;
+}
+
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "AFFILIATE";
+export type DeliveryType = "HOME_DELIVERY" | "DESK_PICKUP";
+export type OrderStatus =
+  | "PENDING_AI_CONFIRMATION"
+  | "AWAITING_CALL_CONFIRMATION"
+  | "CONFIRMED"
+  | "PROCESSING"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "PICKED_UP"
+  | "CANCELLED"
+  | "RETURNED"
+  | "FAILED";
+
+export interface Category {
+  _id: string;
+  name: LocalizedText;
+  slug: string;
+  image?: string;
+  isActive: boolean;
+}
+
+export interface Brand {
+  _id: string;
+  name: string;
+  logo?: string;
+  isActive: boolean;
+}
+
+export interface ProductVariant {
+  _id: string;
+  sku: string;
+  ram?: string;
+  storage?: string;
+  color?: string;
+  price: number;
+  stock: number;
+  images: string[];
+}
+
+export interface Product {
+  _id: string;
+  name: LocalizedText;
+  description: LocalizedText;
+  slug: string;
+  category: Category | string;
+  brand: Brand | string;
+  images: string[];
+  basePrice: number;
+  discountPrice?: number | null;
+  variants: ProductVariant[];
+  specifications: Record<string, string>;
+  stock: number;
+  status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+  isFeatured: boolean;
+  affiliateEnabled: boolean;
+  commissionType: "PERCENTAGE" | "FIXED";
+  commissionValue: number;
+  createdAt: string;
+}
+
+export interface Wilaya {
+  _id: string;
+  code: string;
+  name: LocalizedText;
+  communes: string[];
+  homeDeliveryFee: number;
+  deskPickupFee: number;
+  isActive: boolean;
+}
+
+export interface PromoCode {
+  _id: string;
+  code: string;
+  type: "PERCENTAGE" | "FIXED" | "FREE_SHIPPING";
+  value: number;
+  affiliate?: string | Affiliate | null;
+  expiresAt?: string | null;
+  usageLimit?: number | null;
+  usedCount: number;
+  minimumOrderAmount?: number | null;
+  productRestrictions: string[];
+  categoryRestrictions: string[];
+  oneUsePerPhone: boolean;
+  isActive: boolean;
+}
+
+export interface Affiliate {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  referralCode: string;
+  commissionRate: number;
+  status: "PENDING" | "ACTIVE" | "BLOCKED";
+  balancePending: number;
+  balanceApproved: number;
+  balancePaid: number;
+  createdAt: string;
+}
+
+export interface OrderItem {
+  productId: string;
+  productName: LocalizedText;
+  productSlug: string;
+  variantId?: string;
+  variantLabel: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  image?: string;
+}
+
+export interface Order {
+  _id: string;
+  orderNumber: string;
+  customer: {
+    fullName: string;
+    phone: string;
+    wilaya: Wilaya | string;
+    commune: string;
+    address: string;
+  };
+  items: OrderItem[];
+  subtotal: number;
+  discount: number;
+  shippingFee: number;
+  total: number;
+  deliveryType: DeliveryType;
+  paymentMethod: "COD";
+  promoCode?: string;
+  affiliate?: string | Affiliate | null;
+  status: OrderStatus;
+  aiConfirmed: boolean;
+  createdAt: string;
+}
+
+export interface Commission {
+  _id: string;
+  affiliate: Affiliate | string;
+  order: Order | string;
+  rate: number;
+  amount: number;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
+  approvedAt?: string | null;
+  paidAt?: string | null;
+}
+
+export interface WebsiteSetting {
+  _id?: string;
+  storeName: string;
+  logo?: string;
+  phone: string;
+  whatsapp?: string;
+  socialLinks: Record<string, string>;
+  defaultLanguage: Locale;
+  currency: string;
+  aiEnabled: boolean;
+  maintenanceMode: boolean;
+}
+
+export interface Banner {
+  _id: string;
+  title: LocalizedText;
+  image: string;
+  link?: string;
+  priority: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface AuthSession {
+  token: string;
+  user: AuthUser;
+}
+
+export interface DashboardStats {
+  totalOrders: number;
+  pendingOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  revenue: number;
+  topProducts: Product[];
+  affiliateSales: Array<{ affiliate: string; total: number }>;
+  promoUsage: Array<{ code: string; count: number }>;
+  lowStockProducts: Product[];
+}
+
+export interface CartItem {
+  product: Product;
+  variant: ProductVariant;
+  quantity: number;
+}
+
+export interface PendingOrderPayload {
+  orderId: string;
+  orderNumber: string;
+}

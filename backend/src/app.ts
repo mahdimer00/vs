@@ -1,0 +1,72 @@
+import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
+import path from "path";
+import fs from "fs";
+import multer from "multer";
+import { corsMiddleware } from "./config/cors.js";
+import { env } from "./config/env.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
+import { rateLimitMiddleware } from "./middleware/rateLimit.middleware.js";
+import authRoutes from "./modules/auth/auth.routes.js";
+import catalogRoutes from "./modules/catalog/catalog.routes.js";
+import shippingRoutes from "./modules/shipping/shipping.routes.js";
+import orderRoutes from "./modules/orders/order.routes.js";
+import promoRoutes from "./modules/promo/promo.routes.js";
+import affiliateRoutes from "./modules/affiliate/affiliate.routes.js";
+import adminRoutes from "./modules/admin/admin.routes.js";
+import aiRoutes from "./modules/ai/ai.routes.js";
+import { authMiddleware } from "./middleware/auth.middleware.js";
+import { roleMiddleware } from "./middleware/role.middleware.js";
+import { AppError } from "./utils/app-error.js";
+
+const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
+fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({
+  dest: uploadDir,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter(_req, file, callback) {
+    const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      callback(new AppError("Unsupported file type", 400));
+      return;
+    }
+
+    callback(null, true);
+  },
+});
+
+export const app = express();
+
+app.set("trust proxy", 1);
+app.use(helmet());
+app.use(corsMiddleware);
+app.use(rateLimitMiddleware);
+app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(uploadDir));
+
+app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  return res.status(201).json({
+    url: `${env.BACKEND_URL}/uploads/${req.file.filename}`,
+    filename: req.file.filename,
+  });
+});
+
+app.use("/api/auth", authRoutes);
+app.use("/api", catalogRoutes);
+app.use("/api", shippingRoutes);
+app.use("/api", orderRoutes);
+app.use("/api", promoRoutes);
+app.use("/api", affiliateRoutes);
+app.use("/api", adminRoutes);
+app.use("/api", aiRoutes);
+
+app.use(errorMiddleware);
