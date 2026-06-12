@@ -14,7 +14,7 @@ const phonePattern = /^(05|06|07)\d{8}$/;
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, affiliateRef, language, rememberPendingOrder, pushToast, updateQuantity, removeFromCart } = useApp();
+  const { cart, affiliateRef, language, rememberPendingOrder, pushToast, updateQuantity, removeFromCart, siteSettings } = useApp();
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -253,20 +253,22 @@ export function CheckoutPage() {
             ) : null}
           </section>
 
-          <section className="rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50/70 p-4">
-            <div className="mb-3 text-sm font-semibold text-slate-900">{translate(language, "promoCode")}</div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <input
-                value={promoCode}
-                onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
-                className="field-input flex-1 uppercase"
-                placeholder={translate(language, "promoCode")}
-              />
-              <button type="button" onClick={() => void applyPromo()} disabled={promoApplying} className="accent-button">
-                {promoApplying ? translate(language, "applyingPromo") : translate(language, "applyPromo")}
-              </button>
-            </div>
-          </section>
+          {siteSettings?.promoCodeEnabled !== false ? (
+            <section className="rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50/70 p-4">
+              <div className="mb-3 text-sm font-semibold text-slate-900">{translate(language, "promoCode")}</div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  value={promoCode}
+                  onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                  className="field-input flex-1 uppercase"
+                  placeholder={translate(language, "promoCode")}
+                />
+                <button type="button" onClick={() => void applyPromo()} disabled={promoApplying} className="accent-button">
+                  {promoApplying ? translate(language, "applyingPromo") : translate(language, "applyPromo")}
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
           <button disabled={submitting} className="secondary-button flex w-full justify-center py-4">

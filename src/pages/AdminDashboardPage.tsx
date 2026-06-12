@@ -1238,6 +1238,9 @@ export function AdminDashboardPage() {
             <button onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })} className="ghost-button">
               {translate(language, "maintenanceMode")}: {settings.maintenanceMode ? translate(language, "on") : translate(language, "off")}
             </button>
+            <button onClick={() => setSettings({ ...settings, promoCodeEnabled: !settings.promoCodeEnabled })} className="ghost-button">
+              {translate(language, "adminPromoCodeFieldToggle")}: {settings.promoCodeEnabled !== false ? translate(language, "on") : translate(language, "off")}
+            </button>
             <button onClick={() => void adminService.updateSettings(token, settings).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button">
               {translate(language, "adminSave")}
             </button>

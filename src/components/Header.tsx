@@ -12,6 +12,7 @@ export function Header() {
     { to: "/", label: translate(language, "home") },
     { to: "/products", label: translate(language, "products") },
     { to: "/categories", label: translate(language, "categories") },
+    { to: "/earn-money", label: translate(language, "earnMoneyNav") },
     { to: "/track-order", label: translate(language, "trackOrder") },
     { to: "/contact", label: translate(language, "contact") },
   ];
@@ -35,19 +36,33 @@ export function Header() {
           </Link>
 
           <nav className="hidden items-center gap-2 md:flex">
-            {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  `rounded-full px-4 py-2 text-sm font-medium transition ${
-                    isActive ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
+            {links.map((link) =>
+              link.to === "/earn-money" ? (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive }) =>
+                    `rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40 transition hover:shadow-lg ${
+                      isActive ? "ring-2 ring-slate-950/20" : ""
+                    }`
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ) : (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive }) =>
+                    `rounded-full px-4 py-2 text-sm font-medium transition ${
+                      isActive ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+                    }`
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ),
+            )}
           </nav>
 
           <div className="flex items-center gap-3">
@@ -73,19 +88,29 @@ export function Header() {
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500">
             <Menu className="h-4 w-4" />
           </span>
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) =>
-                `shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
-                  isActive ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700"
-                }`
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          {links.map((link) =>
+            link.to === "/earn-money" ? (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className="shrink-0 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40"
+              >
+                {link.label}
+              </NavLink>
+            ) : (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) =>
+                  `shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+                    isActive ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700"
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ),
+          )}
         </div>
       </div>
     </header>

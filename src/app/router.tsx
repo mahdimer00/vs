@@ -11,6 +11,7 @@ import { CategoriesPage } from "@/pages/CategoriesPage";
 import { CheckoutConfirmationPage } from "@/pages/CheckoutConfirmationPage";
 import { CheckoutPage } from "@/pages/CheckoutPage";
 import { ContactPage } from "@/pages/ContactPage";
+import { EarnMoneyPage } from "@/pages/EarnMoneyPage";
 import { HomePage } from "@/pages/HomePage";
 import { OrderSuccessPage } from "@/pages/OrderSuccessPage";
 import { ProductDetailsPage } from "@/pages/ProductDetailsPage";
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: "order/success", element: <OrderSuccessPage /> },
       { path: "track-order", element: <TrackOrderPage /> },
       { path: "contact", element: <ContactPage /> },
+      { path: "earn-money", element: <EarnMoneyPage /> },
       { path: "admin/login", element: <AdminLoginPage /> },
       {
         path: "admin",

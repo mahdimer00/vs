@@ -10,6 +10,7 @@ export function ProductCard({ product, language }: { product: Product; language:
   const price = product.discountPrice ?? product.basePrice;
   const brandName = typeof product.brand === "string" ? product.brand : product.brand.name;
   const hasDiscount = typeof product.discountPrice === "number" && product.discountPrice < product.basePrice;
+  const discountPercent = hasDiscount ? Math.round(((product.basePrice - price) / product.basePrice) * 100) : 0;
   const wishlisted = isWishlisted(product._id);
   const legacyHint = formatLegacyDinarHint(price, language);
 
@@ -28,9 +29,9 @@ export function ProductCard({ product, language }: { product: Product; language:
             </span>
             <div className="flex items-center gap-2">
               {hasDiscount ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-300 px-3 py-1 text-xs font-semibold text-slate-950">
+                <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-gradient-to-r from-rose-600 to-orange-500 px-3 py-1 text-xs font-bold text-white shadow-md shadow-rose-500/40">
                   <BadgePercent className="h-3.5 w-3.5" />
-                  {formatCurrency(product.basePrice - price, language)}
+                  -{discountPercent}%
                 </span>
               ) : null}
               <button
@@ -75,7 +76,10 @@ export function ProductCard({ product, language }: { product: Product; language:
                 {legacyHint ? <span className="ml-1.5 text-xs font-normal text-slate-400">({legacyHint})</span> : null}
               </div>
               {hasDiscount ? (
-                <div className="text-sm text-slate-400 line-through">{formatCurrency(product.basePrice, language)}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400 line-through">{formatCurrency(product.basePrice, language)}</span>
+                  <span className="text-xs font-bold text-rose-600">{translate(language, "productSaveAmount")} {formatCurrency(product.basePrice - price, language)}</span>
+                </div>
               ) : null}
             </div>
             <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white">

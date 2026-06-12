@@ -71,6 +71,13 @@ export function AffiliateLoginPage() {
           <br />
           {translate(language, "affiliateCancelledRule")}
         </div>
+        <Link
+          to="/earn-money"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40"
+        >
+          {translate(language, "earnMoneyNav")}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </section>
       <section className="surface-card p-8">
         <form onSubmit={submit} className="space-y-4">

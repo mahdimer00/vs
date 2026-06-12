@@ -167,6 +167,7 @@ export interface WebsiteSetting {
   currency: string;
   aiEnabled: boolean;
   maintenanceMode: boolean;
+  promoCodeEnabled: boolean;
 }
 
 export interface Banner {

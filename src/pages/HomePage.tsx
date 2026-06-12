@@ -62,17 +62,21 @@ export function HomePage() {
         ))}
       </section>
 
-      <section className="surface-card-dark flex flex-col gap-6 p-8 lg:flex-row lg:items-center lg:justify-between">
+      <section className="surface-card-dark relative flex flex-col gap-6 overflow-hidden p-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
         <div className="flex items-start gap-4">
           <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white/10">
             <BadgePercent className="h-7 w-7 text-amber-300" />
           </div>
           <div>
-            <h2 className="font-serif text-2xl font-semibold text-white md:text-3xl">{translate(language, "homeAffiliatePromoTitle")}</h2>
+            <span className="inline-flex items-center rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.24em] text-amber-300">
+              {translate(language, "earnMoneyBadge")}
+            </span>
+            <h2 className="mt-3 font-serif text-2xl font-semibold text-white md:text-3xl">{translate(language, "homeAffiliatePromoTitle")}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{translate(language, "homeAffiliatePromoDescription")}</p>
           </div>
         </div>
-        <Link to="/affiliate/register" className="primary-button shrink-0 text-center">
+        <Link to="/earn-money" className="primary-button shrink-0 text-center">
           {translate(language, "homeAffiliatePromoCta")}
         </Link>
       </section>

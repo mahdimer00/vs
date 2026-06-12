@@ -68,6 +68,7 @@ const websiteSettingSchema = new Schema(
     currency: { type: String, default: "DZD" },
     aiEnabled: { type: Boolean, default: true },
     maintenanceMode: { type: Boolean, default: false },
+    promoCodeEnabled: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

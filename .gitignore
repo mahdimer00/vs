@@ -6,3 +6,5 @@ uploads
 backend/uploads
 .env
 backend/.env
+.claude/
+visastore-dev.log
