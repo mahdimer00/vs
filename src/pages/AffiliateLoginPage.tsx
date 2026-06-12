@@ -1,6 +1,7 @@
-import { ArrowRight, BadgePercent } from "lucide-react";
+import { ArrowRight, BadgePercent, KeyRound, Mail } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { IconField } from "@/components/IconField";
 import { useApp } from "@/hooks/useApp";
 import { authService } from "@/services/auth.service";
 import { translate } from "@/utils/i18n";
@@ -81,21 +82,25 @@ export function AffiliateLoginPage() {
       </section>
       <section className="surface-card p-8">
         <form onSubmit={submit} className="space-y-4">
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="field-input"
-            placeholder={translate(language, "authEmail")}
-            autoComplete="username"
-          />
-          <input
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            type="password"
-            className="field-input"
-            placeholder={translate(language, "authPassword")}
-            autoComplete="current-password"
-          />
+          <IconField icon={Mail}>
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="field-input field-input-icon"
+              placeholder={translate(language, "authEmail")}
+              autoComplete="username"
+            />
+          </IconField>
+          <IconField icon={KeyRound}>
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type="password"
+              className="field-input field-input-icon"
+              placeholder={translate(language, "authPassword")}
+              autoComplete="current-password"
+            />
+          </IconField>
           {error ? <div className="text-sm text-rose-600">{error}</div> : null}
           <button disabled={submitting} className="primary-button flex w-full justify-center py-4">
             {submitting ? translate(language, "loading") : translate(language, "authLogin")}

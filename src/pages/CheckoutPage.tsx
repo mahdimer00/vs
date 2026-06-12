@@ -1,7 +1,8 @@
-import { Bot, MapPinned, PackageCheck, UserRound } from "lucide-react";
+import { Bot, Home, MapPin, MapPinned, PackageCheck, Phone, Tag, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
+import { IconField } from "@/components/IconField";
 import { OrderSummaryCard } from "@/components/OrderSummaryCard";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
@@ -192,8 +193,12 @@ export function CheckoutPage() {
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <input required value={fullName} onChange={(event) => setFullName(event.target.value)} className="field-input" placeholder={translate(language, "fullName")} />
-              <input required value={phone} onChange={(event) => setPhone(event.target.value)} className="field-input" placeholder="05 / 06 / 07..." />
+              <IconField icon={UserRound}>
+                <input required value={fullName} onChange={(event) => setFullName(event.target.value)} className="field-input field-input-icon" placeholder={translate(language, "fullName")} />
+              </IconField>
+              <IconField icon={Phone}>
+                <input required value={phone} onChange={(event) => setPhone(event.target.value)} className="field-input field-input-icon" placeholder="05 / 06 / 07..." />
+              </IconField>
             </div>
           </section>
 
@@ -206,37 +211,43 @@ export function CheckoutPage() {
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <select value={wilayaCode} onChange={(event) => setWilayaCode(event.target.value)} className="field-select">
-                {wilayas.map((wilaya) => (
-                  <option key={wilaya._id} value={wilaya.code}>
-                    {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
-                  </option>
-                ))}
-              </select>
-              {selectedWilaya?.communes?.length && !communeOther ? (
-                <select
-                  value={commune}
-                  onChange={(event) => {
-                    if (event.target.value === "__other__") {
-                      setCommuneOther(true);
-                      setCommune("");
-                      return;
-                    }
-                    setCommune(event.target.value);
-                  }}
-                  className="field-select"
-                >
-                  <option value="">{translate(language, "commune")}</option>
-                  {selectedWilaya.communes.map((entry) => (
-                    <option key={entry} value={entry}>
-                      {entry}
+              <IconField icon={MapPin}>
+                <select value={wilayaCode} onChange={(event) => setWilayaCode(event.target.value)} className="field-select field-input-icon">
+                  {wilayas.map((wilaya) => (
+                    <option key={wilaya._id} value={wilaya.code}>
+                      {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
                     </option>
                   ))}
-                  <option value="__other__">{translate(language, "communeOther")}</option>
                 </select>
+              </IconField>
+              {selectedWilaya?.communes?.length && !communeOther ? (
+                <IconField icon={MapPinned}>
+                  <select
+                    value={commune}
+                    onChange={(event) => {
+                      if (event.target.value === "__other__") {
+                        setCommuneOther(true);
+                        setCommune("");
+                        return;
+                      }
+                      setCommune(event.target.value);
+                    }}
+                    className="field-select field-input-icon"
+                  >
+                    <option value="">{translate(language, "commune")}</option>
+                    {selectedWilaya.communes.map((entry) => (
+                      <option key={entry} value={entry}>
+                        {entry}
+                      </option>
+                    ))}
+                    <option value="__other__">{translate(language, "communeOther")}</option>
+                  </select>
+                </IconField>
               ) : (
                 <div className="flex flex-col gap-2">
-                  <input required value={commune} onChange={(event) => setCommune(event.target.value)} className="field-input" placeholder={translate(language, "commune")} />
+                  <IconField icon={MapPinned}>
+                    <input required value={commune} onChange={(event) => setCommune(event.target.value)} className="field-input field-input-icon" placeholder={translate(language, "commune")} />
+                  </IconField>
                   {selectedWilaya?.communes?.length ? (
                     <button
                       type="button"
@@ -275,19 +286,23 @@ export function CheckoutPage() {
               </button>
             </div>
 
-            <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea mt-4" placeholder={translate(language, "address")} />
+            <IconField icon={Home} className="mt-4">
+              <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea field-input-icon" placeholder={translate(language, "address")} />
+            </IconField>
           </section>
 
           {siteSettings?.promoCodeEnabled !== false ? (
             <section className="rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50/70 p-4">
               <div className="mb-3 text-sm font-semibold text-slate-900">{translate(language, "promoCode")}</div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <input
-                  value={promoCode}
-                  onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
-                  className="field-input flex-1 uppercase"
-                  placeholder={translate(language, "promoCode")}
-                />
+                <IconField icon={Tag} className="flex-1">
+                  <input
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                    className="field-input field-input-icon w-full uppercase"
+                    placeholder={translate(language, "promoCode")}
+                  />
+                </IconField>
                 <button type="button" onClick={() => void applyPromo()} disabled={promoApplying} className="accent-button">
                   {promoApplying ? translate(language, "applyingPromo") : translate(language, "applyPromo")}
                 </button>

@@ -1,6 +1,7 @@
-import { ArrowRight, UserPlus } from "lucide-react";
+import { ArrowRight, KeyRound, Mail, Phone, User, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { IconField } from "@/components/IconField";
 import { useApp } from "@/hooks/useApp";
 import { authService } from "@/services/auth.service";
 import { translate } from "@/utils/i18n";
@@ -77,11 +78,21 @@ export function AffiliateRegisterPage() {
       </section>
       <section className="surface-card p-8">
         <form onSubmit={submit} className="space-y-4">
-          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="field-input" placeholder={translate(language, "authName")} autoComplete="name" />
-          <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="field-input" placeholder={translate(language, "authEmail")} autoComplete="email" />
-          <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="field-input" placeholder={translate(language, "authPhone")} autoComplete="tel" />
-          <input value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className="field-input" placeholder={translate(language, "authPassword")} autoComplete="new-password" />
-          <input value={form.confirmPassword} onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })} type="password" className="field-input" placeholder={translate(language, "authConfirmPassword")} autoComplete="new-password" />
+          <IconField icon={User}>
+            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "authName")} autoComplete="name" />
+          </IconField>
+          <IconField icon={Mail}>
+            <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "authEmail")} autoComplete="email" />
+          </IconField>
+          <IconField icon={Phone}>
+            <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "authPhone")} autoComplete="tel" />
+          </IconField>
+          <IconField icon={KeyRound}>
+            <input value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" className="field-input field-input-icon" placeholder={translate(language, "authPassword")} autoComplete="new-password" />
+          </IconField>
+          <IconField icon={KeyRound}>
+            <input value={form.confirmPassword} onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })} type="password" className="field-input field-input-icon" placeholder={translate(language, "authConfirmPassword")} autoComplete="new-password" />
+          </IconField>
           {error ? <div className="text-sm text-rose-600">{error}</div> : null}
           {success ? <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{translate(language, "authRegisterPending")}</div> : null}
           <button disabled={submitting} className="primary-button flex w-full justify-center py-4">

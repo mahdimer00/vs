@@ -1,6 +1,7 @@
-import { ArrowLeft, Search, Truck } from "lucide-react";
+import { ArrowLeft, Hash, Phone, Search, Truck } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
+import { IconField } from "@/components/IconField";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
@@ -178,31 +179,35 @@ export function TrackOrderPage() {
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             {mode === "number" ? (
-              <input
-                value={orderNumber}
-                onChange={(event) => setOrderNumber(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    search();
-                  }
-                }}
-                className="field-input flex-1 uppercase"
-                placeholder={translate(language, "trackPlaceholder")}
-              />
+              <IconField icon={Hash} className="flex-1">
+                <input
+                  value={orderNumber}
+                  onChange={(event) => setOrderNumber(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      search();
+                    }
+                  }}
+                  className="field-input field-input-icon w-full uppercase"
+                  placeholder={translate(language, "trackPlaceholder")}
+                />
+              </IconField>
             ) : (
-              <input
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    search();
-                  }
-                }}
-                className="field-input flex-1"
-                placeholder={translate(language, "trackPhonePlaceholder")}
-              />
+              <IconField icon={Phone} className="flex-1">
+                <input
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      search();
+                    }
+                  }}
+                  className="field-input field-input-icon w-full"
+                  placeholder={translate(language, "trackPhonePlaceholder")}
+                />
+              </IconField>
             )}
             <button onClick={search} className="primary-button gap-2">
               <Search className="h-4 w-4" />

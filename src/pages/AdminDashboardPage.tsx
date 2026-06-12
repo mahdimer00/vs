@@ -1,8 +1,24 @@
-import { AlertTriangle, BellRing, PackageX, TicketPercent } from "lucide-react";
+import {
+  AlertTriangle,
+  BellRing,
+  Building2,
+  Facebook,
+  Instagram,
+  Link2,
+  MapPin,
+  MessageCircle,
+  PackageX,
+  Phone,
+  Store,
+  TicketPercent,
+  Youtube,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
+import { IconField } from "@/components/IconField";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { TikTokIcon } from "@/components/TikTokIcon";
 import { LoadingState } from "@/components/LoadingState";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/hooks/useApp";
@@ -1310,44 +1326,64 @@ export function AdminDashboardPage() {
       <div className="space-y-6">
         <Panel title={translate(language, "adminSettingsTitle")}>
           <div className="grid gap-4 md:grid-cols-2">
-            <input value={settings.storeName} onChange={(event) => setSettings({ ...settings, storeName: event.target.value })} className="field-input" placeholder={translate(language, "storeName")} />
-            <input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} className="field-input" placeholder={translate(language, "phone")} />
-            <input value={settings.whatsapp || ""} onChange={(event) => setSettings({ ...settings, whatsapp: event.target.value })} className="field-input" placeholder="WhatsApp" />
-            <input value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} className="field-input" placeholder={translate(language, "currency")} />
+            <IconField icon={Store}>
+              <input value={settings.storeName} onChange={(event) => setSettings({ ...settings, storeName: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "storeName")} />
+            </IconField>
+            <IconField icon={Phone}>
+              <input value={settings.phone} onChange={(event) => setSettings({ ...settings, phone: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "phone")} />
+            </IconField>
+            <IconField icon={MessageCircle}>
+              <input value={settings.whatsapp || ""} onChange={(event) => setSettings({ ...settings, whatsapp: event.target.value })} className="field-input field-input-icon" placeholder="WhatsApp" />
+            </IconField>
+            <IconField icon={TicketPercent}>
+              <input value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "currency")} />
+            </IconField>
           </div>
           <div className="mt-4">
             <label className="mb-2 block text-sm font-semibold text-slate-700">{translate(language, "adminSiteLogo")}</label>
             <ImageUploadField token={token} value={settings.logo || ""} onChange={(url) => setSettings({ ...settings, logo: url })} />
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <textarea value={settings.address || ""} onChange={(event) => setSettings({ ...settings, address: event.target.value })} rows={2} className="field-textarea" placeholder={translate(language, "adminStoreAddress")} />
-            <input value={settings.mapUrl || ""} onChange={(event) => setSettings({ ...settings, mapUrl: event.target.value })} className="field-input" placeholder={translate(language, "adminMapEmbedUrl")} />
+            <IconField icon={Building2}>
+              <textarea value={settings.address || ""} onChange={(event) => setSettings({ ...settings, address: event.target.value })} rows={2} className="field-textarea field-input-icon" placeholder={translate(language, "adminStoreAddress")} />
+            </IconField>
+            <IconField icon={MapPin}>
+              <input value={settings.mapUrl || ""} onChange={(event) => setSettings({ ...settings, mapUrl: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "adminMapEmbedUrl")} />
+            </IconField>
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <input
-              value={settings.socialLinks?.facebook || ""}
-              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, facebook: event.target.value } })}
-              className="field-input"
-              placeholder="Facebook URL"
-            />
-            <input
-              value={settings.socialLinks?.instagram || ""}
-              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, instagram: event.target.value } })}
-              className="field-input"
-              placeholder="Instagram URL"
-            />
-            <input
-              value={settings.socialLinks?.tiktok || ""}
-              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, tiktok: event.target.value } })}
-              className="field-input"
-              placeholder="TikTok URL"
-            />
-            <input
-              value={settings.socialLinks?.youtube || ""}
-              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, youtube: event.target.value } })}
-              className="field-input"
-              placeholder="YouTube URL"
-            />
+            <IconField icon={Facebook}>
+              <input
+                value={settings.socialLinks?.facebook || ""}
+                onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, facebook: event.target.value } })}
+                className="field-input field-input-icon"
+                placeholder="Facebook URL"
+              />
+            </IconField>
+            <IconField icon={Instagram}>
+              <input
+                value={settings.socialLinks?.instagram || ""}
+                onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, instagram: event.target.value } })}
+                className="field-input field-input-icon"
+                placeholder="Instagram URL"
+              />
+            </IconField>
+            <IconField icon={TikTokIcon}>
+              <input
+                value={settings.socialLinks?.tiktok || ""}
+                onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, tiktok: event.target.value } })}
+                className="field-input field-input-icon"
+                placeholder="TikTok URL"
+              />
+            </IconField>
+            <IconField icon={Youtube}>
+              <input
+                value={settings.socialLinks?.youtube || ""}
+                onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, youtube: event.target.value } })}
+                className="field-input field-input-icon"
+                placeholder="YouTube URL"
+              />
+            </IconField>
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <button onClick={() => setSettings({ ...settings, aiEnabled: !settings.aiEnabled })} className="ghost-button">
