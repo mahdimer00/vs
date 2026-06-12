@@ -2,9 +2,9 @@ import { env } from "../config/env.js";
 import { hashPassword } from "../utils/auth.js";
 import { UserModel } from "../models/user.model.js";
 import { AffiliateModel } from "../models/affiliate.model.js";
-import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel, WebsiteSettingModel } from "../models/catalog.model.js";
+import { BannerModel, BrandModel, CategoryModel, WebsiteSettingModel } from "../models/catalog.model.js";
 import { WilayaModel } from "../models/shipping.model.js";
-import { bannerSeed, categorySeed, brandSeed, productSeed, wilayaSeed } from "./data.js";
+import { bannerSeed, categorySeed, brandSeed, wilayaSeed } from "./data.js";
 import { communesByWilaya } from "./communes.js";
 
 export async function runSeed() {
@@ -39,41 +39,7 @@ export async function runSeed() {
   }
 
   for (const brand of brandSeed) {
-    await BrandModel.findOneAndUpdate({ name: brand }, { name: brand, isActive: true }, { upsert: true, new: true });
-  }
-
-  const hasProducts = (await ProductModel.countDocuments()) > 0;
-  for (const item of productSeed) {
-    if (hasProducts) {
-      break;
-    }
-    const category = await CategoryModel.findOne({ slug: item.category });
-    const brand = await BrandModel.findOne({ name: item.brand });
-    if (!category || !brand) {
-      continue;
-    }
-
-    const product = await ProductModel.findOneAndUpdate(
-      { slug: item.slug },
-      {
-        name: item.name,
-        description: item.description,
-        slug: item.slug,
-        category: category._id,
-        brand: brand._id,
-        images: item.images,
-        basePrice: item.basePrice,
-        discountPrice: item.discountPrice,
-        specifications: item.specifications ?? {},
-        stock: item.stock,
-        status: "ACTIVE",
-        isFeatured: item.isFeatured,
-      },
-      { upsert: true, new: true },
-    );
-
-    await ProductVariantModel.deleteMany({ productId: product._id });
-    await ProductVariantModel.insertMany(item.variants.map((variant) => ({ ...variant, images: item.images, productId: product._id })));
+    await BrandModel.findOneAndUpdate({ name: brand.name }, { name: brand.name, logo: brand.logo, isActive: true }, { upsert: true, new: true });
   }
 
   await WebsiteSettingModel.findOneAndUpdate(

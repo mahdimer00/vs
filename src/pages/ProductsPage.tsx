@@ -21,7 +21,7 @@ export function ProductsPage() {
   const [filters, setFilters] = useState<ProductFilterState>({
     search: "",
     category: searchParams.get("category") || "all",
-    brand: "all",
+    brand: searchParams.get("brand") || "all",
     maxPrice: 500000,
   });
 

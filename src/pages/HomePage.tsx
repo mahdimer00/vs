@@ -9,7 +9,7 @@ import { useApp } from "@/hooks/useApp";
 import { adminService } from "@/services/admin.service";
 import { bannerService } from "@/services/banner.service";
 import { productService } from "@/services/product.service";
-import type { Banner, Category, Product } from "@/types";
+import type { Banner, Brand, Category, Product } from "@/types";
 import { getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
@@ -18,15 +18,17 @@ export function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    void Promise.all([productService.getProducts(), adminService.getCategories(), bannerService.getBanners()])
-      .then(([productData, categoryData, bannerData]) => {
+    void Promise.all([productService.getProducts(), adminService.getCategories(), bannerService.getBanners(), adminService.getBrands()])
+      .then(([productData, categoryData, bannerData, brandData]) => {
         setProducts(productData.filter((product) => product.isFeatured).slice(0, 6));
         setCategories(categoryData.filter((category) => category.isActive).slice(0, 4));
         setBanners(bannerData);
+        setBrands(brandData.filter((brand) => brand.isActive && brand.logo));
       })
       .catch((error) => {
         setErrorMessage(error instanceof Error ? error.message : translate(language, "homeLoadErrorDescription"));
@@ -97,11 +99,18 @@ export function HomePage() {
             <Link
               key={category._id}
               to={`/products?category=${category.slug}`}
-              className="surface-card p-5 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.1)]"
+              className="surface-card overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.1)]"
             >
-              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{translate(language, "categories")}</div>
-              <div className="mt-3 text-xl font-semibold text-slate-950">{getLocalizedText(category.name, language)}</div>
-              <div className="mt-2 text-sm text-slate-600">{translate(language, "browseCategory")}</div>
+              {category.image ? (
+                <div className="h-28 w-full overflow-hidden bg-slate-100">
+                  <img src={category.image} alt={getLocalizedText(category.name, language)} className="h-full w-full object-cover" />
+                </div>
+              ) : null}
+              <div className="p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{translate(language, "categories")}</div>
+                <div className="mt-3 text-xl font-semibold text-slate-950">{getLocalizedText(category.name, language)}</div>
+                <div className="mt-2 text-sm text-slate-600">{translate(language, "browseCategory")}</div>
+              </div>
             </Link>
           ))}
         </div>
@@ -124,6 +133,27 @@ export function HomePage() {
           ))}
         </div>
       </section>
+
+      {brands.length ? (
+        <section className="space-y-6">
+          <div>
+            <p className="section-eyebrow">{translate(language, "brandsEyebrow")}</p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold text-slate-950">{translate(language, "brandsTitle")}</h2>
+          </div>
+          <div className="surface-card grid grid-cols-3 gap-4 p-6 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
+            {brands.map((brand) => (
+              <Link
+                key={brand._id}
+                to={`/products?brand=${encodeURIComponent(brand.name)}`}
+                className="flex aspect-square items-center justify-center rounded-2xl border border-slate-100 bg-white p-3 transition hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+                title={brand.name}
+              >
+                <img src={brand.logo} alt={brand.name} className="h-full w-full object-contain" loading="lazy" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

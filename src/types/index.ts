@@ -162,6 +162,8 @@ export interface WebsiteSetting {
   logo?: string;
   phone: string;
   whatsapp?: string;
+  address?: string;
+  mapUrl?: string;
   socialLinks: Record<string, string>;
   defaultLanguage: Locale;
   currency: string;

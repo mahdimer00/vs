@@ -63,6 +63,8 @@ const websiteSettingSchema = new Schema(
     logo: String,
     phone: { type: String, required: true },
     whatsapp: String,
+    address: String,
+    mapUrl: String,
     socialLinks: { type: Schema.Types.Mixed, default: {} },
     defaultLanguage: { type: String, enum: ["ar", "fr", "en"], default: "ar" },
     currency: { type: String, default: "DZD" },

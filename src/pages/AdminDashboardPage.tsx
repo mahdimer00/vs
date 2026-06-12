@@ -1,5 +1,6 @@
+import { AlertTriangle, BellRing, PackageX, TicketPercent } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { LoadingState } from "@/components/LoadingState";
@@ -502,9 +503,65 @@ export function AdminDashboardPage() {
     setVariantDrafts((current) => current.map((draft, draftIndex) => (draftIndex === index ? { ...draft, ...patch } : draft)));
   };
 
-  const renderDashboard = () =>
-    stats ? (
+  const renderDashboard = () => {
+    if (!stats) {
+      return null;
+    }
+
+    const actionableOrders = orders.filter((order) => order.status === "PENDING_AI_CONFIRMATION" || order.status === "AWAITING_CALL_CONFIRMATION");
+    const now = Date.now();
+    const soon = now + 3 * 24 * 60 * 60 * 1000;
+    const expiringPromos = promos.filter((promo) => promo.expiresAt && new Date(promo.expiresAt).getTime() <= soon);
+
+    const alerts = [
+      actionableOrders.length > 0
+        ? {
+            key: "orders",
+            icon: BellRing,
+            tone: "border-amber-200 bg-amber-50 text-amber-800",
+            label: translate(language, "adminAlertOrdersPending").replace("{count}", String(actionableOrders.length)),
+            href: "/admin/orders",
+          }
+        : null,
+      stats.lowStockProducts.length > 0
+        ? {
+            key: "lowstock",
+            icon: PackageX,
+            tone: "border-rose-200 bg-rose-50 text-rose-800",
+            label: translate(language, "adminAlertLowStock").replace("{count}", String(stats.lowStockProducts.length)),
+            href: "/admin/products",
+          }
+        : null,
+      expiringPromos.length > 0
+        ? {
+            key: "promos",
+            icon: TicketPercent,
+            tone: "border-sky-200 bg-sky-50 text-sky-800",
+            label: translate(language, "adminAlertPromosExpiring").replace("{count}", String(expiringPromos.length)),
+            href: "/admin/promo-codes",
+          }
+        : null,
+    ].filter((alert): alert is NonNullable<typeof alert> => alert !== null);
+
+    return (
       <div className="space-y-6">
+        {alerts.length > 0 ? (
+          <Panel title={translate(language, "adminAlertsTitle")}>
+            <div className="grid gap-3 md:grid-cols-3">
+              {alerts.map((alert) => (
+                <Link key={alert.key} to={alert.href} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition hover:-translate-y-0.5 ${alert.tone}`}>
+                  <alert.icon className="h-5 w-5 shrink-0" />
+                  <span>{alert.label}</span>
+                </Link>
+              ))}
+            </div>
+          </Panel>
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <span>{translate(language, "adminAlertsNone")}</span>
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
             [translate(language, "orders"), String(stats.totalOrders)],
@@ -541,7 +598,8 @@ export function AdminDashboardPage() {
           </Panel>
         </div>
       </div>
-    ) : null;
+    );
+  };
 
   const renderProducts = () => (
     <div className="space-y-6">
@@ -1230,6 +1288,36 @@ export function AdminDashboardPage() {
           <div className="mt-4">
             <label className="mb-2 block text-sm font-semibold text-slate-700">{translate(language, "adminSiteLogo")}</label>
             <ImageUploadField token={token} value={settings.logo || ""} onChange={(url) => setSettings({ ...settings, logo: url })} />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <textarea value={settings.address || ""} onChange={(event) => setSettings({ ...settings, address: event.target.value })} rows={2} className="field-textarea" placeholder={translate(language, "adminStoreAddress")} />
+            <input value={settings.mapUrl || ""} onChange={(event) => setSettings({ ...settings, mapUrl: event.target.value })} className="field-input" placeholder={translate(language, "adminMapEmbedUrl")} />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <input
+              value={settings.socialLinks?.facebook || ""}
+              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, facebook: event.target.value } })}
+              className="field-input"
+              placeholder="Facebook URL"
+            />
+            <input
+              value={settings.socialLinks?.instagram || ""}
+              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, instagram: event.target.value } })}
+              className="field-input"
+              placeholder="Instagram URL"
+            />
+            <input
+              value={settings.socialLinks?.tiktok || ""}
+              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, tiktok: event.target.value } })}
+              className="field-input"
+              placeholder="TikTok URL"
+            />
+            <input
+              value={settings.socialLinks?.youtube || ""}
+              onChange={(event) => setSettings({ ...settings, socialLinks: { ...settings.socialLinks, youtube: event.target.value } })}
+              className="field-input"
+              placeholder="YouTube URL"
+            />
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <button onClick={() => setSettings({ ...settings, aiEnabled: !settings.aiEnabled })} className="ghost-button">

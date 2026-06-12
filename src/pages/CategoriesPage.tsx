@@ -64,12 +64,19 @@ export function CategoriesPage() {
             <Link
               key={category._id}
               to={`/products?category=${category.slug}`}
-              className="surface-card p-6 transition hover:-translate-y-1 hover:shadow-[0_24px_65px_rgba(15,23,42,0.12)]"
+              className="surface-card overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[0_24px_65px_rgba(15,23,42,0.12)]"
             >
-              <div className="text-sm uppercase tracking-[0.25em] text-slate-400">{count} {translate(language, "productsResults")}</div>
-              <h2 className="mt-4 text-2xl font-semibold text-slate-950">{getLocalizedText(category.name, language)}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{translate(language, "categoryDescription")}</p>
-              <div className="mt-5 text-sm font-semibold text-teal-700">{translate(language, "browseCategory")}</div>
+              {category.image ? (
+                <div className="h-36 w-full overflow-hidden bg-slate-100">
+                  <img src={category.image} alt={getLocalizedText(category.name, language)} className="h-full w-full object-cover" />
+                </div>
+              ) : null}
+              <div className="p-6">
+                <div className="text-sm uppercase tracking-[0.25em] text-slate-400">{count} {translate(language, "productsResults")}</div>
+                <h2 className="mt-4 text-2xl font-semibold text-slate-950">{getLocalizedText(category.name, language)}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{translate(language, "categoryDescription")}</p>
+                <div className="mt-5 text-sm font-semibold text-teal-700">{translate(language, "browseCategory")}</div>
+              </div>
             </Link>
           );
         })}
