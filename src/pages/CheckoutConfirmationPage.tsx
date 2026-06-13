@@ -61,12 +61,12 @@ export function CheckoutConfirmationPage() {
       minute: "2-digit",
     });
 
-  const send = async () => {
-    if (!input.trim() || sending) {
+  const send = async (overrideMessage?: string) => {
+    const userMessage = overrideMessage ?? input;
+    if (!userMessage.trim() || sending) {
       return;
     }
 
-    const userMessage = input;
     setInput("");
     setErrorMessage("");
     setSending(true);
@@ -157,6 +157,17 @@ export function CheckoutConfirmationPage() {
 
         <div className="border-t border-slate-200 px-6 py-5">
           {errorMessage ? <p className="mb-3 text-sm text-rose-600">{errorMessage}</p> : null}
+          {!loading && !confirmed ? (
+            <button
+              type="button"
+              onClick={() => void send(translate(language, "aiQuickConfirm"))}
+              disabled={sending}
+              className="secondary-button mb-3 w-full gap-2 sm:w-auto"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {translate(language, "aiQuickConfirm")}
+            </button>
+          ) : null}
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
               ref={inputRef}
