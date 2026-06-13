@@ -29,11 +29,11 @@ export function ProductCard({ product, language }: { product: Product; language:
         aria-disabled={soldOut}
         className={`block ${soldOut ? "cursor-not-allowed" : ""}`}
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+        <div className="relative aspect-square overflow-hidden bg-white">
           <img
             src={product.images[0]}
             alt={getLocalizedText(product.name, language)}
-            className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-60 grayscale" : ""}`}
+            className={`h-full w-full object-contain p-4 transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-60 grayscale" : ""}`}
           />
           {soldOut ? (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-950/30">

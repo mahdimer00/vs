@@ -34,7 +34,7 @@ export function CartPage() {
         <div className="space-y-4">
           {cart.map((item, index) => (
             <div key={`${item.product._id}-${index}`} className="surface-card flex flex-col gap-4 p-5 md:flex-row">
-              <img src={item.product.images[0]} alt="" className="h-28 w-full rounded-[1.5rem] object-cover md:w-28" />
+              <img src={item.product.images[0]} alt="" className="h-28 w-full rounded-[1.5rem] bg-white object-contain p-2 md:w-28" />
               <div className="flex-1">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>

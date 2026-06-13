@@ -167,7 +167,7 @@ export function AffiliateDashboardPage() {
                       <img
                         src={product.images[0]}
                         alt={getLocalizedText(product.name, language)}
-                        className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+                        className="h-16 w-16 shrink-0 rounded-2xl bg-white object-contain p-1"
                       />
                       <div className="min-w-0">
                         <div className="line-clamp-2 text-sm font-semibold text-slate-950">{getLocalizedText(product.name, language)}</div>

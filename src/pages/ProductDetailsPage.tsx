@@ -240,7 +240,7 @@ export function ProductDetailsPage() {
       <div className="space-y-5">
         <div className="surface-card overflow-hidden p-3">
           <div className="relative overflow-hidden rounded-[1.6rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.2),_transparent_22%),linear-gradient(180deg,_#fff,_#f8fafc)]">
-            <img src={selectedImage} alt="" className="aspect-[4/3] w-full object-cover" />
+            <img src={selectedImage} alt="" className="aspect-square w-full object-contain p-4" />
             {saving > 0 ? (
               <div className="absolute left-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-lg">
                 {translate(language, "productSaveAmount")} {formatCurrency(saving, language)}
@@ -260,7 +260,7 @@ export function ProductDetailsPage() {
                   : "border-slate-200 bg-white"
               }`}
             >
-              <img src={image} alt="" className="aspect-square w-full rounded-[1rem] object-cover" />
+              <img src={image} alt="" className="aspect-square w-full rounded-[1rem] bg-white object-contain p-1" />
             </button>
           ))}
         </div>
