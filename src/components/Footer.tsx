@@ -1,4 +1,5 @@
 import { Facebook, Headset, Instagram, MapPin, MessageCircle, Phone, ShieldCheck, Truck, WalletCards, Youtube } from "lucide-react";
+import { Link } from "react-router-dom";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
@@ -68,13 +69,32 @@ export function Footer() {
             </div>
           ) : null}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {trustItems.map((item) => (
-            <div key={item.label} className="muted-card flex items-center gap-3 px-4 py-4">
-              <item.icon className="h-5 w-5 text-teal-700" />
-              <span className="text-sm font-medium text-slate-700">{item.label}</span>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-3">
+            {trustItems.map((item) => (
+              <div key={item.label} className="muted-card flex items-center gap-3 px-4 py-4">
+                <item.icon className="h-5 w-5 text-teal-700" />
+                <span className="text-sm font-medium text-slate-700">{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{translate(language, "footerLegalTitle")}</div>
+            <div className="mt-3 flex flex-col gap-2 text-sm text-slate-600">
+              <Link to="/contact" className="hover:text-teal-700">
+                {translate(language, "contact")}
+              </Link>
+              <Link to="/privacy-policy" className="hover:text-teal-700">
+                {translate(language, "privacyPolicyTitle")}
+              </Link>
+              <Link to="/terms" className="hover:text-teal-700">
+                {translate(language, "termsTitle")}
+              </Link>
+              <Link to="/return-policy" className="hover:text-teal-700">
+                {translate(language, "returnPolicyTitle")}
+              </Link>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </footer>

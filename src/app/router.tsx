@@ -13,9 +13,13 @@ import { CheckoutPage } from "@/pages/CheckoutPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { EarnMoneyPage } from "@/pages/EarnMoneyPage";
 import { HomePage } from "@/pages/HomePage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderSuccessPage } from "@/pages/OrderSuccessPage";
+import { PrivacyPolicyPage } from "@/pages/PrivacyPolicyPage";
 import { ProductDetailsPage } from "@/pages/ProductDetailsPage";
 import { ProductsPage } from "@/pages/ProductsPage";
+import { ReturnPolicyPage } from "@/pages/ReturnPolicyPage";
+import { TermsPage } from "@/pages/TermsPage";
 import { TrackOrderPage } from "@/pages/TrackOrderPage";
 import { WishlistPage } from "@/pages/WishlistPage";
 
@@ -36,6 +40,9 @@ export const router = createBrowserRouter([
       { path: "track-order", element: <TrackOrderPage /> },
       { path: "contact", element: <ContactPage /> },
       { path: "earn-money", element: <EarnMoneyPage /> },
+      { path: "privacy-policy", element: <PrivacyPolicyPage /> },
+      { path: "terms", element: <TermsPage /> },
+      { path: "return-policy", element: <ReturnPolicyPage /> },
       { path: "admin/login", element: <AdminLoginPage /> },
       {
         path: "admin",
@@ -71,6 +78,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);
