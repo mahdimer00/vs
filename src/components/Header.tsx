@@ -96,14 +96,14 @@ export function Header() {
             <Link to="/wishlist" className="relative rounded-full border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300">
               <Heart className="h-5 w-5 text-slate-900" />
               {wishlist.length > 0 ? (
-                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-rose-500 px-1.5 text-center text-xs font-bold text-white">
+                <span className="absolute -end-1 -top-1 min-w-5 rounded-full bg-rose-500 px-1.5 text-center text-xs font-bold text-white">
                   {wishlist.length}
                 </span>
               ) : null}
             </Link>
             <Link to="/cart" className="relative rounded-full border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300">
               <ShoppingBag className="h-5 w-5 text-slate-900" />
-              <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-amber-400 px-1.5 text-center text-xs font-bold text-slate-950">
+              <span className="absolute -end-1 -top-1 min-w-5 rounded-full bg-amber-400 px-1.5 text-center text-xs font-bold text-slate-950">
                 {count}
               </span>
             </Link>

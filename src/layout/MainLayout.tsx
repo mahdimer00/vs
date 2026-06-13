@@ -1,7 +1,9 @@
 import { CheckCircle2, CircleAlert } from "lucide-react";
+import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { LoadingState } from "@/components/LoadingState";
 import { useApp } from "@/hooks/useApp";
 
 export function MainLayout() {
@@ -13,10 +15,12 @@ export function MainLayout() {
     <div className="min-h-screen text-slate-900">
       {!isDashboard ? <Header /> : null}
       <main className="mx-auto min-h-[calc(100vh-160px)] max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Outlet />
+        <Suspense fallback={<LoadingState />}>
+          <Outlet />
+        </Suspense>
       </main>
       {!isDashboard ? <Footer /> : null}
-      <div className="fixed bottom-4 right-4 z-50 space-y-3">
+      <div className="fixed bottom-4 end-4 z-50 max-w-[calc(100vw-2rem)] space-y-3">
         {toasts.map((toast) => (
           <button
             key={toast.id}

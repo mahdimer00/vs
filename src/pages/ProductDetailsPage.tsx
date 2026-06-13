@@ -242,7 +242,7 @@ export function ProductDetailsPage() {
           <div className="relative overflow-hidden rounded-[1.6rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.2),_transparent_22%),linear-gradient(180deg,_#fff,_#f8fafc)]">
             <img src={selectedImage} alt="" className="aspect-square w-full object-contain p-4" />
             {saving > 0 ? (
-              <div className="absolute left-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+              <div className="absolute start-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white shadow-lg">
                 {translate(language, "productSaveAmount")} {formatCurrency(saving, language)}
               </div>
             ) : null}
