@@ -273,7 +273,7 @@ export function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => setDeliveryType("DESK_PICKUP")}
-                className={`rounded-[1.5rem] border px-5 py-4 text-left transition ${
+                className={`rounded-[1.5rem] border px-5 py-4 text-start transition ${
                   deliveryType === "DESK_PICKUP" ? "border-teal-600 bg-teal-50" : "border-slate-200 bg-white"
                 }`}
               >
@@ -283,7 +283,7 @@ export function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => setDeliveryType("HOME_DELIVERY")}
-                className={`rounded-[1.5rem] border px-5 py-4 text-left transition ${
+                className={`rounded-[1.5rem] border px-5 py-4 text-start transition ${
                   deliveryType === "HOME_DELIVERY" ? "border-teal-600 bg-teal-50" : "border-slate-200 bg-white"
                 }`}
               >

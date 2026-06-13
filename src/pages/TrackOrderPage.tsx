@@ -140,7 +140,7 @@ export function TrackOrderPage() {
         <button
           key={entry._id}
           onClick={() => setOrder(entry)}
-          className="surface-card flex w-full flex-col gap-3 p-5 text-left transition hover:border-teal-300 sm:flex-row sm:items-center sm:justify-between"
+          className="surface-card flex w-full flex-col gap-3 p-5 text-start transition hover:border-teal-300 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
             <div className="text-lg font-semibold text-slate-950">{entry.orderNumber}</div>
