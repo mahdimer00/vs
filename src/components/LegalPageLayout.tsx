@@ -10,7 +10,7 @@ export function LegalPageLayout({ titleKey, bodyKey }: { titleKey: TranslationKe
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <section className="surface-card overflow-hidden p-6 md:p-8">
-        <h1 className="font-serif text-4xl font-semibold text-slate-950">{translate(language, titleKey)}</h1>
+        <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, titleKey)}</h1>
       </section>
       <section className="surface-card space-y-4 p-6 md:p-8">
         {body.split("\n\n").map((paragraph, index) => (

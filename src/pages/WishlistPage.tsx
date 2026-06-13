@@ -36,7 +36,7 @@ export function WishlistPage() {
     <div className="space-y-6">
       <section className="surface-card overflow-hidden p-6 md:p-8">
         <p className="section-eyebrow">{translate(language, "wishlist")}</p>
-        <h1 className="mt-2 font-serif text-4xl font-semibold text-slate-950">{translate(language, "wishlistTitle")}</h1>
+        <h1 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "wishlistTitle")}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "wishlistDescription")}</p>
       </section>
 

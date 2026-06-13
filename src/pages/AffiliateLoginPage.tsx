@@ -61,11 +61,11 @@ export function AffiliateLoginPage() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-      <section className="surface-card-dark p-8">
+      <section className="surface-card-dark p-6 sm:p-8">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-white/10">
           <BadgePercent className="h-7 w-7 text-amber-300" />
         </div>
-        <h1 className="mt-6 font-serif text-4xl font-semibold">{translate(language, "authAffiliateLoginTitle")}</h1>
+        <h1 className="mt-6 font-serif text-2xl font-semibold sm:text-3xl md:text-4xl">{translate(language, "authAffiliateLoginTitle")}</h1>
         <p className="mt-4 text-sm leading-7 text-slate-300">{translate(language, "authAffiliateDescription")}</p>
         <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4 text-sm leading-7 text-slate-200">
           {translate(language, "affiliateCommissionRule")}
@@ -80,7 +80,7 @@ export function AffiliateLoginPage() {
           <ArrowRight className="h-4 w-4" />
         </Link>
       </section>
-      <section className="surface-card p-8">
+      <section className="surface-card p-6 sm:p-8">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700">
           <ShieldCheck className="h-4 w-4" />
           {translate(language, "authSecureLogin")}

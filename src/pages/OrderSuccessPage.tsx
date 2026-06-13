@@ -16,11 +16,11 @@ export function OrderSuccessPage() {
   }, [pendingOrder, rememberPendingOrder]);
 
   return (
-    <div className="mx-auto max-w-2xl surface-card p-8 text-center">
+    <div className="mx-auto max-w-2xl surface-card p-6 text-center sm:p-8">
       <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-100 text-emerald-700">
         <Check className="h-10 w-10" />
       </div>
-      <h1 className="mt-6 font-serif text-4xl font-semibold text-slate-950">{translate(language, "orderSuccessTitle")}</h1>
+      <h1 className="mt-6 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "orderSuccessTitle")}</h1>
       <p className="mt-3 text-sm leading-7 text-slate-600">
         {translate(language, "orderSuccessDescription")} {order?.orderNumber ? `#${order.orderNumber}` : ""}
       </p>

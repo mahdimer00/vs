@@ -159,7 +159,7 @@ export function TrackOrderPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="surface-card overflow-hidden p-0">
         <div className="bg-[linear-gradient(135deg,_#fff7ed,_#ffffff_35%,_#eff6ff)] p-6 md:p-8">
-          <h1 className="font-serif text-4xl font-semibold text-slate-950">{translate(language, "trackTitle")}</h1>
+          <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "trackTitle")}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "trackDescription")}</p>
 
           <div className="mt-6 inline-flex rounded-full bg-slate-100 p-1">

@@ -69,14 +69,14 @@ export function AffiliateRegisterPage() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-      <section className="surface-card-dark p-8">
+      <section className="surface-card-dark p-6 sm:p-8">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-white/10">
           <UserPlus className="h-7 w-7 text-amber-300" />
         </div>
-        <h1 className="mt-6 font-serif text-4xl font-semibold">{translate(language, "authAffiliateRegisterTitle")}</h1>
+        <h1 className="mt-6 font-serif text-2xl font-semibold sm:text-3xl md:text-4xl">{translate(language, "authAffiliateRegisterTitle")}</h1>
         <p className="mt-4 text-sm leading-7 text-slate-300">{translate(language, "authAffiliateDescription")}</p>
       </section>
-      <section className="surface-card p-8">
+      <section className="surface-card p-6 sm:p-8">
         <form onSubmit={submit} className="space-y-4">
           <IconField icon={User}>
             <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "authName")} autoComplete="name" />

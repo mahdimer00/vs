@@ -101,7 +101,7 @@ export function ProductCard({ product, language }: { product: Product; language:
             <div>
               <div className="text-2xl font-bold text-slate-950">
                 {formatCurrency(price, language)}
-                {legacyHint ? <span className="ml-1.5 text-xs font-normal text-slate-400">({legacyHint})</span> : null}
+                {legacyHint ? <span className="ms-1.5 text-xs font-normal text-slate-400">({legacyHint})</span> : null}
               </div>
               {hasDiscount ? (
                 <div className="flex items-center gap-2">

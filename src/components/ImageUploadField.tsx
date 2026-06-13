@@ -47,7 +47,7 @@ export function ImageUploadField({
         />
         <label className="ghost-button cursor-pointer whitespace-nowrap">
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          <span className="ml-2">{translate(language, "adminUploadImage")}</span>
+          <span className="ms-2">{translate(language, "adminUploadImage")}</span>
           <input
             ref={inputRef}
             type="file"

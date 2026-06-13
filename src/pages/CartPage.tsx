@@ -26,7 +26,7 @@ export function CartPage() {
   return (
     <div className="space-y-6">
       <section className="surface-card p-6 md:p-8">
-        <h1 className="font-serif text-4xl font-semibold text-slate-950">{translate(language, "cartTitle")}</h1>
+        <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "cartTitle")}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "cartDescription")}</p>
       </section>
 

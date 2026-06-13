@@ -27,8 +27,8 @@ export function ContactPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <section className="surface-card overflow-hidden p-0">
-        <div className="bg-[linear-gradient(135deg,_#fff7ed,_#ffffff_35%,_#eff6ff)] p-8">
-          <h1 className="font-serif text-4xl font-semibold text-slate-950">{translate(language, "contactTitle")}</h1>
+        <div className="bg-[linear-gradient(135deg,_#fff7ed,_#ffffff_35%,_#eff6ff)] p-6 sm:p-8">
+          <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "contactTitle")}</h1>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "contactDescription")}</p>
           {siteSettings?.address ? (
             <div className="mt-5 flex items-start gap-3 text-sm text-slate-700">

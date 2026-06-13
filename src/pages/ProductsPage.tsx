@@ -63,14 +63,14 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="surface-card overflow-hidden p-6 md:p-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+      <section className="surface-card overflow-hidden p-5 sm:p-6 md:p-8">
+        <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="section-eyebrow">{translate(language, "productsEyebrow")}</p>
-            <h1 className="mt-2 font-serif text-4xl font-semibold text-slate-950">{translate(language, "productsTitle")}</h1>
+            <h1 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "productsTitle")}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "categoryDescription")}</p>
           </div>
-          <div className="rounded-[1.5rem] bg-slate-950 px-5 py-4 text-white">
+          <div className="shrink-0 rounded-[1.5rem] bg-slate-950 px-5 py-4 text-white">
             <div className="text-xs uppercase tracking-[0.24em] text-slate-300">{translate(language, "productsResults")}</div>
             <div className="mt-1 text-2xl font-semibold">{filtered.length}</div>
           </div>

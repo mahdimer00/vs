@@ -26,13 +26,13 @@ export function EarnMoneyPage() {
 
   return (
     <div className="space-y-8">
-      <section className="surface-card-dark relative overflow-hidden p-8 md:p-12">
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
+      <section className="surface-card-dark relative overflow-hidden p-6 sm:p-8 md:p-12">
+        <div className="absolute -end-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
         <span className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-amber-300">
           <BadgePercent className="h-4 w-4" />
           {translate(language, "earnMoneyBadge")}
         </span>
-        <h1 className="mt-6 max-w-3xl font-serif text-4xl font-semibold md:text-5xl">{translate(language, "earnMoneyTitle")}</h1>
+        <h1 className="mt-6 max-w-3xl font-serif text-2xl font-semibold sm:text-3xl md:text-4xl lg:text-5xl">{translate(language, "earnMoneyTitle")}</h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 md:text-base">{translate(language, "earnMoneyDescription")}</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link to="/affiliate/register" className="primary-button inline-flex items-center gap-2">
