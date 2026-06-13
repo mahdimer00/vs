@@ -1,8 +1,8 @@
-import { ArrowUpRight, BadgePercent, Heart, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, BadgePercent, Flame, Heart, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useApp } from "@/hooks/useApp";
 import type { Locale, Product } from "@/types";
-import { formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
+import { formatCurrency, formatLegacyDinarHint, getLocalizedText, hashSeed } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
 export function ProductCard({ product, language }: { product: Product; language: Locale }) {
@@ -14,6 +14,8 @@ export function ProductCard({ product, language }: { product: Product; language:
   const wishlisted = isWishlisted(product._id);
   const legacyHint = formatLegacyDinarHint(price, language);
   const soldOut = product.stock <= 0;
+  const lowStock = !soldOut && product.stock <= 5;
+  const boughtToday = 3 + hashSeed(product._id) % 12;
 
   return (
     <article className="group overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_18px_55px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_65px_rgba(15,23,42,0.12)]">
@@ -51,6 +53,12 @@ export function ProductCard({ product, language }: { product: Product; language:
                   -{discountPercent}%
                 </span>
               ) : null}
+              {lowStock ? (
+                <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white shadow-md shadow-rose-500/40">
+                  <Flame className="h-3.5 w-3.5" />
+                  {translate(language, "productOnlyLeft")}
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={(event) => {
@@ -84,6 +92,11 @@ export function ProductCard({ product, language }: { product: Product; language:
               {translate(language, soldOut ? "productSoldOut" : "productInStock")}
             </span>
           </div>
+          {!soldOut ? (
+            <p className="text-xs font-medium text-amber-600">
+              🔥 {translate(language, "productBoughtToday").replace("{count}", String(boughtToday))}
+            </p>
+          ) : null}
           <div className="flex items-end justify-between gap-3">
             <div>
               <div className="text-2xl font-bold text-slate-950">

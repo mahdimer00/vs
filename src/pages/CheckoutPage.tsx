@@ -1,4 +1,4 @@
-import { Bot, Home, MapPin, MapPinned, PackageCheck, Phone, Tag, UserRound } from "lucide-react";
+import { Bot, Home, Lock, MapPin, MapPinned, PackageCheck, Phone, ShieldCheck, Tag, Truck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -323,6 +323,20 @@ export function CheckoutPage() {
           <button disabled={submitting} className="secondary-button flex w-full justify-center py-4">
             {submitting ? translate(language, "checkoutSubmitting") : translate(language, "checkoutSubmit")}
           </button>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5 text-teal-700" />
+              {translate(language, "checkoutTrustSecure")}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
+              {translate(language, "checkoutTrustCod")}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Truck className="h-3.5 w-3.5 text-teal-700" />
+              {translate(language, "checkoutTrustDelivery")}
+            </span>
+          </div>
         </form>
 
         <div className="space-y-4">

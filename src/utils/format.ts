@@ -11,6 +11,18 @@ export function formatCurrency(value: number, language: Locale = "fr"): string {
 }
 
 /**
+ * Deterministic small number derived from a string, used to power
+ * consistent (non-random-on-every-render) social proof badges.
+ */
+export function hashSeed(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) % 97;
+  }
+  return hash;
+}
+
+/**
  * Algerians commonly read large prices using the pre-1964 currency scale
  * (1 dinar = 100 of the old unit), e.g. 1000 DA is said as "100 ألف".
  * Returns a short Arabic phrase like "2 مليون و 100 ألف", or null when the

@@ -8,16 +8,8 @@ import { useApp } from "@/hooks/useApp";
 import { aiService } from "@/services/ai.service";
 import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
-import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
+import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText, hashSeed } from "@/utils/format";
 import { translate } from "@/utils/i18n";
-
-function hashSeed(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) % 97;
-  }
-  return hash;
-}
 
 function getTimeUntilMidnight(): { hours: number; minutes: number; seconds: number } {
   const now = new Date();
@@ -159,6 +151,7 @@ export function ProductDetailsPage() {
   const saving = Math.max(0, product.basePrice - price);
   const lowStock = selectedVariant.stock <= 5;
   const viewerCount = 8 + hashSeed(product._id);
+  const boughtToday = 3 + hashSeed(product._id) % 12;
   const pad = (value: number) => String(value).padStart(2, "0");
 
   const selectVariantBy = (change: { ram?: string; storage?: string; color?: string }) => {
@@ -290,10 +283,10 @@ export function ProductDetailsPage() {
             <h1 className="mt-3 font-serif text-4xl font-semibold leading-tight text-slate-950">
               {getLocalizedText(product.name, language)}
             </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-600">{getLocalizedText(product.description, language)}</p>
+            <p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-8 text-slate-600">{getLocalizedText(product.description, language)}</p>
 
             {product.adminNote ? (
-              <div className="mt-4 rounded-[1.4rem] border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
+              <div className="mt-4 whitespace-pre-line rounded-[1.4rem] border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
                 <span className="font-semibold">⚠️ {translate(language, "productAdminNoteTitle")}: </span>
                 {product.adminNote}
               </div>
@@ -321,6 +314,9 @@ export function ProductDetailsPage() {
               ) : null}
               <div className="rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700">
                 👀 {viewerCount} {translate(language, "productViewingNow")}
+              </div>
+              <div className="rounded-full bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+                🔥 {translate(language, "productBoughtToday").replace("{count}", String(boughtToday))}
               </div>
             </div>
 

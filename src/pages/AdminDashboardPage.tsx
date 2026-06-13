@@ -64,6 +64,7 @@ type ProductFormState = {
   affiliateEnabled: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: string;
+  specifications: { key: string; value: string }[];
 };
 
 const defaultProductForm: ProductFormState = {
@@ -85,6 +86,7 @@ const defaultProductForm: ProductFormState = {
   affiliateEnabled: false,
   commissionType: "PERCENTAGE",
   commissionValue: "",
+  specifications: [{ key: "", value: "" }],
 };
 
 function slugify(value: string) {
@@ -431,6 +433,9 @@ export function AdminDashboardPage() {
       affiliateEnabled: product.affiliateEnabled,
       commissionType: product.commissionType,
       commissionValue: product.commissionValue ? String(product.commissionValue) : "",
+      specifications: Object.entries(product.specifications ?? {}).length > 0
+        ? Object.entries(product.specifications ?? {}).map(([key, value]) => ({ key, value }))
+        : [{ key: "", value: "" }],
     });
     setVariantDrafts(
       product.variants.length > 0
@@ -471,7 +476,12 @@ export function AdminDashboardPage() {
       images,
       basePrice: Number(productForm.basePrice),
       discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
-      specifications: {},
+      specifications: Object.fromEntries(
+        productForm.specifications
+          .map((spec) => ({ key: spec.key.trim(), value: spec.value.trim() }))
+          .filter((spec) => spec.key && spec.value)
+          .map((spec) => [spec.key, spec.value]),
+      ),
       stock: Number(productForm.stock),
       condition: productForm.condition,
       adminNote: productForm.adminNote.trim() || undefined,
@@ -521,6 +531,24 @@ export function AdminDashboardPage() {
     setProductForm((current) => ({
       ...current,
       images: current.images.length > 1 ? current.images.filter((_, imageIndex) => imageIndex !== index) : current.images,
+    }));
+  };
+
+  const updateProductSpec = (index: number, patch: Partial<{ key: string; value: string }>) => {
+    setProductForm((current) => ({
+      ...current,
+      specifications: current.specifications.map((spec, specIndex) => (specIndex === index ? { ...spec, ...patch } : spec)),
+    }));
+  };
+
+  const addProductSpec = () => {
+    setProductForm((current) => ({ ...current, specifications: [...current.specifications, { key: "", value: "" }] }));
+  };
+
+  const removeProductSpec = (index: number) => {
+    setProductForm((current) => ({
+      ...current,
+      specifications: current.specifications.length > 1 ? current.specifications.filter((_, specIndex) => specIndex !== index) : current.specifications,
     }));
   };
 
@@ -685,6 +713,40 @@ export function AdminDashboardPage() {
             </div>
             <button type="button" onClick={addProductImage} className="ghost-button">
               {translate(language, "adminAddImage")}
+            </button>
+          </div>
+
+          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+            <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductSpecifications")}</div>
+            <p className="text-sm text-slate-500">{translate(language, "adminProductSpecificationsHint")}</p>
+            <div className="grid gap-3">
+              {productForm.specifications.map((spec, index) => (
+                <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                  <input
+                    value={spec.key}
+                    onChange={(event) => updateProductSpec(index, { key: event.target.value })}
+                    className="field-input"
+                    placeholder={translate(language, "adminSpecificationName")}
+                  />
+                  <input
+                    value={spec.value}
+                    onChange={(event) => updateProductSpec(index, { value: event.target.value })}
+                    className="field-input"
+                    placeholder={translate(language, "adminSpecificationValue")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeProductSpec(index)}
+                    disabled={productForm.specifications.length <= 1}
+                    className="text-sm font-semibold text-rose-600 disabled:opacity-30"
+                  >
+                    {translate(language, "adminRemove")}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addProductSpec} className="ghost-button">
+              {translate(language, "adminAddSpecification")}
             </button>
           </div>
 
