@@ -172,7 +172,7 @@ export function CheckoutPage() {
       <section className="surface-card p-6 md:p-8">
         <h1 className="font-serif text-4xl font-semibold text-slate-950">{translate(language, "checkoutTitle")}</h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "checkoutDescription")}</p>
-        <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {steps.map((step, index) => (
             <div key={step.label} className={`rounded-[1.5rem] px-4 py-4 ${index === 0 ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>
               <step.icon className="h-5 w-5" />
@@ -183,7 +183,7 @@ export function CheckoutPage() {
       </section>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <form onSubmit={submit} className="surface-card space-y-6 p-6">
+        <form onSubmit={submit} className="surface-card order-2 space-y-6 p-6 lg:order-1">
           <section>
             <div className="mb-4 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-white">1</div>
@@ -339,21 +339,23 @@ export function CheckoutPage() {
           </div>
         </form>
 
-        <div className="space-y-4">
-          <OrderSummaryCard
-            cart={cart}
-            subtotal={subtotal}
-            shippingFee={shippingFee}
-            discount={discount}
-            total={total}
-            language={language}
-            onUpdateQuantity={updateQuantity}
-            onRemove={removeFromCart}
-          />
-          <div className="surface-card p-5">
-            <div className="text-sm text-slate-500">{translate(language, "shippingFee")}</div>
-            <div className="mt-2 text-lg font-semibold text-slate-950">{selectedWilaya ? `${selectedWilaya.code} · ${language === "ar" ? selectedWilaya.name.ar : language === "fr" ? selectedWilaya.name.fr : selectedWilaya.name.en}` : "-"}</div>
-            <div className="mt-2 text-sm text-slate-600">{translate(language, deliveryType === "HOME_DELIVERY" ? "checkoutDeliveryHomeDesc" : "checkoutDeliveryDeskDesc")}</div>
+        <div className="order-1 space-y-4 lg:order-2">
+          <div className="lg:sticky lg:top-24 lg:space-y-4">
+            <OrderSummaryCard
+              cart={cart}
+              subtotal={subtotal}
+              shippingFee={shippingFee}
+              discount={discount}
+              total={total}
+              language={language}
+              onUpdateQuantity={updateQuantity}
+              onRemove={removeFromCart}
+            />
+            <div className="surface-card mt-4 p-5 lg:mt-0">
+              <div className="text-sm text-slate-500">{translate(language, "shippingFee")}</div>
+              <div className="mt-2 text-lg font-semibold text-slate-950">{selectedWilaya ? `${selectedWilaya.code} · ${language === "ar" ? selectedWilaya.name.ar : language === "fr" ? selectedWilaya.name.fr : selectedWilaya.name.en}` : "-"}</div>
+              <div className="mt-2 text-sm text-slate-600">{translate(language, deliveryType === "HOME_DELIVERY" ? "checkoutDeliveryHomeDesc" : "checkoutDeliveryDeskDesc")}</div>
+            </div>
           </div>
         </div>
       </div>

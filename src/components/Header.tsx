@@ -56,10 +56,7 @@ export function Header() {
                 VS
               </div>
             )}
-            <div>
-              <div className="font-serif text-xl font-semibold tracking-wide text-slate-950">{storeName}</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-slate-500">Algerian tech commerce</div>
-            </div>
+            <div className="font-serif text-xl font-semibold tracking-wide text-slate-950">{storeName}</div>
           </Link>
 
           <nav className="hidden items-center gap-2 md:flex">

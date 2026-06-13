@@ -55,11 +55,11 @@ export function HomePage() {
     <div className="space-y-10">
       <PromoSlider banners={banners} language={language} />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {trustItems.map((item) => (
-          <div key={item.label} className="surface-card px-5 py-5">
+          <div key={item.label} className="surface-card px-4 py-5 sm:px-5">
             <item.icon className="h-5 w-5 text-teal-700" />
-            <div className="mt-3 text-base font-semibold text-slate-950">{item.label}</div>
+            <div className="mt-3 text-sm font-semibold text-slate-950 sm:text-base">{item.label}</div>
           </div>
         ))}
       </section>
@@ -78,7 +78,7 @@ export function HomePage() {
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{translate(language, "homeAffiliatePromoDescription")}</p>
           </div>
         </div>
-        <Link to="/earn-money" className="primary-button shrink-0 text-center">
+        <Link to="/earn-money" className="primary-button w-full shrink-0 text-center sm:w-auto">
           {translate(language, "homeAffiliatePromoCta")}
         </Link>
       </section>
@@ -94,12 +94,12 @@ export function HomePage() {
             {translate(language, "viewAll")}
           </Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
           {categories.map((category) => (
             <Link
               key={category._id}
               to={`/products?category=${category.slug}`}
-              className="surface-card group relative h-48 overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.1)]"
+              className="surface-card group relative aspect-[4/3] overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.1)] sm:aspect-square md:aspect-[4/3]"
             >
               {category.image ? (
                 <img
@@ -108,12 +108,12 @@ export function HomePage() {
                   className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
               ) : (
-                <div className="absolute inset-0 bg-slate-100" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-white to-teal-50" />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-5">
-                <div className="text-xl font-semibold text-white">{getLocalizedText(category.name, language)}</div>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15 text-white transition group-hover:bg-white/25">
+              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 sm:p-5">
+                <div className="line-clamp-2 text-base font-semibold text-white sm:text-xl">{getLocalizedText(category.name, language)}</div>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 text-white transition group-hover:bg-white/25 sm:h-9 sm:w-9">
                   <ArrowUpRight className="h-4 w-4" />
                 </span>
               </div>

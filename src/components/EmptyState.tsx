@@ -10,7 +10,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="surface-card p-10 text-center">
+    <div className="surface-card p-6 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-500">
         <Inbox className="h-6 w-6" />
       </div>

@@ -63,7 +63,7 @@ export function CartPage() {
             </div>
           ))}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <OrderSummaryCard
             cart={cart}
             subtotal={subtotal}

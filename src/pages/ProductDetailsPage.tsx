@@ -248,7 +248,7 @@ export function ProductDetailsPage() {
             ) : null}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3">
           {gallery.map((image) => (
             <button
               key={image}
@@ -280,7 +280,7 @@ export function ProductDetailsPage() {
                 {translate(language, product.condition === "USED" ? "productConditionUsed" : "productConditionNew")}
               </span>
             </div>
-            <h1 className="mt-3 font-serif text-4xl font-semibold leading-tight text-slate-950">
+            <h1 className="mt-3 font-serif text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl md:text-4xl">
               {getLocalizedText(product.name, language)}
             </h1>
             <p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-8 text-slate-600">{getLocalizedText(product.description, language)}</p>
@@ -293,7 +293,7 @@ export function ProductDetailsPage() {
             ) : null}
 
             <div className="mt-6 flex flex-wrap items-end gap-4">
-              <div className="text-4xl font-bold text-slate-950">
+              <div className="text-3xl font-bold text-slate-950 sm:text-4xl">
                 {formatCurrency(price, language)}
                 {legacyHint ? <span className="ml-2 text-sm font-normal text-slate-400">({legacyHint})</span> : null}
               </div>
