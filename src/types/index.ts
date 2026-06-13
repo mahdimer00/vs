@@ -172,6 +172,7 @@ export interface WebsiteSetting {
   logo?: string;
   phone: string;
   whatsapp?: string;
+  email?: string;
   address?: string;
   mapUrl?: string;
   socialLinks: Record<string, string>;

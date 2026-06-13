@@ -9,11 +9,12 @@ export function ContactPage() {
   const whatsapp = siteSettings?.whatsapp || phone;
   const whatsappLink = `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}`;
   const social = siteSettings?.socialLinks || {};
+  const email = siteSettings?.email || "support@visadz.store";
 
   const cards = [
     { icon: Phone, label: translate(language, "contactPhone"), value: phone, href: `tel:${phone.replace(/\s/g, "")}` },
     { icon: MessageCircle, label: translate(language, "contactWhatsapp"), value: whatsapp, href: whatsappLink },
-    { icon: Mail, label: translate(language, "contactEmail"), value: "support@visadz.store", href: "mailto:support@visadz.store" },
+    { icon: Mail, label: translate(language, "contactEmail"), value: email, href: `mailto:${email}` },
   ];
 
   const socialLinks = [

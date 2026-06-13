@@ -1423,9 +1423,9 @@ export function AdminDashboardPage() {
   const renderCommissions = () => (
     <div className="grid gap-4 xl:grid-cols-2">
       {commissions.map((commission) => {
-        const orderId = typeof commission.order === "string" ? commission.order : commission.order._id;
-        const order = ordersById.get(orderId);
-        const affiliateName = typeof commission.affiliate === "string" ? commission.affiliate : commission.affiliate.name;
+        const orderId = typeof commission.order === "string" ? commission.order : commission.order?._id;
+        const order = orderId ? ordersById.get(orderId) : undefined;
+        const affiliateName = typeof commission.affiliate === "string" ? commission.affiliate : commission.affiliate?.name ?? "";
 
         return (
           <div key={commission._id} className="surface-card p-6">
@@ -1487,15 +1487,15 @@ export function AdminDashboardPage() {
                     <div className="mt-4 border-t border-slate-100 pt-4">
                       <div className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{translate(language, "adminWithdrawalCommissionHistory")}</div>
                       {(() => {
-                        const affiliateCommissions = commissions.filter((commission) => typeof commission.affiliate !== "string" && commission.affiliate._id === affiliate._id);
+                        const affiliateCommissions = commissions.filter((commission) => commission.affiliate && typeof commission.affiliate !== "string" && commission.affiliate._id === affiliate._id);
                         if (!affiliateCommissions.length) {
                           return <div className="mt-2 text-sm text-slate-500">{translate(language, "adminNoCommissionsForAffiliate")}</div>;
                         }
                         return (
                           <div className="mt-2 space-y-2">
                             {affiliateCommissions.map((commission) => {
-                              const orderId = typeof commission.order === "string" ? commission.order : commission.order._id;
-                              const order = ordersById.get(orderId);
+                              const orderId = typeof commission.order === "string" ? commission.order : commission.order?._id;
+                              const order = orderId ? ordersById.get(orderId) : undefined;
                               return (
                                 <div key={commission._id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
                                   <div className="flex items-center gap-2 text-slate-600">
@@ -1579,6 +1579,9 @@ export function AdminDashboardPage() {
             </IconField>
             <IconField icon={MessageCircle}>
               <input value={settings.whatsapp || ""} onChange={(event) => setSettings({ ...settings, whatsapp: event.target.value })} className="field-input field-input-icon" placeholder="WhatsApp" />
+            </IconField>
+            <IconField icon={Mail}>
+              <input type="email" value={settings.email || ""} onChange={(event) => setSettings({ ...settings, email: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "adminContactEmail")} />
             </IconField>
             <IconField icon={TicketPercent}>
               <input value={settings.currency} onChange={(event) => setSettings({ ...settings, currency: event.target.value })} className="field-input field-input-icon" placeholder={translate(language, "currency")} />

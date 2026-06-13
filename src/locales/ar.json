@@ -315,6 +315,7 @@
   "adminSpecificationName": "اسم المواصفة (مثال: المعالج)",
   "adminSpecificationValue": "القيمة (مثال: Intel Core i5 الجيل 11)",
   "adminAddSpecification": "+ إضافة مواصفة",
+  "adminContactEmail": "البريد الإلكتروني للتواصل",
   "adminSiteLogo": "شعار الموقع",
   "adminStoreAddress": "عنوان المتجر",
   "adminMapEmbedUrl": "رابط خريطة جوجل (تضمين)",

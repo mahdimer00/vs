@@ -63,6 +63,7 @@ const websiteSettingSchema = new Schema(
     logo: String,
     phone: { type: String, required: true },
     whatsapp: String,
+    email: String,
     address: String,
     mapUrl: String,
     socialLinks: { type: Schema.Types.Mixed, default: {} },

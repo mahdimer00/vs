@@ -315,6 +315,7 @@
   "adminSpecificationName": "Nom de la spécification (ex : Processeur)",
   "adminSpecificationValue": "Valeur (ex : Intel Core i5 11e génération)",
   "adminAddSpecification": "+ Ajouter une spécification",
+  "adminContactEmail": "E-mail de contact",
   "adminSiteLogo": "Logo du site",
   "adminStoreAddress": "Adresse du magasin",
   "adminMapEmbedUrl": "URL d'intégration Google Maps",
