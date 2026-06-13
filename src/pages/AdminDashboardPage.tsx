@@ -5,12 +5,14 @@ import {
   Facebook,
   Instagram,
   Link2,
+  Mail,
   MapPin,
   MessageCircle,
   PackageX,
   Phone,
   Store,
   TicketPercent,
+  Wallet,
   Youtube,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -38,6 +40,7 @@ import type {
   PromoCode,
   WebsiteSetting,
   Wilaya,
+  WithdrawalRequest,
 } from "@/types";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
@@ -166,6 +169,7 @@ export function AdminDashboardPage() {
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [settings, setSettings] = useState<WebsiteSetting | null>(null);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
@@ -173,7 +177,7 @@ export function AdminDashboardPage() {
   const [categoryForm, setCategoryForm] = useState({ ar: "", fr: "", en: "", slug: "", image: "" });
   const [brandForm, setBrandForm] = useState({ name: "", logo: "" });
   const [bannerForm, setBannerForm] = useState<BannerFormState>(defaultBannerForm);
-  const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "" });
+  const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "", affiliate: "" });
   const [shippingDrafts, setShippingDrafts] = useState<Record<string, { homeDeliveryFee: string; deskPickupFee: string }>>({});
   const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string }>>({});
   const [bannerDrafts, setBannerDrafts] = useState<Record<string, BannerFormState>>({});
@@ -181,7 +185,7 @@ export function AdminDashboardPage() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [brandDrafts, setBrandDrafts] = useState<Record<string, { name: string; logo: string; isActive: boolean }>>({});
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
-  const [promoDrafts, setPromoDrafts] = useState<Record<string, { type: string; value: string; usageLimit: string; expiresAt: string; isActive: boolean }>>({});
+  const [promoDrafts, setPromoDrafts] = useState<Record<string, { type: string; value: string; usageLimit: string; expiresAt: string; isActive: boolean; affiliate: string }>>({});
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [orderFilters, setOrderFilters] = useState({
@@ -201,6 +205,7 @@ export function AdminDashboardPage() {
     { href: "/admin/promo-codes", label: translate(language, "promoCodes") },
     { href: "/admin/affiliates", label: translate(language, "affiliates") },
     { href: "/admin/commissions", label: translate(language, "commissions") },
+    { href: "/admin/withdrawals", label: translate(language, "adminWithdrawalsTitle") },
     { href: "/admin/settings", label: translate(language, "settings") },
   ];
 
@@ -220,6 +225,7 @@ export function AdminDashboardPage() {
         affiliateData,
         commissionData,
         settingsData,
+        withdrawalData,
       ] = await Promise.all([
         adminService.getStats(token),
         productService.getProducts(),
@@ -232,6 +238,7 @@ export function AdminDashboardPage() {
         adminService.getAffiliates(token),
         adminService.getCommissions(token),
         adminService.getSettings(token),
+        adminService.getWithdrawals(token),
       ]);
 
       setStats(statsData);
@@ -245,6 +252,7 @@ export function AdminDashboardPage() {
       setAffiliates(affiliateData);
       setCommissions(commissionData);
       setSettings(settingsData);
+      setWithdrawals(withdrawalData);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to load admin data");
     } finally {
@@ -349,6 +357,7 @@ export function AdminDashboardPage() {
             usageLimit: promo.usageLimit ? String(promo.usageLimit) : "",
             expiresAt: promo.expiresAt ? promo.expiresAt.slice(0, 10) : "",
             isActive: promo.isActive,
+            affiliate: typeof promo.affiliate === "string" ? promo.affiliate : promo.affiliate?._id || "",
           },
         ]),
       ),
@@ -1121,7 +1130,19 @@ export function AdminDashboardPage() {
             <label className="mb-1 block text-xs font-semibold text-slate-500">{translate(language, "adminPromoExpiry")}</label>
             <input type="date" value={promoForm.expiresAt} onChange={(event) => setPromoForm({ ...promoForm, expiresAt: event.target.value })} className="field-input" />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">{translate(language, "adminPromoAffiliate")}</label>
+            <select value={promoForm.affiliate} onChange={(event) => setPromoForm({ ...promoForm, affiliate: event.target.value })} className="field-select">
+              <option value="">{translate(language, "adminPromoGeneral")}</option>
+              {affiliates.map((affiliate) => (
+                <option key={affiliate._id} value={affiliate._id}>
+                  {affiliate.name} ({affiliate.referralCode})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+        <p className="mt-2 text-xs leading-6 text-slate-500">{translate(language, "adminPromoAffiliateHint")}</p>
         <button
           onClick={() =>
             void adminService
@@ -1132,6 +1153,7 @@ export function AdminDashboardPage() {
                 minimumOrderAmount: Number(promoForm.minimumOrderAmount),
                 usageLimit: promoForm.usageLimit ? Number(promoForm.usageLimit) : null,
                 expiresAt: promoForm.expiresAt || null,
+                affiliate: promoForm.affiliate || undefined,
                 isActive: true,
                 usedCount: 0,
                 productRestrictions: [],
@@ -1139,7 +1161,7 @@ export function AdminDashboardPage() {
                 oneUsePerPhone: true,
               })
               .then(async () => {
-                setPromoForm({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "" });
+                setPromoForm({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "", affiliate: "" });
                 await loadAll();
               })
               .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
@@ -1167,6 +1189,17 @@ export function AdminDashboardPage() {
                 <input value={draft.value} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, value: event.target.value } }))} className="field-input" placeholder={translate(language, "adminBasePrice")} />
                 <input value={draft.usageLimit} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, usageLimit: event.target.value } }))} className="field-input" placeholder={translate(language, "adminPromoUsageLimit")} />
                 <input type="date" value={draft.expiresAt} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, expiresAt: event.target.value } }))} className="field-input" />
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">{translate(language, "adminPromoAffiliate")}</label>
+                  <select value={draft.affiliate} onChange={(event) => setPromoDrafts((current) => ({ ...current, [promo._id]: { ...draft, affiliate: event.target.value } }))} className="field-select">
+                    <option value="">{translate(language, "adminPromoGeneral")}</option>
+                    {affiliates.map((affiliate) => (
+                      <option key={affiliate._id} value={affiliate._id}>
+                        {affiliate.name} ({affiliate.referralCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
                   <input
                     type="checkbox"
@@ -1186,6 +1219,7 @@ export function AdminDashboardPage() {
                           usageLimit: draft.usageLimit ? Number(draft.usageLimit) : null,
                           expiresAt: draft.expiresAt || null,
                           isActive: draft.isActive,
+                          affiliate: draft.affiliate || null,
                         })
                         .then(async () => {
                           setEditingPromoId(null);
@@ -1225,6 +1259,12 @@ export function AdminDashboardPage() {
               <div className="mt-2 text-sm text-slate-500">
                 {translate(language, "adminPromoUsageLimit")}: {promo.usedCount}{promo.usageLimit ? ` / ${promo.usageLimit}` : ` (${translate(language, "adminPromoUnlimited")})`}
               </div>
+              <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                <Link2 className="h-3.5 w-3.5" />
+                {promo.affiliate && typeof promo.affiliate !== "string"
+                  ? `${translate(language, "adminPromoAffiliate")}: ${promo.affiliate.name}`
+                  : translate(language, "adminPromoGeneral")}
+              </div>
               {promo.expiresAt ? (
                 <div className={`mt-1 text-sm ${isExpired ? "text-rose-600" : "text-slate-500"}`}>
                   {translate(language, "adminPromoExpiry")}: {formatDate(promo.expiresAt, language)}
@@ -1249,9 +1289,23 @@ export function AdminDashboardPage() {
     <div className="grid gap-4 xl:grid-cols-2">
       {affiliates.map((affiliate) => (
         <div key={affiliate._id} className="surface-card p-6">
-          <div className="text-lg font-semibold text-slate-950">{affiliate.name}</div>
-          <div className="mt-1 text-sm text-slate-500">
-            {affiliate.email} · {affiliate.referralCode}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-lg font-semibold text-slate-950">{affiliate.name}</div>
+            <StatusBadge label={affiliate.status} language={language} />
+          </div>
+          <div className="mt-2 grid gap-1 text-sm text-slate-500">
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 shrink-0" />
+              {affiliate.email}
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 shrink-0" />
+              {affiliate.phone}
+            </div>
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 shrink-0" />
+              {affiliate.referralCode}
+            </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <select
@@ -1331,6 +1385,91 @@ export function AdminDashboardPage() {
           </div>
         );
       })}
+    </div>
+  );
+
+  const renderWithdrawals = () => (
+    <div className="space-y-4">
+      <Panel title={translate(language, "adminWithdrawalsTitle")} description={translate(language, "adminWithdrawalsDescription")}>
+        {withdrawals.length ? (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {withdrawals.map((withdrawal) => {
+              const affiliate = typeof withdrawal.affiliate === "string" ? null : withdrawal.affiliate;
+              return (
+                <div key={withdrawal._id} className="surface-card p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-lg font-semibold text-slate-950">{formatCurrency(withdrawal.amount, language)}</div>
+                    <StatusBadge label={withdrawal.status} language={language} />
+                  </div>
+                  {affiliate ? (
+                    <div className="mt-2 grid gap-1 text-sm text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 shrink-0" />
+                        {affiliate.name}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 shrink-0" />
+                        {affiliate.email}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 shrink-0" />
+                        {affiliate.phone}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="mt-2 text-sm text-slate-500">
+                    {withdrawal.method === "RIP" ? translate(language, "affiliateMethodRip") : translate(language, "affiliateMethodCardless")}: {withdrawal.accountInfo}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">{formatDate(withdrawal.createdAt, language)}</div>
+                  {withdrawal.status !== "PAID" ? (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {withdrawal.status !== "APPROVED" ? (
+                        <button
+                          onClick={() =>
+                            void adminService
+                              .updateWithdrawal(token, withdrawal._id, "APPROVED")
+                              .then(loadAll)
+                              .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                          }
+                          className="ghost-button"
+                        >
+                          {translate(language, "adminWithdrawalApprove")}
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={() =>
+                          void adminService
+                            .updateWithdrawal(token, withdrawal._id, "PAID")
+                            .then(loadAll)
+                            .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                        }
+                        className="primary-button"
+                      >
+                        {translate(language, "adminMarkPaid")}
+                      </button>
+                      {withdrawal.status !== "REJECTED" ? (
+                        <button
+                          onClick={() =>
+                            void adminService
+                              .updateWithdrawal(token, withdrawal._id, "REJECTED")
+                              .then(loadAll)
+                              .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                          }
+                          className="text-sm font-semibold text-rose-600"
+                        >
+                          {translate(language, "adminWithdrawalReject")}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState title={translate(language, "adminWithdrawalsTitle")} description={translate(language, "adminNoWithdrawals")} />
+        )}
+      </Panel>
     </div>
   );
 
@@ -1532,9 +1671,11 @@ export function AdminDashboardPage() {
                   ? renderAffiliates()
                   : tab === "commissions"
                     ? renderCommissions()
-                    : tab === "settings"
-                      ? renderSettings()
-                      : renderDashboard();
+                    : tab === "withdrawals"
+                      ? renderWithdrawals()
+                      : tab === "settings"
+                        ? renderSettings()
+                        : renderDashboard();
 
   return (
     <DashboardShell

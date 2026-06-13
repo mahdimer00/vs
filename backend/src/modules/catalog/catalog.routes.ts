@@ -78,7 +78,12 @@ router.get(
   asyncHandler(async (_req, res) => {
     const products = await ProductModel.find({ status: { $ne: "ARCHIVED" } }).populate("category").populate("brand").lean();
     const variants = await ProductVariantModel.find({ productId: { $in: products.map((product) => product._id) } }).lean();
-    return res.json(products.map((product) => ({ ...product, variants: variants.filter((variant) => String(variant.productId) === String(product._id)) })));
+    return res.json(
+      products.map((product) => {
+        const productVariants = variants.filter((variant) => String(variant.productId) === String(product._id));
+        return { ...product, variants: productVariants, stock: productVariants.reduce((sum, variant) => sum + variant.stock, 0) };
+      }),
+    );
   }),
 );
 
@@ -90,7 +95,7 @@ router.get(
       return res.status(404).json({ message: "Product not found" });
     }
     const variants = await ProductVariantModel.find({ productId: product._id }).lean();
-    return res.json({ ...product, variants });
+    return res.json({ ...product, variants, stock: variants.reduce((sum, variant) => sum + variant.stock, 0) });
   }),
 );
 

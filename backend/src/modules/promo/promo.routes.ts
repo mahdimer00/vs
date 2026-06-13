@@ -12,7 +12,7 @@ const promoSchema = z.object({
   code: z.string(),
   type: z.enum(["PERCENTAGE", "FIXED", "FREE_SHIPPING"]),
   value: z.number(),
-  affiliate: z.string().optional(),
+  affiliate: z.string().nullable().optional(),
   expiresAt: z.string().optional(),
   usageLimit: z.number().optional(),
   minimumOrderAmount: z.number().optional(),
@@ -42,7 +42,7 @@ router.post("/promo/validate", asyncHandler(async (req, res) => {
 }));
 
 router.get("/admin/promo-codes", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
-  return res.json(await PromoCodeModel.find().lean());
+  return res.json(await PromoCodeModel.find().populate("affiliate").lean());
 }));
 router.post("/admin/promo-codes", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
   const input = promoSchema.parse(req.body);

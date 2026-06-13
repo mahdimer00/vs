@@ -4,7 +4,7 @@ import { authMiddleware, type AuthedRequest } from "../../middleware/auth.middle
 import { roleMiddleware } from "../../middleware/role.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { AffiliateClickModel, AffiliateModel, CommissionModel, WithdrawalRequestModel } from "../../models/affiliate.model.js";
-import { OrderModel } from "../../models/orders.model.js";
+import { OrderModel, PromoCodeModel } from "../../models/orders.model.js";
 import { env } from "../../config/env.js";
 
 const router = Router();
@@ -34,12 +34,13 @@ router.get("/affiliate/dashboard", authMiddleware, roleMiddleware(["AFFILIATE"])
 
   const clicksCount = await AffiliateClickModel.countDocuments({ affiliate: affiliate._id });
   const ordersCount = await OrderModel.countDocuments({ affiliate: affiliate._id });
+  const promoCodes = await PromoCodeModel.find({ affiliate: affiliate._id }).lean();
   return res.json({
     affiliate,
     clicksCount,
     ordersCount,
     referralLink: `${env.FRONTEND_URL}?ref=${affiliate.referralCode}`,
-    promoCodes: [],
+    promoCodes,
   });
 }));
 
@@ -56,9 +57,10 @@ router.get("/affiliate/referral-link", authMiddleware, roleMiddleware(["AFFILIAT
   if (!affiliate) {
     return res.status(404).json({ message: "Affiliate not found" });
   }
+  const promoCodes = await PromoCodeModel.find({ affiliate: affiliate._id }).lean();
   return res.json({
     referralLink: `${env.FRONTEND_URL}?ref=${affiliate.referralCode}`,
-    promoCodes: [],
+    promoCodes,
   });
 }));
 
@@ -79,6 +81,10 @@ router.post("/affiliate/withdrawals", authMiddleware, roleMiddleware(["AFFILIATE
   }
   await WithdrawalRequestModel.create({ affiliate: affiliate._id, ...input });
   return res.json({ success: true });
+}));
+
+router.get("/affiliate/withdrawals", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {
+  return res.json(await WithdrawalRequestModel.find({ affiliate: req.user?.sub }).sort({ createdAt: -1 }).lean());
 }));
 
 export default router;

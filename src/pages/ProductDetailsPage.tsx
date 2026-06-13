@@ -338,8 +338,8 @@ export function ProductDetailsPage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-[1.4rem] border border-teal-100 bg-white/80 px-4 py-4 text-sm shadow-sm">
                 <div className="text-slate-500">{translate(language, "productStock")}</div>
-                <div className="mt-2 font-semibold text-emerald-600">
-                  {selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productOutOfStock")}
+                <div className={`mt-2 font-semibold ${selectedVariant.stock > 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  {selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productSoldOut")}
                 </div>
               </div>
               <div className="rounded-[1.4rem] border border-sky-100 bg-white/80 px-4 py-4 text-sm shadow-sm">
@@ -395,18 +395,20 @@ export function ProductDetailsPage() {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
+              disabled={selectedVariant.stock <= 0}
               onClick={() => addToCart({ product, variant: selectedVariant, quantity })}
-              className="primary-button min-w-48 gap-2 px-7 py-4 text-base"
+              className="primary-button min-w-48 gap-2 px-7 py-4 text-base disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ShoppingCart className="h-5 w-5" />
               {translate(language, "productAddToCart")}
             </button>
             <button
+              disabled={selectedVariant.stock <= 0}
               onClick={() => {
                 addToCart({ product, variant: selectedVariant, quantity });
                 navigate("/checkout");
               }}
-              className="inline-flex min-w-40 items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_35px_rgba(16,185,129,0.24)] transition hover:from-emerald-500 hover:to-teal-500"
+              className="inline-flex min-w-40 items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_35px_rgba(16,185,129,0.24)] transition hover:from-emerald-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {translate(language, "productBuyNow")}
             </button>

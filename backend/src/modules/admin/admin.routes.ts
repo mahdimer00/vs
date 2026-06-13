@@ -83,7 +83,28 @@ router.patch("/admin/settings", authMiddleware, roleMiddleware(["SUPER_ADMIN", "
 }));
 
 router.get("/admin/withdrawals", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
-  return res.json(await WithdrawalRequestModel.find().populate("affiliate").lean());
+  return res.json(await WithdrawalRequestModel.find().populate("affiliate").sort({ createdAt: -1 }).lean());
+}));
+
+router.patch("/admin/withdrawals/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+  const input = z.object({ status: z.enum(["PENDING", "APPROVED", "REJECTED", "PAID"]) }).parse(req.body);
+  const withdrawal = await WithdrawalRequestModel.findById(req.params.id);
+  if (!withdrawal) {
+    return res.status(404).json({ message: "Withdrawal request not found" });
+  }
+
+  if (input.status === "PAID" && withdrawal.status !== "PAID") {
+    const affiliate = await AffiliateModel.findById(withdrawal.affiliate);
+    if (affiliate) {
+      affiliate.balanceApproved = Math.max(0, affiliate.balanceApproved - withdrawal.amount);
+      affiliate.balancePaid += withdrawal.amount;
+      await affiliate.save();
+    }
+  }
+
+  withdrawal.status = input.status;
+  await withdrawal.save();
+  return res.json(await WithdrawalRequestModel.findById(withdrawal._id).populate("affiliate").lean());
 }));
 
 router.post("/admin/orders/:id/resync-commission", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {

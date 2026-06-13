@@ -1,5 +1,5 @@
 import { apiRequest, apiUpload } from "@/services/apiClient";
-import type { Affiliate, Banner, Brand, Category, Commission, DashboardStats, Order, Product, PromoCode, WebsiteSetting, Wilaya } from "@/types";
+import type { Affiliate, Banner, Brand, Category, Commission, DashboardStats, Order, Product, PromoCode, WebsiteSetting, Wilaya, WithdrawalRequest } from "@/types";
 
 export const adminService = {
   getStats(token: string) {
@@ -145,6 +145,16 @@ export const adminService = {
       method: "PATCH",
       token,
       body: JSON.stringify(payload),
+    });
+  },
+  getWithdrawals(token: string) {
+    return apiRequest<WithdrawalRequest[]>("/api/admin/withdrawals", { token });
+  },
+  updateWithdrawal(token: string, id: string, status: WithdrawalRequest["status"]) {
+    return apiRequest<WithdrawalRequest>(`/api/admin/withdrawals/${id}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ status }),
     });
   },
   getWilayas() {

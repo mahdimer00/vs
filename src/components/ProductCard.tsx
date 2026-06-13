@@ -17,7 +17,16 @@ export function ProductCard({ product, language }: { product: Product; language:
 
   return (
     <article className="group overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_18px_55px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_65px_rgba(15,23,42,0.12)]">
-      <Link to={`/products/${product.slug}`} className="block">
+      <Link
+        to={`/products/${product.slug}`}
+        onClick={(event) => {
+          if (soldOut) {
+            event.preventDefault();
+          }
+        }}
+        aria-disabled={soldOut}
+        className={`block ${soldOut ? "cursor-not-allowed" : ""}`}
+      >
         <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
           <img
             src={product.images[0]}

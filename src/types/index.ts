@@ -109,6 +109,16 @@ export interface Affiliate {
   createdAt: string;
 }
 
+export interface WithdrawalRequest {
+  _id: string;
+  affiliate: string | Affiliate;
+  amount: number;
+  method: "RIP" | "CARDLESS_ID_PIN";
+  accountInfo: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
+  createdAt: string;
+}
+
 export interface OrderItem {
   productId: string;
   productName: LocalizedText;
