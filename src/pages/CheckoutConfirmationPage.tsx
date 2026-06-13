@@ -1,4 +1,4 @@
-import { Bot, UserRound } from "lucide-react";
+import { Bot, CheckCircle2, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useApp } from "@/hooks/useApp";
@@ -16,6 +16,7 @@ export function CheckoutConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -83,7 +84,8 @@ export function CheckoutConfirmationPage() {
         const order = await orderService.confirmOrder(pendingOrder.orderId);
         rememberConfirmedOrder(order);
         clearCart();
-        navigate("/order/success");
+        setConfirmed(true);
+        setTimeout(() => navigate("/order/success"), 1800);
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to continue confirmation");
@@ -129,6 +131,13 @@ export function CheckoutConfirmationPage() {
           {loading ? (
             <div className="text-sm text-slate-500">{translate(language, "aiConversationStarting")}</div>
           ) : null}
+          {confirmed ? (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-5 text-center">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+              <div className="font-serif text-lg font-semibold text-emerald-800">{translate(language, "aiConfirmationSuccessTitle")}</div>
+              <p className="text-sm text-emerald-700">{translate(language, "aiConfirmationSuccessDescription")}</p>
+            </div>
+          ) : null}
           {sending ? (
             <div className="flex flex-col items-start gap-1">
               <div className="chat-bubble-assistant">
@@ -159,11 +168,11 @@ export function CheckoutConfirmationPage() {
                   void send();
                 }
               }}
-              disabled={loading || sending}
+              disabled={loading || sending || confirmed}
               className="field-input flex-1"
               placeholder={translate(language, "aiReplyPlaceholder")}
             />
-            <button onClick={() => void send()} disabled={sending || loading || !input.trim()} className="primary-button">
+            <button onClick={() => void send()} disabled={sending || loading || confirmed || !input.trim()} className="primary-button">
               {sending ? translate(language, "productAiThinking") : translate(language, "aiSend")}
             </button>
           </div>

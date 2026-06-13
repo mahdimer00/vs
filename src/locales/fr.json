@@ -170,6 +170,8 @@
   "aiReplyPlaceholder": "Écrivez votre réponse",
   "aiSend": "Envoyer",
   "aiHint": "Confirmez la commande ou demandez une modification avant la validation.",
+  "aiConfirmationSuccessTitle": "Commande confirmée !",
+  "aiConfirmationSuccessDescription": "Merci, votre commande est confirmée et notre équipe va commencer son traitement. Redirection en cours...",
   "orderSuccessTitle": "Commande reçue — en attente d'un appel de confirmation",
   "orderSuccessDescription": "Votre commande a été reçue et examinée. Notre équipe va vous appeler prochainement pour confirmer les détails avant l'expédition.",
   "continueShopping": "Continuer les achats",
@@ -191,6 +193,8 @@
   "contactEmail": "Email",
   "contactHours": "Support quotidien",
   "contactHoursValue": "09:00 - 21:00",
+  "contactDeliveryCoverage": "Assistance de livraison pour les 58 wilayas d'Algérie.",
+  "contactQualitySupport": "Questions sur l'authenticité, la qualité des produits et le service après-vente.",
   "authAdminTitle": "Connexion admin",
   "authAdminDescription": "Gérez le catalogue, la livraison, les commandes, les codes promo, les affiliés et les commissions.",
   "authAffiliateLoginTitle": "Connexion affilié",
@@ -397,6 +401,8 @@
   "privacyPolicyBody": "{store} respecte votre vie privée et s'engage à protéger les informations personnelles que vous nous communiquez.\n\nLorsque vous passez une commande, nous collectons des informations telles que votre nom, votre numéro de téléphone, votre adresse de livraison et votre adresse e-mail. Ces informations sont utilisées uniquement pour traiter et livrer votre commande, vous fournir un support client et communiquer avec vous au sujet de votre achat.\n\nNous ne vendons ni ne louons vos informations personnelles à des tiers. Nous pouvons partager vos informations avec des partenaires de livraison et des prestataires de paiement, uniquement dans la mesure nécessaire pour traiter votre commande.\n\nNous prenons des mesures raisonnables pour protéger vos informations contre tout accès, modification ou divulgation non autorisés.\n\nVous pouvez nous contacter à tout moment pour savoir quelles informations nous détenons sur vous, pour les corriger ou pour demander leur suppression.",
   "termsTitle": "Conditions d'utilisation",
   "termsBody": "En utilisant {store} et en passant une commande, vous acceptez les conditions suivantes.\n\nTous les produits sont soumis à disponibilité. Nous nous réservons le droit de limiter les quantités, de refuser ou d'annuler des commandes à notre discrétion, par exemple en cas de fraude suspectée ou d'erreur de prix.\n\nLes prix, promotions et descriptions de produits peuvent être modifiés sans préavis. Nous faisons tout notre possible pour afficher des informations exactes, mais des erreurs peuvent parfois survenir.\n\nPour les commandes payées à la livraison, le paiement est dû au moment de la livraison. Veuillez vous assurer qu'une personne est disponible pour recevoir et payer la commande à l'adresse indiquée.\n\nLes délais de livraison sont des estimations et peuvent varier selon votre emplacement et la disponibilité des transporteurs. {store} n'est pas responsable des retards causés par des circonstances hors de son contrôle.\n\nSi vous participez à notre programme d'affiliation, vous vous engagez à promouvoir {store} de manière honnête et conformément aux règles du programme. Les commissions sont calculées et versées selon les conditions présentées dans votre tableau de bord affilié.\n\nNous pouvons mettre à jour ces conditions de temps à autre. La poursuite de l'utilisation du site après la publication des modifications constitue une acceptation des conditions mises à jour.",
+  "adminWithdrawalCommissionHistory": "Historique des commissions",
+  "adminNoCommissionsForAffiliate": "Cet affilié n'a pas encore de commissions enregistrées.",
   "returnPolicyTitle": "Politique de retour",
   "returnPolicyBody": "Votre satisfaction nous tient à cœur. Si vous n'êtes pas satisfait de votre commande, vous pouvez demander un retour ou un échange dans les 7 jours suivant la livraison.\n\nPour être éligibles à un retour, les articles doivent être inutilisés, dans leur emballage d'origine et dans le même état que celui dans lequel vous les avez reçus.\n\nPour démarrer un retour, veuillez nous contacter via la page Contact en indiquant votre numéro de commande et le motif du retour. Notre équipe vous guidera pour les étapes suivantes.\n\nUne fois votre retour reçu et inspecté, nous vous informerons de l'acceptation ou du refus de votre remboursement ou échange. Les remboursements approuvés sont traités dans un délai raisonnable via le mode de paiement d'origine ou sous forme de crédit, selon la commande.\n\nLes articles endommagés en raison d'une mauvaise utilisation, dont des pièces sont manquantes, ou retournés sans contact préalable peuvent ne pas être éligibles à un remboursement.\n\nSi vous recevez un article endommagé, défectueux ou incorrect, veuillez nous contacter dès que possible afin que nous puissions résoudre le problème rapidement."
 }

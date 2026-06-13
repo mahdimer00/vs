@@ -79,12 +79,12 @@ export function ContactPage() {
         <div className="surface-card p-6">
           <Truck className="h-5 w-5 text-amber-600" />
           <div className="mt-4 text-lg font-semibold text-slate-950">{translate(language, "trustDelivery")}</div>
-          <p className="mt-2 text-sm leading-7 text-slate-600">Delivery support for all 58 Algerian wilayas.</p>
+          <p className="mt-2 text-sm leading-7 text-slate-600">{translate(language, "contactDeliveryCoverage")}</p>
         </div>
         <div className="surface-card p-6">
           <ShieldCheck className="h-5 w-5 text-emerald-600" />
           <div className="mt-4 text-lg font-semibold text-slate-950">{translate(language, "trustQuality")}</div>
-          <p className="mt-2 text-sm leading-7 text-slate-600">Questions about authenticity, product quality, and after-sales support.</p>
+          <p className="mt-2 text-sm leading-7 text-slate-600">{translate(language, "contactQualitySupport")}</p>
         </div>
         <div className="surface-card p-6">
           <MessageCircle className="h-5 w-5 text-sky-600" />

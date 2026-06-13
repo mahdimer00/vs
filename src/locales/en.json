@@ -170,6 +170,8 @@
   "aiReplyPlaceholder": "Type your answer",
   "aiSend": "Send",
   "aiHint": "Reply with confirmation or ask to change delivery details before the order is approved.",
+  "aiConfirmationSuccessTitle": "Order confirmed!",
+  "aiConfirmationSuccessDescription": "Thanks, your order is confirmed and our team will start processing it. Redirecting you now...",
   "orderSuccessTitle": "Order received — awaiting confirmation call",
   "orderSuccessDescription": "Your order was received and reviewed. Our team will call you shortly to confirm the details before it ships.",
   "continueShopping": "Continue shopping",
@@ -191,6 +193,8 @@
   "contactEmail": "Email",
   "contactHours": "Daily support",
   "contactHoursValue": "09:00 - 21:00",
+  "contactDeliveryCoverage": "Delivery support for all 58 Algerian wilayas.",
+  "contactQualitySupport": "Questions about authenticity, product quality, and after-sales support.",
   "authAdminTitle": "Admin login",
   "authAdminDescription": "Manage catalog, shipping, orders, promo codes, affiliates, and commissions.",
   "authAffiliateLoginTitle": "Affiliate login",
@@ -397,6 +401,8 @@
   "privacyPolicyBody": "{store} respects your privacy and is committed to protecting the personal information you share with us.\n\nWhen you place an order, we collect information such as your name, phone number, delivery address, and email address. This information is used solely to process and deliver your order, provide customer support, and communicate with you about your purchase.\n\nWe do not sell or rent your personal information to third parties. We may share your information with delivery partners and payment processors only to the extent necessary to fulfill your order.\n\nWe take reasonable measures to protect your information from unauthorized access, alteration, or disclosure.\n\nYou may contact us at any time to ask what information we hold about you, to correct it, or to request that it be deleted.",
   "termsTitle": "Terms of Service",
   "termsBody": "By using {store} and placing an order, you agree to the following terms.\n\nAll products are subject to availability. We reserve the right to limit quantities, refuse orders, or cancel orders at our discretion, for example in cases of suspected fraud or pricing errors.\n\nPrices, promotions, and product descriptions are subject to change without prior notice. We make every effort to display accurate information, but errors may occasionally occur.\n\nFor cash-on-delivery orders, payment is due at the time of delivery. Please ensure someone is available to receive and pay for the order at the address provided.\n\nDelivery times are estimates and may vary depending on your location and courier availability. {store} is not responsible for delays caused by circumstances beyond our control.\n\nIf you participate in our affiliate program, you agree to promote {store} honestly and in accordance with the program rules. Commissions are calculated and paid according to the terms presented in your affiliate dashboard.\n\nWe may update these terms from time to time. Continued use of the site after changes are posted constitutes acceptance of the updated terms.",
+  "adminWithdrawalCommissionHistory": "Commission history",
+  "adminNoCommissionsForAffiliate": "This affiliate has no recorded commissions yet.",
   "returnPolicyTitle": "Return Policy",
   "returnPolicyBody": "Your satisfaction matters to us. If you are not happy with your order, you may request a return or exchange within 7 days of delivery.\n\nTo be eligible for a return, items must be unused, in their original packaging, and in the same condition that you received them.\n\nTo start a return, please contact us through the Contact page with your order number and the reason for the return. Our team will guide you through the next steps.\n\nOnce your return is received and inspected, we will notify you of the approval or rejection of your refund or exchange. Approved refunds are processed within a reasonable timeframe using the original payment method or store credit, depending on the order.\n\nItems that are damaged due to misuse, missing parts, or returned without prior contact may not be eligible for a refund.\n\nIf you receive a damaged, defective, or incorrect item, please contact us as soon as possible so we can resolve the issue quickly."
 }

@@ -1421,6 +1421,37 @@ export function AdminDashboardPage() {
                     {withdrawal.method === "RIP" ? translate(language, "affiliateMethodRip") : translate(language, "affiliateMethodCardless")}: {withdrawal.accountInfo}
                   </div>
                   <div className="mt-1 text-sm text-slate-500">{formatDate(withdrawal.createdAt, language)}</div>
+                  {affiliate ? (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <div className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{translate(language, "adminWithdrawalCommissionHistory")}</div>
+                      {(() => {
+                        const affiliateCommissions = commissions.filter((commission) => typeof commission.affiliate !== "string" && commission.affiliate._id === affiliate._id);
+                        if (!affiliateCommissions.length) {
+                          return <div className="mt-2 text-sm text-slate-500">{translate(language, "adminNoCommissionsForAffiliate")}</div>;
+                        }
+                        return (
+                          <div className="mt-2 space-y-2">
+                            {affiliateCommissions.map((commission) => {
+                              const orderId = typeof commission.order === "string" ? commission.order : commission.order._id;
+                              const order = ordersById.get(orderId);
+                              return (
+                                <div key={commission._id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                                  <div className="flex items-center gap-2 text-slate-600">
+                                    <span className="font-medium text-slate-900">{order?.orderNumber || orderId}</span>
+                                    {order ? <StatusBadge label={order.status} language={language} /> : null}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-600">{formatCurrency(commission.amount, language)}</span>
+                                    <StatusBadge label={commission.status} language={language} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
                   {withdrawal.status !== "PAID" ? (
                     <div className="mt-4 flex flex-wrap gap-3">
                       {withdrawal.status !== "APPROVED" ? (
