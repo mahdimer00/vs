@@ -1,11 +1,10 @@
-import { Bot, Clock, Heart, Minus, ShieldCheck, ShoppingCart, Sparkles, Truck, Plus } from "lucide-react";
+import { Clock, Heart, Minus, ShieldCheck, ShoppingCart, Truck, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
 import { useApp } from "@/hooks/useApp";
-import { aiService } from "@/services/ai.service";
 import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
 import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText, hashSeed } from "@/utils/format";
@@ -55,9 +54,6 @@ export function ProductDetailsPage() {
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [selectedImage, setSelectedImage] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(getTimeUntilMidnight());
 
@@ -174,27 +170,6 @@ export function ProductDetailsPage() {
         color: change.color ?? selectedVariant.color,
       }),
     );
-
-  const handleAsk = async () => {
-    if (!question.trim()) {
-      return;
-    }
-
-    setAiLoading(true);
-    setErrorMessage("");
-    try {
-      const response = await aiService.askProductQuestion({
-        productId: product._id,
-        message: question,
-        language,
-      });
-      setAnswer(response.message);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to reach the AI assistant");
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const renderOptionGroup = (
     label: string,
@@ -374,11 +349,22 @@ export function ProductDetailsPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <button
+            disabled={selectedVariant.stock <= 0}
+            onClick={() => {
+              addToCart({ product, variant: selectedVariant, quantity });
+              navigate("/checkout");
+            }}
+            className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_35px_rgba(16,185,129,0.24)] transition hover:from-emerald-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {translate(language, "productBuyNow")}
+          </button>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
             <button
               disabled={selectedVariant.stock <= 0}
               onClick={() => addToCart({ product, variant: selectedVariant, quantity })}
-              className="primary-button gap-2 px-7 py-4 text-base disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ShoppingCart className="h-5 w-5" />
               {translate(language, "productAddToCart")}
@@ -397,17 +383,6 @@ export function ProductDetailsPage() {
             </button>
           </div>
 
-          <button
-            disabled={selectedVariant.stock <= 0}
-            onClick={() => {
-              addToCart({ product, variant: selectedVariant, quantity });
-              navigate("/checkout");
-            }}
-            className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_35px_rgba(16,185,129,0.24)] transition hover:from-emerald-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {translate(language, "productBuyNow")}
-          </button>
-
           <div className="mt-5 grid grid-cols-2 gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 rounded-[1.35rem] border border-slate-200 bg-slate-50/90 px-3 py-3 text-slate-700 sm:px-4">
               <ShieldCheck className="h-5 w-5 shrink-0 text-teal-700" />
@@ -424,31 +399,6 @@ export function ProductDetailsPage() {
       <section className="surface-card p-6 md:p-7">
         <h2 className="text-lg font-semibold text-slate-950">{translate(language, "productDescriptionTitle")}</h2>
         <p className="mt-3 whitespace-pre-line text-sm leading-8 text-slate-600">{getLocalizedText(product.description, language)}</p>
-      </section>
-
-      <section className="surface-card p-6 md:p-7">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-100 text-amber-700">
-            <Bot className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">{translate(language, "productAskAi")}</h2>
-            <p className="text-sm text-slate-600">{translate(language, "productAiDescription")}</p>
-          </div>
-        </div>
-        <textarea
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          rows={4}
-          className="field-textarea mt-4"
-          placeholder={translate(language, "productAskPlaceholder")}
-        />
-        <button onClick={() => void handleAsk()} className="accent-button mt-3 gap-2">
-          <Sparkles className="h-4 w-4" />
-          {aiLoading ? translate(language, "productAiThinking") : translate(language, "productAskAi")}
-        </button>
-        {errorMessage ? <div className="mt-4 text-sm text-rose-600">{errorMessage}</div> : null}
-        {answer ? <div className="mt-4 rounded-[1.5rem] bg-slate-100 p-4 text-sm leading-7 text-slate-700">{answer}</div> : null}
       </section>
 
       <section className="surface-card p-6 md:p-7">
