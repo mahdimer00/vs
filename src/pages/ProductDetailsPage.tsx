@@ -245,7 +245,7 @@ export function ProductDetailsPage() {
                       : "border-slate-200 bg-white"
                   }`}
                 >
-                  <img src={image} alt="" className="aspect-square w-full rounded-[1rem] bg-white object-contain p-1" />
+                  <img src={image} alt="" loading="lazy" className="aspect-square w-full rounded-[1rem] bg-white object-contain p-1" />
                 </button>
               ))}
             </div>

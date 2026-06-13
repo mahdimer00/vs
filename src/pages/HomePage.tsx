@@ -64,8 +64,8 @@ export function HomePage() {
         ))}
       </section>
 
-      <section className="surface-card-dark relative flex flex-col gap-6 overflow-hidden p-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
+      <section className="surface-card-dark relative flex flex-col gap-6 overflow-hidden p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="absolute -end-12 -top-12 h-48 w-48 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
         <div className="flex items-start gap-4">
           <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white/10">
             <BadgePercent className="h-7 w-7 text-amber-300" />
@@ -87,7 +87,7 @@ export function HomePage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="section-eyebrow">{translate(language, "categoryEyebrow")}</p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold text-slate-950">{translate(language, "categoryTitle")}</h2>
+            <h2 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "categoryTitle")}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "categoryDescription")}</p>
           </div>
           <Link to="/categories" className="ghost-button">
@@ -105,6 +105,7 @@ export function HomePage() {
                 <img
                   src={category.image}
                   alt={getLocalizedText(category.name, language)}
+                  loading="lazy"
                   className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
               ) : (
@@ -126,7 +127,7 @@ export function HomePage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="section-eyebrow">{translate(language, "featuredEyebrow")}</p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold text-slate-950">{translate(language, "featuredTitle")}</h2>
+            <h2 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "featuredTitle")}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "featuredDescription")}</p>
           </div>
           <Link to="/products" className="ghost-button">
@@ -144,7 +145,7 @@ export function HomePage() {
         <section className="space-y-6">
           <div>
             <p className="section-eyebrow">{translate(language, "brandsEyebrow")}</p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold text-slate-950">{translate(language, "brandsTitle")}</h2>
+            <h2 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "brandsTitle")}</h2>
           </div>
           <div className="surface-card grid grid-cols-3 gap-4 p-6 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
             {brands.map((brand) => (

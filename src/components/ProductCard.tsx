@@ -33,6 +33,7 @@ export function ProductCard({ product, language }: { product: Product; language:
           <img
             src={product.images[0]}
             alt={getLocalizedText(product.name, language)}
+            loading="lazy"
             className={`h-full w-full object-contain p-4 transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-60 grayscale" : ""}`}
           />
           {soldOut ? (
