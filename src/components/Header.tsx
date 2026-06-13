@@ -1,4 +1,4 @@
-import { Heart, LayoutDashboard, LogOut, Menu, ShoppingBag, User } from "lucide-react";
+import { Heart, Home, LayoutDashboard, LayoutGrid, LogOut, Mail, PackageSearch, ShoppingBag, Truck, User, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -36,12 +36,12 @@ export function Header() {
     navigate("/");
   };
   const links = [
-    { to: "/", label: translate(language, "home") },
-    { to: "/products", label: translate(language, "products") },
-    { to: "/categories", label: translate(language, "categories") },
-    { to: "/earn-money", label: translate(language, "earnMoneyNav") },
-    { to: "/track-order", label: translate(language, "trackOrder") },
-    { to: "/contact", label: translate(language, "contact") },
+    { to: "/", label: translate(language, "home"), icon: Home },
+    { to: "/products", label: translate(language, "products"), icon: PackageSearch },
+    { to: "/categories", label: translate(language, "categories"), icon: LayoutGrid },
+    { to: "/earn-money", label: translate(language, "earnMoneyNav"), icon: Wallet },
+    { to: "/track-order", label: translate(language, "trackOrder"), icon: Truck },
+    { to: "/contact", label: translate(language, "contact"), icon: Mail },
   ];
 
   return (
@@ -69,11 +69,12 @@ export function Header() {
                   key={link.to}
                   to={link.to}
                   className={({ isActive }) =>
-                    `rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40 transition hover:shadow-lg ${
+                    `inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40 transition hover:shadow-lg ${
                       isActive ? "ring-2 ring-slate-950/20" : ""
                     }`
                   }
                 >
+                  <link.icon className="h-4 w-4" />
                   {link.label}
                 </NavLink>
               ) : (
@@ -81,11 +82,12 @@ export function Header() {
                   key={link.to}
                   to={link.to}
                   className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-sm font-medium transition ${
+                    `inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition ${
                       isActive ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
                     }`
                   }
                 >
+                  <link.icon className="h-4 w-4" />
                   {link.label}
                 </NavLink>
               ),
@@ -152,16 +154,14 @@ export function Header() {
         </div>
 
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1 md:hidden">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500">
-            <Menu className="h-4 w-4" />
-          </span>
           {links.map((link) =>
             link.to === "/earn-money" ? (
               <NavLink
                 key={link.to}
                 to={link.to}
-                className="shrink-0 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-md shadow-amber-300/40"
               >
+                <link.icon className="h-4 w-4" />
                 {link.label}
               </NavLink>
             ) : (
@@ -169,11 +169,12 @@ export function Header() {
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
-                  `shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+                  `inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition ${
                     isActive ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700"
                   }`
                 }
               >
+                <link.icon className="h-4 w-4" />
                 {link.label}
               </NavLink>
             ),

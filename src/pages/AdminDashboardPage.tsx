@@ -624,7 +624,7 @@ export function AdminDashboardPage() {
           ].map(([label, value]) => (
             <div key={label} className="stat-card">
               <div className="text-sm text-slate-500">{label}</div>
-              <div className="mt-3 text-3xl font-semibold text-slate-950">{value}</div>
+              <div className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">{value}</div>
             </div>
           ))}
         </div>
