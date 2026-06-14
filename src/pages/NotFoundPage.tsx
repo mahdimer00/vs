@@ -1,5 +1,6 @@
 import { Compass } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
 
@@ -8,6 +9,7 @@ export function NotFoundPage() {
 
   return (
     <div className="surface-card flex flex-col items-center gap-4 p-6 text-center sm:p-10">
+      <Seo title={translate(language, "notFoundTitle")} description={translate(language, "notFoundDescription")} noindex />
       <div className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-slate-500">
         <Compass className="h-8 w-8" />
       </div>

@@ -72,6 +72,15 @@ const websiteSettingSchema = new Schema(
     aiEnabled: { type: Boolean, default: true },
     maintenanceMode: { type: Boolean, default: false },
     promoCodeEnabled: { type: Boolean, default: true },
+    affiliateLevels: {
+      type: Schema.Types.Mixed,
+      default: {
+        BRONZE: { commissionRate: 1, referralBonus: 0 },
+        SILVER: { commissionRate: 1.5, referralBonus: 500 },
+        GOLD: { commissionRate: 2, referralBonus: 1000 },
+        PLATINUM: { commissionRate: 3, referralBonus: 2000 },
+      },
+    },
   },
   { timestamps: true },
 );

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
-import { roleMiddleware } from "../../middleware/role.middleware.js";
+import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { OrderModel, PromoCodeUsageModel } from "../../models/orders.model.js";
 import { ProductVariantModel } from "../../models/catalog.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -234,7 +234,7 @@ router.get(
 router.get(
   "/admin/orders",
   authMiddleware,
-  roleMiddleware(["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"]),
+  permissionMiddleware("orders"),
   asyncHandler(async (_req, res) => {
     return res.json(
       await OrderModel.find().sort({ createdAt: -1 }).populate("customer.wilaya").populate("affiliate").lean(),
@@ -247,7 +247,7 @@ const RESTOCKABLE_STATUSES = ["CANCELLED", "RETURNED", "FAILED"];
 router.patch(
   "/admin/orders/:id/status",
   authMiddleware,
-  roleMiddleware(["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"]),
+  permissionMiddleware("orders"),
   asyncHandler(async (req, res) => {
     const input = z.object({
       status: z.enum([
@@ -298,7 +298,7 @@ router.patch(
 router.delete(
   "/admin/orders/:id",
   authMiddleware,
-  roleMiddleware(["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"]),
+  permissionMiddleware("orders"),
   asyncHandler(async (req, res) => {
     const existing = await OrderModel.findById(req.params.id);
     if (!existing) {

@@ -7,6 +7,8 @@ import { comparePassword, hashPassword, signToken } from "../../utils/auth.js";
 import { UserModel } from "../../models/user.model.js";
 import { AffiliateModel } from "../../models/affiliate.model.js";
 import { AppError } from "../../utils/app-error.js";
+import { sendTelegramMessage } from "../../utils/telegram.js";
+import type { AdminPermission } from "../../constants/permissions.js";
 
 const router = Router();
 
@@ -23,6 +25,7 @@ const affiliateAuthSchema = z.object({
 const affiliateRegisterSchema = affiliateAuthSchema.extend({
   name: z.string().min(2),
   phone: z.string().regex(/^(05|06|07)\d{8}$/, "Invalid Algerian phone number"),
+  ref: z.string().trim().optional(),
 });
 
 async function generateUniqueReferralCode(name: string) {
@@ -49,10 +52,10 @@ router.post(
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = signToken({ sub: String(user._id), role: user.role, email: user.email });
+    const token = signToken({ sub: String(user._id), role: user.role, email: user.email, permissions: user.permissions as AdminPermission[] | undefined });
     return res.json({
       token,
-      user: { id: String(user._id), name: user.name, email: user.email, role: user.role },
+      user: { id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions },
     });
   }),
 );
@@ -66,6 +69,14 @@ router.post(
       return res.status(409).json({ message: "Email already registered" });
     }
 
+    let referredBy: string | undefined;
+    if (input.ref) {
+      const referrer = await AffiliateModel.findOne({ referralCode: input.ref.toUpperCase() });
+      if (referrer) {
+        referredBy = String(referrer._id);
+      }
+    }
+
     const affiliate = await AffiliateModel.create({
       name: input.name,
       email: input.email.toLowerCase(),
@@ -74,10 +85,19 @@ router.post(
       referralCode: await generateUniqueReferralCode(input.name),
       commissionRate: 1,
       status: "PENDING",
+      referredBy,
       balancePending: 0,
       balanceApproved: 0,
       balancePaid: 0,
     });
+
+    void sendTelegramMessage(
+      `🆕 <b>New affiliate registration</b>\n` +
+        `Name: ${affiliate.name}\n` +
+        `Email: ${affiliate.email}\n` +
+        `Phone: ${affiliate.phone}\n` +
+        `Status: PENDING — waiting for approval`,
+    );
 
     return res.status(201).json({
       message: "Affiliate registration submitted and pending approval",
@@ -143,6 +163,7 @@ router.get(
         name: user.name,
         email: user.email,
         role: user.role,
+        permissions: user.permissions,
       },
     });
   }),

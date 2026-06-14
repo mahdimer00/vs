@@ -49,7 +49,7 @@ export const router = createBrowserRouter([
       {
         path: "admin",
         element: (
-          <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"]} area="admin">
+          <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "SUB_ADMIN"]} area="admin">
             <AdminDashboardPage />
           </ProtectedRoute>
         ),
@@ -57,7 +57,7 @@ export const router = createBrowserRouter([
       {
         path: "admin/*",
         element: (
-          <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"]} area="admin">
+          <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "SUB_ADMIN"]} area="admin">
             <AdminDashboardPage />
           </ProtectedRoute>
         ),

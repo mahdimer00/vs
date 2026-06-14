@@ -1,5 +1,5 @@
 import { apiRequest, apiUpload } from "@/services/apiClient";
-import type { Affiliate, Banner, Brand, Category, Commission, DashboardStats, Order, Product, PromoCode, WebsiteSetting, Wilaya, WithdrawalRequest } from "@/types";
+import type { AdminNotifications, AdminPermission, Affiliate, Banner, Brand, Category, Commission, CouponRequest, DashboardStats, Order, Product, PromoCode, SubAdmin, WebsiteSetting, Wilaya, WithdrawalRequest } from "@/types";
 
 export const adminService = {
   getStats(token: string) {
@@ -150,11 +150,11 @@ export const adminService = {
   getWithdrawals(token: string) {
     return apiRequest<WithdrawalRequest[]>("/api/admin/withdrawals", { token });
   },
-  updateWithdrawal(token: string, id: string, status: WithdrawalRequest["status"]) {
+  updateWithdrawal(token: string, id: string, status: WithdrawalRequest["status"], voucher?: { voucherCode: string; voucherPin: string }) {
     return apiRequest<WithdrawalRequest>(`/api/admin/withdrawals/${id}`, {
       method: "PATCH",
       token,
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...voucher }),
     });
   },
   getWilayas() {
@@ -166,5 +166,38 @@ export const adminService = {
       token,
       body: JSON.stringify(payload),
     });
+  },
+  getNotifications(token: string) {
+    return apiRequest<AdminNotifications>("/api/admin/notifications", { token });
+  },
+  getCouponRequests(token: string) {
+    return apiRequest<CouponRequest[]>("/api/admin/coupon-requests", { token });
+  },
+  updateCouponRequest(token: string, id: string, payload: { status: CouponRequest["status"]; adminNote?: string; code?: string }) {
+    return apiRequest<CouponRequest>(`/api/admin/coupon-requests/${id}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  getAdmins(token: string) {
+    return apiRequest<SubAdmin[]>("/api/admin/admins", { token });
+  },
+  createAdmin(token: string, payload: { name: string; email: string; password: string; permissions: AdminPermission[] }) {
+    return apiRequest<SubAdmin>("/api/admin/admins", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  updateAdmin(token: string, id: string, payload: { name?: string; password?: string; permissions?: AdminPermission[]; isActive?: boolean }) {
+    return apiRequest<SubAdmin>(`/api/admin/admins/${id}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteAdmin(token: string, id: string) {
+    return apiRequest<{ success: boolean }>(`/api/admin/admins/${id}`, { method: "DELETE", token });
   },
 };

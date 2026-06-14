@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { OrderSummaryCard } from "@/components/OrderSummaryCard";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { buildVariantLabel, formatCurrency, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
@@ -11,20 +12,24 @@ export function CartPage() {
 
   if (cart.length === 0) {
     return (
-      <EmptyState
-        title={translate(language, "emptyCart")}
-        description={translate(language, "cartDescription")}
-        action={
-          <Link to="/products" className="primary-button">
-            {translate(language, "heroPrimary")}
-          </Link>
-        }
-      />
+      <>
+        <Seo title={translate(language, "cartTitle")} description={translate(language, "cartDescription")} path="/cart" noindex />
+        <EmptyState
+          title={translate(language, "emptyCart")}
+          description={translate(language, "cartDescription")}
+          action={
+            <Link to="/products" className="primary-button">
+              {translate(language, "heroPrimary")}
+            </Link>
+          }
+        />
+      </>
     );
   }
 
   return (
     <div className="space-y-6">
+      <Seo title={translate(language, "cartTitle")} description={translate(language, "cartDescription")} path="/cart" noindex />
       <section className="surface-card p-6 md:p-8">
         <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "cartTitle")}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "cartDescription")}</p>

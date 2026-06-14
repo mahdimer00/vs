@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useApp } from "@/hooks/useApp";
 import { MainLayout } from "@/layout/MainLayout";
+import { initAnalytics, trackPageview } from "@/utils/analytics";
 
 export function App() {
   const location = useLocation();
@@ -18,6 +19,14 @@ export function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
   }, [location.pathname]);
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
+    trackPageview(location.pathname + location.search);
+  }, [location.pathname, location.search]);
 
   return (
     <MainLayout />

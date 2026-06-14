@@ -82,10 +82,12 @@ export function OrderSummaryCard({
           <span>{translate(language, "shippingFee")}</span>
           <span>{formatCurrency(shippingFee, language)}</span>
         </div>
-        <div className="flex justify-between text-emerald-700">
-          <span>{translate(language, "discount")}</span>
-          <span>-{formatCurrency(discount, language)}</span>
-        </div>
+        {discount > 0 ? (
+          <div className="flex justify-between rounded-[1.25rem] bg-emerald-50 px-3 py-2 font-semibold text-emerald-700">
+            <span>{translate(language, "discount")}</span>
+            <span>-{formatCurrency(discount, language)}</span>
+          </div>
+        ) : null}
         <div className="rounded-[1.5rem] bg-slate-950 px-4 py-4 text-white">
           <div className="flex items-center justify-between text-base font-bold">
             <span>{translate(language, "finalTotal")}</span>

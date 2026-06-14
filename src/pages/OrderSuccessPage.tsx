@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { formatCurrency } from "@/utils/format";
 import { translate } from "@/utils/i18n";
@@ -17,6 +18,7 @@ export function OrderSuccessPage() {
 
   return (
     <div className="mx-auto max-w-2xl surface-card p-6 text-center sm:p-8">
+      <Seo title={translate(language, "orderSuccessTitle")} description={translate(language, "orderSuccessDescription")} path="/order/success" noindex />
       <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-100 text-emerald-700">
         <Check className="h-10 w-10" />
       </div>

@@ -1,7 +1,8 @@
-import { ArrowRight, KeyRound, Mail, Phone, User, UserPlus } from "lucide-react";
+import { ArrowRight, KeyRound, Mail, Phone, User, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { IconField } from "@/components/IconField";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { authService } from "@/services/auth.service";
 import { translate } from "@/utils/i18n";
@@ -10,6 +11,8 @@ const phonePattern = /^(05|06|07)\d{8}$/;
 
 export function AffiliateRegisterPage() {
   const { language } = useApp();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get("ref")?.trim().toUpperCase() || "";
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -57,6 +60,7 @@ export function AffiliateRegisterPage() {
         email: form.email,
         phone: form.phone,
         password: form.password,
+        ref: referralCode || undefined,
       });
       setSuccess(response.message || translate(language, "authRegisterPending"));
       setForm({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
@@ -69,12 +73,19 @@ export function AffiliateRegisterPage() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+      <Seo title={translate(language, "authAffiliateRegisterTitle")} noindex />
       <section className="surface-card-dark p-6 sm:p-8">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-white/10">
           <UserPlus className="h-7 w-7 text-amber-300" />
         </div>
         <h1 className="mt-6 font-serif text-2xl font-semibold sm:text-3xl md:text-4xl">{translate(language, "authAffiliateRegisterTitle")}</h1>
         <p className="mt-4 text-sm leading-7 text-slate-300">{translate(language, "authAffiliateDescription")}</p>
+        {referralCode ? (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-amber-300">
+            <Users className="h-4 w-4" />
+            {translate(language, "affiliateInvitedBy")} {referralCode}
+          </div>
+        ) : null}
       </section>
       <section className="surface-card p-6 sm:p-8">
         <form onSubmit={submit} className="space-y-4">

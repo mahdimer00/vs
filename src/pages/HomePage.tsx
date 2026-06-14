@@ -1,10 +1,11 @@
-import { ArrowUpRight, BadgePercent, Headphones, ShieldCheck, Truck, WalletCards } from "lucide-react";
+import { ArrowUpRight, Headphones, ShieldCheck, Truck, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
 import { PromoSlider } from "@/components/PromoSlider";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { adminService } from "@/services/admin.service";
 import { bannerService } from "@/services/banner.service";
@@ -53,34 +54,36 @@ export function HomePage() {
 
   return (
     <div className="space-y-10">
+      <Seo
+        title={translate(language, "heroBadge")}
+        description={translate(language, "heroDescription")}
+        path="/"
+        type="website"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "VisaStore",
+            url: "https://visadz.store",
+            logo: "https://visadz.store/og-image.png",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "VisaStore",
+            url: "https://visadz.store",
+          },
+        ]}
+      />
       <PromoSlider banners={banners} language={language} />
 
-      <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <section className="surface-card grid grid-cols-2 gap-3 px-4 py-4 sm:grid-cols-4 sm:gap-4 sm:px-6">
         {trustItems.map((item) => (
-          <div key={item.label} className="surface-card px-4 py-5 sm:px-5">
-            <item.icon className="h-5 w-5 text-teal-700" />
-            <div className="mt-3 text-sm font-semibold text-slate-950 sm:text-base">{item.label}</div>
+          <div key={item.label} className="flex items-center gap-2.5">
+            <item.icon className="h-5 w-5 shrink-0 text-teal-700" />
+            <div className="text-xs font-semibold text-slate-700 sm:text-sm">{item.label}</div>
           </div>
         ))}
-      </section>
-
-      <section className="surface-card-dark relative flex flex-col gap-6 overflow-hidden p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="absolute -end-12 -top-12 h-48 w-48 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
-        <div className="flex items-start gap-4">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white/10">
-            <BadgePercent className="h-7 w-7 text-amber-300" />
-          </div>
-          <div>
-            <span className="inline-flex items-center rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.24em] text-amber-300">
-              {translate(language, "earnMoneyBadge")}
-            </span>
-            <h2 className="mt-3 font-serif text-2xl font-semibold text-white md:text-3xl">{translate(language, "homeAffiliatePromoTitle")}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{translate(language, "homeAffiliatePromoDescription")}</p>
-          </div>
-        </div>
-        <Link to="/earn-money" className="primary-button w-full shrink-0 text-center sm:w-auto">
-          {translate(language, "homeAffiliatePromoCta")}
-        </Link>
       </section>
 
       <section className="space-y-6">

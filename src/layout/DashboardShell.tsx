@@ -12,7 +12,7 @@ export function DashboardShell({
 }: {
   title: string;
   description?: string;
-  links: Array<{ href: string; label: string }>;
+  links: Array<{ href: string; label: string; badge?: number }>;
   children: React.ReactNode;
   onLogout: () => void;
 }) {
@@ -68,7 +68,7 @@ export function DashboardShell({
               to={link.href}
               end={link.href === "/admin" || link.href === "/affiliate"}
               className={({ isActive }) =>
-                `block shrink-0 whitespace-nowrap rounded-[1.2rem] px-4 py-3 text-sm transition ${
+                `flex shrink-0 items-center justify-between gap-2 whitespace-nowrap rounded-[1.2rem] px-4 py-3 text-sm transition ${
                   isActive
                     ? "bg-white text-slate-950"
                     : "border border-white/10 text-slate-200 hover:bg-white/10 lg:border-0"
@@ -76,6 +76,11 @@ export function DashboardShell({
               }
             >
               {link.label}
+              {link.badge ? (
+                <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">
+                  {link.badge > 99 ? "99+" : link.badge}
+                </span>
+              ) : null}
             </NavLink>
           ))}
         </nav>

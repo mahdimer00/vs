@@ -1,9 +1,10 @@
-import { Clock, Heart, Minus, ShieldCheck, ShoppingCart, Truck, Plus } from "lucide-react";
+import { ChevronRight, Clock, Eye, Flame, Heart, Minus, ShieldCheck, ShoppingCart, Truck, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
@@ -56,6 +57,7 @@ export function ProductDetailsPage() {
   const [quantity, setQuantity] = useState(1);
   const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(getTimeUntilMidnight());
+  const [activeTab, setActiveTab] = useState<"description" | "specs">("description");
 
   useEffect(() => {
     const timer = window.setInterval(() => setCountdown(getTimeUntilMidnight()), 1000);
@@ -198,6 +200,7 @@ export function ProductDetailsPage() {
                 type="button"
                 disabled={!available}
                 onClick={() => selectVariantBy({ [keyName]: option })}
+                aria-pressed={active}
                 className={`option-chip ${active ? "option-chip-active" : ""} ${!available ? "option-chip-disabled" : ""}`}
               >
                 {option}
@@ -210,42 +213,107 @@ export function ProductDetailsPage() {
   };
 
   const brandName = typeof product.brand === "string" ? product.brand : product.brand.name;
+  const category = typeof product.category === "string" ? null : product.category;
   const hasVariantOptions = ramOptions.length > 0 || storageOptions.length > 0 || colorOptions.length > 0;
   const discountPercent = product.basePrice > 0 ? Math.round((saving / product.basePrice) * 100) : 0;
+  const productName = getLocalizedText(product.name, language);
+  const productDescription = getLocalizedText(product.description, language);
+  const specifications = Object.entries(product.specifications ?? {});
 
   return (
     <div className="space-y-8">
+      <Seo
+        title={productName}
+        description={productDescription}
+        image={selectedImage || undefined}
+        path={`/products/${product.slug}`}
+        type="product"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: productName,
+          description: productDescription,
+          image: gallery,
+          brand: { "@type": "Brand", name: brandName },
+          offers: {
+            "@type": "Offer",
+            price: price.toFixed(2),
+            priceCurrency: "DZD",
+            availability: selectedVariant.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          },
+        }}
+      />
+      <nav className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs text-slate-500 sm:text-sm">
+        <Link to="/" className="shrink-0 transition hover:text-slate-900">
+          {translate(language, "home")}
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+        <Link to="/products" className="shrink-0 transition hover:text-slate-900">
+          {translate(language, "products")}
+        </Link>
+        {category ? (
+          <>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+            <Link to={`/products?category=${category.slug}`} className="shrink-0 transition hover:text-slate-900">
+              {getLocalizedText(category.name, language)}
+            </Link>
+          </>
+        ) : null}
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+        <span className="truncate font-medium text-slate-900">{productName}</span>
+      </nav>
+
       <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
         <div className="space-y-3 lg:sticky lg:top-24">
-          <div className="surface-card overflow-hidden p-3">
-            <div className="relative overflow-hidden rounded-[1.6rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.2),_transparent_22%),linear-gradient(180deg,_#fff,_#f8fafc)]">
-              <img src={selectedImage} alt="" className="aspect-square w-full object-contain p-4" />
-              {saving > 0 ? (
-                <div className="absolute start-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
-                  -{discountPercent}%
-                </div>
-              ) : null}
-              {lowStock ? (
-                <div className="absolute end-4 top-4 animate-pulse rounded-full bg-slate-950/85 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
-                  {translate(language, "productOnlyLeft")}
-                </div>
-              ) : null}
+          <div className="flex gap-3">
+            {gallery.length > 1 ? (
+              <div className="hidden flex-col gap-2 lg:flex">
+                {gallery.map((image, index) => (
+                  <button
+                    key={image}
+                    type="button"
+                    onClick={() => setSelectedImage(image)}
+                    aria-label={`${productName} ${index + 1}`}
+                    aria-pressed={selectedImage === image}
+                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition ${
+                      selectedImage === image ? "border-slate-900" : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="surface-card flex-1 overflow-hidden p-3">
+              <div className="relative overflow-hidden rounded-[1.6rem] bg-slate-50">
+                <img src={selectedImage} alt={productName} className="aspect-square w-full object-contain p-4" />
+                {saving > 0 ? (
+                  <div className="absolute start-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
+                    -{discountPercent}%
+                  </div>
+                ) : null}
+                {lowStock ? (
+                  <div className="absolute end-4 top-4 animate-pulse rounded-full bg-slate-950/85 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                    {translate(language, "productOnlyLeft")}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           {gallery.length > 1 ? (
-            <div className="grid grid-cols-4 gap-2 sm:gap-3">
-              {gallery.map((image) => (
+            <div className="flex gap-2 overflow-x-auto lg:hidden">
+              {gallery.map((image, index) => (
                 <button
                   key={image}
                   type="button"
                   onClick={() => setSelectedImage(image)}
-                  className={`overflow-hidden rounded-[1.35rem] border p-1 transition ${
-                    selectedImage === image
-                      ? "border-amber-400 bg-amber-50 shadow-[0_12px_28px_rgba(251,191,36,0.18)]"
-                      : "border-slate-200 bg-white"
+                  aria-label={`${productName} ${index + 1}`}
+                  aria-pressed={selectedImage === image}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition ${
+                    selectedImage === image ? "border-slate-900" : "border-slate-200"
                   }`}
                 >
-                  <img src={image} alt="" loading="lazy" className="aspect-square w-full rounded-[1rem] bg-white object-contain p-1" />
+                  <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
                 </button>
               ))}
             </div>
@@ -262,11 +330,10 @@ export function ProductDetailsPage() {
             >
               {translate(language, product.condition === "USED" ? "productConditionUsed" : "productConditionNew")}
             </span>
-            <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-700">{translate(language, "productBestChoice")}</span>
           </div>
 
-          <h1 className="mt-3 font-serif text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl md:text-4xl">
-            {getLocalizedText(product.name, language)}
+          <h1 className="mt-3 text-xl font-semibold leading-tight text-slate-950 sm:text-2xl md:text-3xl">
+            {productName}
           </h1>
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -291,10 +358,14 @@ export function ProductDetailsPage() {
               <span className={`h-1.5 w-1.5 rounded-full ${selectedVariant.stock > 0 ? "bg-emerald-500" : "bg-rose-500"}`} />
               {selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productSoldOut")}
             </span>
-            <span className="text-slate-500">
-              👀 {viewerCount} {translate(language, "productViewingNow")}
+            <span className="inline-flex items-center gap-1.5 text-slate-500">
+              <Eye className="h-4 w-4" />
+              {viewerCount} {translate(language, "productViewingNow")}
             </span>
-            <span className="text-slate-500">🔥 {translate(language, "productBoughtToday").replace("{count}", String(boughtToday))}</span>
+            <span className="inline-flex items-center gap-1.5 text-slate-500">
+              <Flame className="h-4 w-4" />
+              {translate(language, "productBoughtToday").replace("{count}", String(boughtToday))}
+            </span>
           </div>
 
           {saving > 0 ? (
@@ -334,6 +405,7 @@ export function ProductDetailsPage() {
               <button
                 type="button"
                 onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                aria-label={translate(language, "productQuantityDecrease")}
                 className="grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800"
               >
                 <Minus className="h-4 w-4" />
@@ -342,6 +414,7 @@ export function ProductDetailsPage() {
               <button
                 type="button"
                 onClick={() => setQuantity((current) => Math.min(selectedVariant.stock, current + 1))}
+                aria-label={translate(language, "productQuantityIncrease")}
                 className="grid h-9 w-9 place-items-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-500"
               >
                 <Plus className="h-4 w-4" />
@@ -372,6 +445,8 @@ export function ProductDetailsPage() {
             <button
               type="button"
               onClick={() => toggleWishlist(product._id)}
+              aria-label={translate(language, isWishlisted(product._id) ? "wishlistRemove" : "wishlistAdd")}
+              aria-pressed={isWishlisted(product._id)}
               className={`inline-flex items-center justify-center gap-2 rounded-full border px-6 py-4 text-base font-semibold transition ${
                 isWishlisted(product._id)
                   ? "border-rose-200 bg-rose-50 text-rose-600"
@@ -396,25 +471,52 @@ export function ProductDetailsPage() {
         </div>
       </div>
 
-      <section className="surface-card p-6 md:p-7">
-        <h2 className="text-lg font-semibold text-slate-950">{translate(language, "productDescriptionTitle")}</h2>
-        <p className="mt-3 whitespace-pre-line text-sm leading-8 text-slate-600">{getLocalizedText(product.description, language)}</p>
-      </section>
-
-      <section className="surface-card p-6 md:p-7">
-        <h2 className="text-lg font-semibold text-slate-950">{translate(language, "productSpecifications")}</h2>
-        <div className="mt-4 grid gap-3">
-          {Object.entries(product.specifications ?? {}).map(([key, value]) => (
-            <div
-              key={key}
-              className="flex items-center justify-between rounded-[1.35rem] border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm"
+      <section className="surface-card overflow-hidden p-0">
+        <div className="flex border-b border-slate-100">
+          <button
+            type="button"
+            onClick={() => setActiveTab("description")}
+            aria-pressed={activeTab === "description"}
+            className={`flex-1 px-4 py-4 text-sm font-semibold transition sm:flex-none sm:px-8 ${
+              activeTab === "description" ? "border-b-2 border-slate-950 text-slate-950" : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {translate(language, "productDescriptionTitle")}
+          </button>
+          {specifications.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("specs")}
+              aria-pressed={activeTab === "specs"}
+              className={`flex-1 px-4 py-4 text-sm font-semibold transition sm:flex-none sm:px-8 ${
+                activeTab === "specs" ? "border-b-2 border-slate-950 text-slate-950" : "text-slate-500 hover:text-slate-800"
+              }`}
             >
-              <span className="font-medium text-slate-500">{key}</span>
-              <span className="font-semibold text-slate-900">{value}</span>
-            </div>
-          ))}
+              {translate(language, "productSpecifications")}
+            </button>
+          ) : null}
         </div>
-        <p className="mt-4 text-sm leading-7 text-slate-500">{translate(language, "productSupportNote")}</p>
+
+        {activeTab === "description" ? (
+          <div className="p-6 md:p-7">
+            <p className="whitespace-pre-line text-sm leading-8 text-slate-600">{productDescription}</p>
+          </div>
+        ) : (
+          <div className="p-6 md:p-7">
+            <div className="grid gap-3">
+              {specifications.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between rounded-[1.35rem] border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm"
+                >
+                  <span className="font-medium text-slate-500">{key}</span>
+                  <span className="font-semibold text-slate-900">{value}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm leading-7 text-slate-500">{translate(language, "productSupportNote")}</p>
+          </div>
+        )}
       </section>
 
       {relatedProducts.length > 0 ? (

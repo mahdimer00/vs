@@ -1,4 +1,5 @@
 import { model, Schema } from "mongoose";
+import { ADMIN_PERMISSIONS } from "../constants/permissions.js";
 
 const userSchema = new Schema(
   {
@@ -7,8 +8,12 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER"],
+      enum: ["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "SUB_ADMIN"],
       required: true,
+    },
+    permissions: {
+      type: [{ type: String, enum: ADMIN_PERMISSIONS }],
+      default: [],
     },
     isActive: { type: Boolean, default: true },
   },

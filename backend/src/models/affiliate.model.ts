@@ -9,6 +9,9 @@ const affiliateSchema = new Schema(
     referralCode: { type: String, required: true, unique: true, uppercase: true },
     commissionRate: { type: Number, min: 1, max: 3, default: 1 },
     status: { type: String, enum: ["PENDING", "ACTIVE", "BLOCKED"], default: "PENDING" },
+    level: { type: String, enum: ["BRONZE", "SILVER", "GOLD", "PLATINUM"], default: "BRONZE" },
+    referredBy: { type: Schema.Types.ObjectId, ref: "Affiliate" },
+    referralBonusPaid: { type: Boolean, default: false },
     balancePending: { type: Number, default: 0 },
     balanceApproved: { type: Number, default: 0 },
     balancePaid: { type: Number, default: 0 },
@@ -29,7 +32,9 @@ const affiliateClickSchema = new Schema(
 const commissionSchema = new Schema(
   {
     affiliate: { type: Schema.Types.ObjectId, ref: "Affiliate", required: true },
-    order: { type: Schema.Types.ObjectId, ref: "Order", required: true },
+    order: { type: Schema.Types.ObjectId, ref: "Order" },
+    type: { type: String, enum: ["SALE", "REFERRAL_BONUS"], default: "SALE" },
+    sourceAffiliate: { type: Schema.Types.ObjectId, ref: "Affiliate" },
     rate: { type: Number, required: true },
     amount: { type: Number, required: true },
     status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED", "PAID"], default: "PENDING" },
@@ -50,6 +55,20 @@ const commissionLogSchema = new Schema(
   { timestamps: true },
 );
 
+const couponRequestSchema = new Schema(
+  {
+    affiliate: { type: Schema.Types.ObjectId, ref: "Affiliate", required: true },
+    type: { type: String, enum: ["PERCENTAGE", "FIXED", "FREE_SHIPPING"], required: true },
+    value: { type: Number, required: true },
+    desiredCode: { type: String, uppercase: true },
+    reason: { type: String, required: true },
+    status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED"], default: "PENDING" },
+    adminNote: String,
+    promoCode: { type: Schema.Types.ObjectId, ref: "PromoCode" },
+  },
+  { timestamps: true },
+);
+
 const withdrawalRequestSchema = new Schema(
   {
     affiliate: { type: Schema.Types.ObjectId, ref: "Affiliate", required: true },
@@ -57,6 +76,9 @@ const withdrawalRequestSchema = new Schema(
     method: { type: String, required: true },
     accountInfo: { type: String, required: true },
     status: { type: String, enum: ["PENDING", "APPROVED", "REJECTED", "PAID"], default: "PENDING" },
+    voucherCode: String,
+    voucherPin: String,
+    voucherExpiresAt: Date,
   },
   { timestamps: true },
 );
@@ -66,3 +88,4 @@ export const AffiliateClickModel = model("AffiliateClick", affiliateClickSchema)
 export const CommissionModel = model("Commission", commissionSchema);
 export const CommissionLogModel = model("CommissionLog", commissionLogSchema);
 export const WithdrawalRequestModel = model("WithdrawalRequest", withdrawalRequestSchema);
+export const CouponRequestModel = model("CouponRequest", couponRequestSchema);

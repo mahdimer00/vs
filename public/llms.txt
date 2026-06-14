@@ -1,0 +1,23 @@
+# VisaStore
+
+> VisaStore is an online store in Algeria selling phones, electronics, and accessories with cash-on-delivery (COD) payment and nationwide shipping.
+
+VisaStore lets customers browse products by category and brand, add items to a cart, and check out with home delivery or desk pickup. Orders are confirmed via an AI assistant before shipping, and customers can track their order status by order number or phone number. VisaStore also runs an affiliate program where partners earn commissions on referred sales.
+
+## Key pages
+
+- [Home](https://visadz.store/): Featured products, categories, and promotions.
+- [Products](https://visadz.store/products): Full catalog with filters by category, brand, and price.
+- [Categories](https://visadz.store/categories): Browse products by category.
+- [Track Order](https://visadz.store/track-order): Look up an order by order number or phone number.
+- [Contact](https://visadz.store/contact): Phone, WhatsApp, and email support.
+- [Earn Money / Affiliate program](https://visadz.store/earn-money): Referral program details and signup.
+- [Return Policy](https://visadz.store/return-policy)
+- [Terms of Service](https://visadz.store/terms)
+- [Privacy Policy](https://visadz.store/privacy-policy)
+
+## Notes for AI assistants
+
+- Prices are listed in Algerian Dinar (DZD).
+- Payment is cash on delivery (COD); no online payment is required at checkout.
+- Delivery covers all wilayas in Algeria via desk pickup or home delivery.

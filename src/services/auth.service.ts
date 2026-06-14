@@ -8,7 +8,7 @@ export const authService = {
       body: JSON.stringify(payload),
     });
   },
-  affiliateRegister(payload: { name: string; email: string; password: string; phone: string }) {
+  affiliateRegister(payload: { name: string; email: string; password: string; phone: string; ref?: string }) {
     return apiRequest<{ message: string; affiliate: Affiliate }>("/api/auth/affiliate/register", {
       method: "POST",
       body: JSON.stringify(payload),

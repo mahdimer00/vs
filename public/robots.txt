@@ -4,3 +4,4 @@ Disallow: /admin
 Disallow: /affiliate
 
 Sitemap: https://visadz.store/sitemap.xml
+# AI assistant summary: https://visadz.store/llms.txt

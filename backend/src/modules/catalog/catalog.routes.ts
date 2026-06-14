@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
-import { roleMiddleware } from "../../middleware/role.middleware.js";
+import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 
@@ -102,7 +102,7 @@ router.get(
 router.post(
   "/admin/products",
   authMiddleware,
-  roleMiddleware(["SUPER_ADMIN", "ADMIN"]),
+  permissionMiddleware("products"),
   asyncHandler(async (req, res) => {
     const input = productSchema.parse(req.body);
     const product = await ProductModel.create({ ...input, stock: input.stock });
@@ -114,7 +114,7 @@ router.post(
 router.patch(
   "/admin/products/:id",
   authMiddleware,
-  roleMiddleware(["SUPER_ADMIN", "ADMIN"]),
+  permissionMiddleware("products"),
   asyncHandler(async (req, res) => {
     const input = productSchema.partial().parse(req.body);
     const product = await ProductModel.findByIdAndUpdate(req.params.id, input, { new: true });
@@ -134,7 +134,7 @@ router.patch(
 router.delete(
   "/admin/products/:id",
   authMiddleware,
-  roleMiddleware(["SUPER_ADMIN", "ADMIN"]),
+  permissionMiddleware("products"),
   asyncHandler(async (req, res) => {
     await ProductModel.findByIdAndDelete(req.params.id);
     await ProductVariantModel.deleteMany({ productId: req.params.id });
@@ -153,48 +153,48 @@ router.get(
     return res.json(settings);
   }),
 );
-router.get("/admin/banners", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
+router.get("/admin/banners", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (_req, res) => {
   return res.json(await BannerModel.find().sort({ priority: 1, createdAt: -1 }).lean());
 }));
 
-router.post("/admin/categories", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.post("/admin/categories", authMiddleware, permissionMiddleware("categories"), asyncHandler(async (req, res) => {
   const category = await CategoryModel.create(categorySchema.parse(req.body));
   return res.status(201).json(category);
 }));
-router.patch("/admin/categories/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.patch("/admin/categories/:id", authMiddleware, permissionMiddleware("categories"), asyncHandler(async (req, res) => {
   const category = await CategoryModel.findByIdAndUpdate(req.params.id, categorySchema.partial().parse(req.body), { new: true });
   if (!category) {
     return res.status(404).json({ message: "Category not found" });
   }
   return res.json(category);
 }));
-router.delete("/admin/categories/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.delete("/admin/categories/:id", authMiddleware, permissionMiddleware("categories"), asyncHandler(async (req, res) => {
   await CategoryModel.findByIdAndDelete(req.params.id);
   return res.json({ success: true });
 }));
 
-router.post("/admin/brands", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.post("/admin/brands", authMiddleware, permissionMiddleware("brands"), asyncHandler(async (req, res) => {
   const brand = await BrandModel.create(brandSchema.parse(req.body));
   return res.status(201).json(brand);
 }));
-router.patch("/admin/brands/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.patch("/admin/brands/:id", authMiddleware, permissionMiddleware("brands"), asyncHandler(async (req, res) => {
   const brand = await BrandModel.findByIdAndUpdate(req.params.id, brandSchema.partial().parse(req.body), { new: true });
   if (!brand) {
     return res.status(404).json({ message: "Brand not found" });
   }
   return res.json(brand);
 }));
-router.delete("/admin/brands/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.delete("/admin/brands/:id", authMiddleware, permissionMiddleware("brands"), asyncHandler(async (req, res) => {
   await BrandModel.findByIdAndDelete(req.params.id);
   return res.json({ success: true });
 }));
 
-router.post("/admin/banners", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.post("/admin/banners", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (req, res) => {
   const banner = await BannerModel.create(bannerSchema.parse(req.body));
   return res.status(201).json(banner);
 }));
 
-router.patch("/admin/banners/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.patch("/admin/banners/:id", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (req, res) => {
   const banner = await BannerModel.findByIdAndUpdate(req.params.id, bannerSchema.partial().parse(req.body), { new: true });
   if (!banner) {
     return res.status(404).json({ message: "Banner not found" });
@@ -202,7 +202,7 @@ router.patch("/admin/banners/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"
   return res.json(banner);
 }));
 
-router.delete("/admin/banners/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.delete("/admin/banners/:id", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (req, res) => {
   await BannerModel.findByIdAndDelete(req.params.id);
   return res.json({ success: true });
 }));

@@ -2,6 +2,7 @@ import { ArrowLeft, Hash, Phone, Search, Truck } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
+import { Seo } from "@/components/Seo";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
@@ -157,6 +158,7 @@ export function TrackOrderPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <Seo title={translate(language, "trackTitle")} description={translate(language, "trackDescription")} path="/track-order" />
       <div className="surface-card overflow-hidden p-0">
         <div className="bg-[linear-gradient(135deg,_#fff7ed,_#ffffff_35%,_#eff6ff)] p-6 md:p-8">
           <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "trackTitle")}</h1>

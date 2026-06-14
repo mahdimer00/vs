@@ -2,6 +2,7 @@ import { ArrowRight, BadgePercent, KeyRound, Mail, ShieldCheck } from "lucide-re
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { authService } from "@/services/auth.service";
 import { translate } from "@/utils/i18n";
@@ -61,6 +62,7 @@ export function AffiliateLoginPage() {
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+      <Seo title={translate(language, "authAffiliateLoginTitle")} noindex />
       <section className="surface-card-dark p-6 sm:p-8">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-white/10">
           <BadgePercent className="h-7 w-7 text-amber-300" />

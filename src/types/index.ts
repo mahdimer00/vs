@@ -6,7 +6,24 @@ export interface LocalizedText {
   en: string;
 }
 
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "AFFILIATE";
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "SUB_ADMIN" | "AFFILIATE";
+
+export const ADMIN_PERMISSIONS = [
+  "dashboard",
+  "products",
+  "categories",
+  "brands",
+  "orders",
+  "shipping",
+  "promo-codes",
+  "affiliates",
+  "commissions",
+  "withdrawals",
+  "coupon-requests",
+  "settings",
+] as const;
+
+export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number];
 export type DeliveryType = "HOME_DELIVERY" | "DESK_PICKUP";
 export type OrderStatus =
   | "PENDING_AI_CONFIRMATION"
@@ -95,6 +112,8 @@ export interface PromoCode {
   isActive: boolean;
 }
 
+export type AffiliateLevel = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM";
+
 export interface Affiliate {
   _id: string;
   name: string;
@@ -103,6 +122,9 @@ export interface Affiliate {
   referralCode: string;
   commissionRate: number;
   status: "PENDING" | "ACTIVE" | "BLOCKED";
+  level: AffiliateLevel;
+  referredBy?: string | Affiliate | null;
+  referralBonusPaid?: boolean;
   balancePending: number;
   balanceApproved: number;
   balancePaid: number;
@@ -116,6 +138,9 @@ export interface WithdrawalRequest {
   method: "RIP" | "CARDLESS_ID_PIN";
   accountInfo: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
+  voucherCode?: string;
+  voucherPin?: string;
+  voucherExpiresAt?: string;
   createdAt: string;
 }
 
@@ -158,13 +183,36 @@ export interface Order {
 export interface Commission {
   _id: string;
   affiliate: Affiliate | string;
-  order: Order | string;
+  order?: Order | string | null;
+  type?: "SALE" | "REFERRAL_BONUS";
+  sourceAffiliate?: Affiliate | string | null;
   rate: number;
   amount: number;
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
   approvedAt?: string | null;
   paidAt?: string | null;
 }
+
+export interface CouponRequest {
+  _id: string;
+  affiliate: Affiliate | string;
+  type: "PERCENTAGE" | "FIXED" | "FREE_SHIPPING";
+  value: number;
+  desiredCode?: string;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  adminNote?: string;
+  promoCode?: PromoCode | string | null;
+  createdAt: string;
+}
+
+export interface AdminNotifications {
+  pendingAffiliates: number;
+  pendingWithdrawals: number;
+  pendingCouponRequests: number;
+}
+
+export type AffiliateLevelSettings = Record<AffiliateLevel, { commissionRate: number; referralBonus: number }>;
 
 export interface WebsiteSetting {
   _id?: string;
@@ -181,6 +229,7 @@ export interface WebsiteSetting {
   aiEnabled: boolean;
   maintenanceMode: boolean;
   promoCodeEnabled: boolean;
+  affiliateLevels?: AffiliateLevelSettings;
 }
 
 export interface Banner {
@@ -198,11 +247,22 @@ export interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+  permissions?: AdminPermission[];
 }
 
 export interface AuthSession {
   token: string;
   user: AuthUser;
+}
+
+export interface SubAdmin {
+  _id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  permissions: AdminPermission[];
+  isActive: boolean;
+  createdAt?: string;
 }
 
 export interface DashboardStats {

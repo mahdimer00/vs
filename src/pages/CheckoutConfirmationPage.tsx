@@ -1,6 +1,7 @@
 import { Bot, CheckCircle2, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { aiService } from "@/services/ai.service";
 import { orderService } from "@/services/order.service";
@@ -96,6 +97,7 @@ export function CheckoutConfirmationPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <Seo title={translate(language, "aiConfirmationTitle")} description={translate(language, "aiConfirmationDescription")} path="/checkout/confirm" noindex />
       <div className="surface-card p-6 md:p-8">
         <div className="flex items-start gap-4">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-amber-100 text-amber-700">

@@ -1,5 +1,5 @@
 import { apiRequest } from "@/services/apiClient";
-import type { Affiliate, Commission, Order, PromoCode, WithdrawalRequest } from "@/types";
+import type { Affiliate, Commission, CouponRequest, Order, PromoCode, WithdrawalRequest } from "@/types";
 
 export const affiliateService = {
   trackClick(referralCode: string) {
@@ -12,7 +12,10 @@ export const affiliateService = {
       affiliate: Affiliate;
       ordersCount: number;
       clicksCount: number;
+      teamCount: number;
+      referralBonusAmount: number;
       referralLink: string;
+      inviteLink: string;
       promoCodes: PromoCode[];
     }>("/api/affiliate/dashboard", { token });
   },
@@ -34,5 +37,18 @@ export const affiliateService = {
   },
   getWithdrawals(token: string) {
     return apiRequest<WithdrawalRequest[]>("/api/affiliate/withdrawals", { token });
+  },
+  getTeam(token: string) {
+    return apiRequest<Affiliate[]>("/api/affiliate/team", { token });
+  },
+  requestCoupon(token: string, payload: { type: string; value: number; desiredCode?: string; reason: string }) {
+    return apiRequest<CouponRequest>("/api/affiliate/coupon-requests", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  getCouponRequests(token: string) {
+    return apiRequest<CouponRequest[]>("/api/affiliate/coupon-requests", { token });
   },
 };

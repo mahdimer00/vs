@@ -1,18 +1,27 @@
 import {
   AlertTriangle,
+  Award,
   BellRing,
   Building2,
+  Check,
+  Crown,
   Facebook,
+  Gift,
   Instagram,
   Link2,
   Mail,
   MapPin,
+  Medal,
   MessageCircle,
   PackageX,
   Phone,
+  Shield,
+  Sparkles,
   Store,
   TicketPercent,
+  Users,
   Wallet,
+  X,
   Youtube,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +31,7 @@ import { IconField } from "@/components/IconField";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { LoadingState } from "@/components/LoadingState";
+import { Seo } from "@/components/Seo";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
@@ -29,21 +39,36 @@ import { ApiError } from "@/services/apiClient";
 import { adminService } from "@/services/admin.service";
 import { productService } from "@/services/product.service";
 import type {
+  AdminNotifications,
+  AdminPermission,
   Affiliate,
+  AffiliateLevel,
   Banner,
   Brand,
   Category,
   Commission,
+  CouponRequest,
   DashboardStats,
   Order,
   Product,
   PromoCode,
+  SubAdmin,
   WebsiteSetting,
   Wilaya,
   WithdrawalRequest,
 } from "@/types";
+import { ADMIN_PERMISSIONS } from "@/types";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
-import { translate } from "@/utils/i18n";
+import { translate, type TranslationKey } from "@/utils/i18n";
+
+const levelIcons: Record<AffiliateLevel, typeof Medal> = {
+  BRONZE: Medal,
+  SILVER: Award,
+  GOLD: Crown,
+  PLATINUM: Sparkles,
+};
+
+const affiliateLevelOrder: AffiliateLevel[] = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
 
 type ProductFormState = {
   nameAr: string;
@@ -133,6 +158,35 @@ const defaultBannerForm: BannerFormState = {
   isActive: true,
 };
 
+type SubAdminFormState = {
+  name: string;
+  email: string;
+  password: string;
+  permissions: AdminPermission[];
+};
+
+const defaultSubAdminForm: SubAdminFormState = {
+  name: "",
+  email: "",
+  password: "",
+  permissions: [],
+};
+
+const permissionLinkMap: Record<AdminPermission, { href: string; labelKey: TranslationKey }> = {
+  dashboard: { href: "/admin", labelKey: "dashboard" },
+  products: { href: "/admin/products", labelKey: "products" },
+  categories: { href: "/admin/categories", labelKey: "categories" },
+  brands: { href: "/admin/brands", labelKey: "brands" },
+  orders: { href: "/admin/orders", labelKey: "orders" },
+  shipping: { href: "/admin/shipping", labelKey: "shippingFees" },
+  "promo-codes": { href: "/admin/promo-codes", labelKey: "promoCodes" },
+  affiliates: { href: "/admin/affiliates", labelKey: "affiliates" },
+  commissions: { href: "/admin/commissions", labelKey: "commissions" },
+  withdrawals: { href: "/admin/withdrawals", labelKey: "adminWithdrawalsTitle" },
+  "coupon-requests": { href: "/admin/coupon-requests", labelKey: "adminCouponRequestsTitle" },
+  settings: { href: "/admin/settings", labelKey: "settings" },
+};
+
 function Panel({
   title,
   description,
@@ -173,6 +227,9 @@ export function AdminDashboardPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [settings, setSettings] = useState<WebsiteSetting | null>(null);
+  const [couponRequests, setCouponRequests] = useState<CouponRequest[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotifications | null>(null);
+  const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([{ ...defaultVariantDraft }]);
@@ -181,13 +238,16 @@ export function AdminDashboardPage() {
   const [bannerForm, setBannerForm] = useState<BannerFormState>(defaultBannerForm);
   const [promoForm, setPromoForm] = useState({ code: "", type: "FIXED", value: "1000", minimumOrderAmount: "0", usageLimit: "", expiresAt: "", affiliate: "" });
   const [shippingDrafts, setShippingDrafts] = useState<Record<string, { homeDeliveryFee: string; deskPickupFee: string }>>({});
-  const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string }>>({});
+  const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string; level: AffiliateLevel }>>({});
+  const [couponDrafts, setCouponDrafts] = useState<Record<string, { code: string; adminNote: string }>>({});
+  const [levelDrafts, setLevelDrafts] = useState<Record<AffiliateLevel, { commissionRate: string; referralBonus: string }> | null>(null);
   const [bannerDrafts, setBannerDrafts] = useState<Record<string, BannerFormState>>({});
   const [categoryDrafts, setCategoryDrafts] = useState<Record<string, { ar: string; fr: string; en: string; slug: string; image: string; isActive: boolean }>>({});
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [brandDrafts, setBrandDrafts] = useState<Record<string, { name: string; logo: string; isActive: boolean }>>({});
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
   const [promoDrafts, setPromoDrafts] = useState<Record<string, { type: string; value: string; usageLimit: string; expiresAt: string; isActive: boolean; affiliate: string }>>({});
+  const [voucherDrafts, setVoucherDrafts] = useState<Record<string, { code: string; pin: string }>>({});
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [orderFilters, setOrderFilters] = useState({
@@ -196,25 +256,40 @@ export function AdminDashboardPage() {
     date: "",
     phone: "",
   });
+  const [subAdminForm, setSubAdminForm] = useState<SubAdminFormState>(defaultSubAdminForm);
+  const [subAdminDrafts, setSubAdminDrafts] = useState<Record<string, { permissions: AdminPermission[]; password: string }>>({});
 
-  const links = [
-    { href: "/admin", label: translate(language, "dashboard") },
-    { href: "/admin/products", label: translate(language, "products") },
-    { href: "/admin/categories", label: translate(language, "categories") },
-    { href: "/admin/brands", label: translate(language, "brands") },
-    { href: "/admin/orders", label: translate(language, "orders") },
-    { href: "/admin/shipping", label: translate(language, "shippingFees") },
-    { href: "/admin/promo-codes", label: translate(language, "promoCodes") },
-    { href: "/admin/affiliates", label: translate(language, "affiliates") },
-    { href: "/admin/commissions", label: translate(language, "commissions") },
-    { href: "/admin/withdrawals", label: translate(language, "adminWithdrawalsTitle") },
-    { href: "/admin/settings", label: translate(language, "settings") },
-  ];
+  const role = adminSession?.user.role;
+  const userPermissions = adminSession?.user.permissions;
+  const isSubAdmin = role === "SUB_ADMIN";
+
+  const badges: Partial<Record<AdminPermission, number | undefined>> = {
+    affiliates: notifications?.pendingAffiliates,
+    withdrawals: notifications?.pendingWithdrawals,
+    "coupon-requests": notifications?.pendingCouponRequests,
+  };
+
+  const links = ADMIN_PERMISSIONS.filter((permission) => !isSubAdmin || userPermissions?.includes(permission)).map((permission) => {
+    const { href, labelKey } = permissionLinkMap[permission];
+    return { href, label: translate(language, labelKey), badge: badges[permission] };
+  });
+
+  if (role === "SUPER_ADMIN") {
+    links.push({ href: "/admin/admins", label: translate(language, "adminAdminsTitle"), badge: undefined });
+  }
 
   const loadAll = async () => {
     setLoading(true);
     setErrorMessage("");
     try {
+      const safe = <T,>(promise: Promise<T>, fallback: T): Promise<T> =>
+        promise.catch((error: unknown) => {
+          if (error instanceof ApiError && error.status === 403) {
+            return fallback;
+          }
+          throw error;
+        });
+
       const [
         statsData,
         productData,
@@ -228,19 +303,25 @@ export function AdminDashboardPage() {
         commissionData,
         settingsData,
         withdrawalData,
+        couponRequestData,
+        notificationData,
+        subAdminData,
       ] = await Promise.all([
-        adminService.getStats(token),
+        safe(adminService.getStats(token), null),
         productService.getProducts(),
         adminService.getCategories(),
         adminService.getBrands(),
-        adminService.getBanners(token),
-        adminService.getOrders(token),
+        safe(adminService.getBanners(token), []),
+        safe(adminService.getOrders(token), []),
         adminService.getWilayas(),
-        adminService.getPromoCodes(token),
-        adminService.getAffiliates(token),
-        adminService.getCommissions(token),
-        adminService.getSettings(token),
-        adminService.getWithdrawals(token),
+        safe(adminService.getPromoCodes(token), []),
+        safe(adminService.getAffiliates(token), []),
+        safe(adminService.getCommissions(token), []),
+        safe(adminService.getSettings(token), null),
+        safe(adminService.getWithdrawals(token), []),
+        safe(adminService.getCouponRequests(token), []),
+        safe(adminService.getNotifications(token), null),
+        role === "SUPER_ADMIN" ? safe(adminService.getAdmins(token), []) : Promise.resolve([]),
       ]);
 
       setStats(statsData);
@@ -255,6 +336,9 @@ export function AdminDashboardPage() {
       setCommissions(commissionData);
       setSettings(settingsData);
       setWithdrawals(withdrawalData);
+      setCouponRequests(couponRequestData);
+      setNotifications(notificationData);
+      setSubAdmins(subAdminData);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to load admin data");
     } finally {
@@ -290,11 +374,57 @@ export function AdminDashboardPage() {
           {
             status: affiliate.status,
             commissionRate: String(affiliate.commissionRate),
+            level: affiliate.level || "BRONZE",
           },
         ]),
       ),
     );
   }, [affiliates]);
+
+  useEffect(() => {
+    setSubAdminDrafts(
+      Object.fromEntries(
+        subAdmins.map((subAdmin) => [
+          subAdmin._id,
+          {
+            permissions: subAdmin.permissions,
+            password: "",
+          },
+        ]),
+      ),
+    );
+  }, [subAdmins]);
+
+  useEffect(() => {
+    setCouponDrafts(
+      Object.fromEntries(
+        couponRequests.map((request) => [
+          request._id,
+          {
+            code: request.desiredCode || "",
+            adminNote: request.adminNote || "",
+          },
+        ]),
+      ),
+    );
+  }, [couponRequests]);
+
+  useEffect(() => {
+    if (!settings) {
+      return;
+    }
+    setLevelDrafts(
+      Object.fromEntries(
+        affiliateLevelOrder.map((level) => [
+          level,
+          {
+            commissionRate: String(settings.affiliateLevels?.[level]?.commissionRate ?? 0),
+            referralBonus: String(settings.affiliateLevels?.[level]?.referralBonus ?? 0),
+          },
+        ]),
+      ) as Record<AffiliateLevel, { commissionRate: string; referralBonus: string }>,
+    );
+  }, [settings]);
 
   useEffect(() => {
     setBannerDrafts(
@@ -567,6 +697,33 @@ export function AdminDashboardPage() {
     const expiringPromos = promos.filter((promo) => promo.expiresAt && new Date(promo.expiresAt).getTime() <= soon);
 
     const alerts = [
+      notifications && notifications.pendingAffiliates > 0
+        ? {
+            key: "affiliates",
+            icon: Users,
+            tone: "border-amber-200 bg-amber-50 text-amber-800",
+            label: translate(language, "adminAlertAffiliatesPending").replace("{count}", String(notifications.pendingAffiliates)),
+            href: "/admin/affiliates",
+          }
+        : null,
+      notifications && notifications.pendingWithdrawals > 0
+        ? {
+            key: "withdrawals",
+            icon: Wallet,
+            tone: "border-amber-200 bg-amber-50 text-amber-800",
+            label: translate(language, "adminAlertWithdrawalsPending").replace("{count}", String(notifications.pendingWithdrawals)),
+            href: "/admin/withdrawals",
+          }
+        : null,
+      notifications && notifications.pendingCouponRequests > 0
+        ? {
+            key: "coupons",
+            icon: Gift,
+            tone: "border-amber-200 bg-amber-50 text-amber-800",
+            label: translate(language, "adminAlertCouponRequestsPending").replace("{count}", String(notifications.pendingCouponRequests)),
+            href: "/admin/coupon-requests",
+          }
+        : null,
       actionableOrders.length > 0
         ? {
             key: "orders",
@@ -1349,74 +1506,120 @@ export function AdminDashboardPage() {
 
   const renderAffiliates = () => (
     <div className="grid gap-4 xl:grid-cols-2">
-      {affiliates.map((affiliate) => (
-        <div key={affiliate._id} className="surface-card p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-lg font-semibold text-slate-950">{affiliate.name}</div>
-            <StatusBadge label={affiliate.status} language={language} />
-          </div>
-          <div className="mt-2 grid gap-1 text-sm text-slate-500">
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 shrink-0" />
-              {affiliate.email}
+      {affiliates.map((affiliate) => {
+        const draft = affiliateDrafts[affiliate._id];
+        const LevelIcon = levelIcons[draft?.level || affiliate.level || "BRONZE"];
+        const referrer = typeof affiliate.referredBy === "string" ? null : affiliate.referredBy;
+        return (
+          <div key={affiliate._id} className={`surface-card p-6 ${affiliate.status === "PENDING" ? "ring-2 ring-amber-300" : ""}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-lg font-semibold text-slate-950">{affiliate.name}</div>
+              <div className="flex items-center gap-2">
+                {affiliate.status === "PENDING" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                    <BellRing className="h-3.5 w-3.5" />
+                    {translate(language, "adminWaitingApproval")}
+                  </span>
+                ) : null}
+                <StatusBadge label={affiliate.status} language={language} />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 shrink-0" />
-              {affiliate.phone}
+            <div className="mt-2 grid gap-1 text-sm text-slate-500">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 shrink-0" />
+                {affiliate.email}
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 shrink-0" />
+                {affiliate.phone}
+              </div>
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 shrink-0" />
+                {affiliate.referralCode}
+              </div>
+              {referrer ? (
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 shrink-0" />
+                  {translate(language, "adminReferredBy")}: {referrer.name}
+                </div>
+              ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              <Link2 className="h-4 w-4 shrink-0" />
-              {affiliate.referralCode}
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <select
+                value={draft?.status || affiliate.status}
+                onChange={(event) =>
+                  setAffiliateDrafts((current) => ({
+                    ...current,
+                    [affiliate._id]: {
+                      status: event.target.value as Affiliate["status"],
+                      commissionRate: current[affiliate._id]?.commissionRate || String(affiliate.commissionRate),
+                      level: current[affiliate._id]?.level || affiliate.level || "BRONZE",
+                    },
+                  }))
+                }
+                className="field-select"
+              >
+                {["PENDING", "ACTIVE", "BLOCKED"].map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+              <input
+                value={draft?.commissionRate || ""}
+                onChange={(event) =>
+                  setAffiliateDrafts((current) => ({
+                    ...current,
+                    [affiliate._id]: {
+                      status: current[affiliate._id]?.status || affiliate.status,
+                      commissionRate: event.target.value,
+                      level: current[affiliate._id]?.level || affiliate.level || "BRONZE",
+                    },
+                  }))
+                }
+                className="field-input"
+                placeholder="%"
+              />
+              <select
+                value={draft?.level || affiliate.level || "BRONZE"}
+                onChange={(event) =>
+                  setAffiliateDrafts((current) => ({
+                    ...current,
+                    [affiliate._id]: {
+                      status: current[affiliate._id]?.status || affiliate.status,
+                      commissionRate: current[affiliate._id]?.commissionRate || String(affiliate.commissionRate),
+                      level: event.target.value as AffiliateLevel,
+                    },
+                  }))
+                }
+                className="field-select"
+              >
+                {affiliateLevelOrder.map((level) => (
+                  <option key={level} value={level}>
+                    {translate(language, `affiliateLevel${level}` as TranslationKey)}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <select
-              value={affiliateDrafts[affiliate._id]?.status || affiliate.status}
-              onChange={(event) =>
-                setAffiliateDrafts((current) => ({
-                  ...current,
-                  [affiliate._id]: {
-                    status: event.target.value as Affiliate["status"],
-                    commissionRate: current[affiliate._id]?.commissionRate || String(affiliate.commissionRate),
-                  },
-                }))
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              <LevelIcon className="h-3.5 w-3.5 text-amber-500" />
+              {translate(language, `affiliateLevel${draft?.level || affiliate.level || "BRONZE"}` as TranslationKey)}
+            </div>
+            <button
+              onClick={() =>
+                void adminService
+                  .updateAffiliate(token, affiliate._id, {
+                    status: draft?.status || affiliate.status,
+                    commissionRate: Number(draft?.commissionRate || affiliate.commissionRate),
+                    level: draft?.level || affiliate.level || "BRONZE",
+                  })
+                  .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
               }
-              className="field-select"
+              className="primary-button mt-4"
             >
-              {["PENDING", "ACTIVE", "BLOCKED"].map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-            <input
-              value={affiliateDrafts[affiliate._id]?.commissionRate || ""}
-              onChange={(event) =>
-                setAffiliateDrafts((current) => ({
-                  ...current,
-                  [affiliate._id]: {
-                    status: current[affiliate._id]?.status || affiliate.status,
-                    commissionRate: event.target.value,
-                  },
-                }))
-              }
-              className="field-input"
-              placeholder="%"
-            />
+              {translate(language, "adminSave")}
+            </button>
           </div>
-          <button
-            onClick={() =>
-              void adminService
-                .updateAffiliate(token, affiliate._id, {
-                  status: affiliateDrafts[affiliate._id]?.status || affiliate.status,
-                  commissionRate: Number(affiliateDrafts[affiliate._id]?.commissionRate || affiliate.commissionRate),
-                })
-                .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
-            }
-            className="primary-button mt-4"
-          >
-            {translate(language, "adminSave")}
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -1566,6 +1769,94 @@ export function AdminDashboardPage() {
     </div>
   );
 
+  const renderCouponRequests = () => (
+    <div className="space-y-4">
+      <Panel title={translate(language, "adminCouponRequestsTitle")} description={translate(language, "adminCouponRequestsDescription")}>
+        {couponRequests.length ? (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {couponRequests.map((request) => {
+              const affiliate = typeof request.affiliate === "string" ? null : request.affiliate;
+              const draft = couponDrafts[request._id] || { code: request.desiredCode || "", adminNote: request.adminNote || "" };
+              return (
+                <div key={request._id} className="surface-card p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-lg font-semibold text-slate-950">{affiliate?.name}</div>
+                    <StatusBadge label={request.status} language={language} />
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600">
+                    {request.type === "FREE_SHIPPING"
+                      ? translate(language, "freeShipping")
+                      : request.type === "PERCENTAGE"
+                        ? `${request.value}%`
+                        : formatCurrency(request.value, language)}
+                    {request.desiredCode ? ` · ${request.desiredCode}` : ""}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">{request.reason}</div>
+                  <div className="mt-1 text-xs text-slate-400">{formatDate(request.createdAt, language)}</div>
+                  {request.status === "PENDING" ? (
+                    <div className="mt-4 space-y-3">
+                      <input
+                        value={draft.code}
+                        onChange={(event) => setCouponDrafts((current) => ({ ...current, [request._id]: { ...draft, code: event.target.value.toUpperCase() } }))}
+                        className="field-input uppercase"
+                        placeholder={translate(language, "affiliateDesiredCode")}
+                      />
+                      <textarea
+                        value={draft.adminNote}
+                        onChange={(event) => setCouponDrafts((current) => ({ ...current, [request._id]: { ...draft, adminNote: event.target.value } }))}
+                        className="field-input"
+                        rows={2}
+                        placeholder={translate(language, "adminCouponRequestNote")}
+                      />
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={() =>
+                            void adminService
+                              .updateCouponRequest(token, request._id, { status: "APPROVED", code: draft.code.trim() || undefined, adminNote: draft.adminNote.trim() || undefined })
+                              .then(loadAll)
+                              .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                          }
+                          className="primary-button gap-2"
+                        >
+                          <Check className="h-4 w-4" />
+                          {translate(language, "adminApprove")}
+                        </button>
+                        <button
+                          onClick={() =>
+                            void adminService
+                              .updateCouponRequest(token, request._id, { status: "REJECTED", adminNote: draft.adminNote.trim() || undefined })
+                              .then(loadAll)
+                              .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                          }
+                          className="ghost-button gap-2 text-rose-600"
+                        >
+                          <X className="h-4 w-4" />
+                          {translate(language, "adminWithdrawalReject")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {request.promoCode && typeof request.promoCode !== "string" ? (
+                        <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                          <Gift className="h-3.5 w-3.5" />
+                          {request.promoCode.code}
+                        </div>
+                      ) : null}
+                      {request.adminNote ? <p className="mt-2 text-xs leading-6 text-slate-500">{request.adminNote}</p> : null}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState title={translate(language, "adminCouponRequestsTitle")} description={translate(language, "adminNoCouponRequests")} />
+        )}
+      </Panel>
+    </div>
+  );
+
   const renderSettings = () =>
     settings ? (
       <div className="space-y-6">
@@ -1647,6 +1938,70 @@ export function AdminDashboardPage() {
               {translate(language, "adminSave")}
             </button>
           </div>
+        </Panel>
+
+        <Panel title={translate(language, "adminAffiliateLevelsTitle")} description={translate(language, "adminAffiliateLevelsDescription")}>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {affiliateLevelOrder.map((level) => {
+              const LevelIcon = levelIcons[level];
+              const draft = levelDrafts?.[level] || { commissionRate: "0", referralBonus: "0" };
+              return (
+                <div key={level} className="rounded-[1.4rem] border border-slate-100 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                    <LevelIcon className="h-4 w-4 text-amber-500" />
+                    {translate(language, `affiliateLevel${level}` as TranslationKey)}
+                  </div>
+                  <label className="mt-3 block text-xs font-semibold text-slate-500">{translate(language, "adminCommissionRate")}</label>
+                  <input
+                    value={draft.commissionRate}
+                    onChange={(event) =>
+                      setLevelDrafts((current) => ({
+                        ...(current as Record<AffiliateLevel, { commissionRate: string; referralBonus: string }>),
+                        [level]: { ...draft, commissionRate: event.target.value },
+                      }))
+                    }
+                    className="field-input mt-1"
+                    placeholder="%"
+                  />
+                  <label className="mt-3 block text-xs font-semibold text-slate-500">{translate(language, "adminReferralBonus")}</label>
+                  <input
+                    value={draft.referralBonus}
+                    onChange={(event) =>
+                      setLevelDrafts((current) => ({
+                        ...(current as Record<AffiliateLevel, { commissionRate: string; referralBonus: string }>),
+                        [level]: { ...draft, referralBonus: event.target.value },
+                      }))
+                    }
+                    className="field-input mt-1"
+                    placeholder={translate(language, "currency")}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => {
+              if (!levelDrafts) {
+                return;
+              }
+              const affiliateLevels = Object.fromEntries(
+                affiliateLevelOrder.map((level) => [
+                  level,
+                  {
+                    commissionRate: Number(levelDrafts[level].commissionRate || 0),
+                    referralBonus: Number(levelDrafts[level].referralBonus || 0),
+                  },
+                ]),
+              ) as Record<AffiliateLevel, { commissionRate: number; referralBonus: number }>;
+              void adminService
+                .updateSettings(token, { affiliateLevels })
+                .then(loadAll)
+                .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
+            }}
+            className="primary-button mt-4"
+          >
+            {translate(language, "adminSave")}
+          </button>
         </Panel>
 
         <Panel title="Homepage slider ads" description="Small responsive slides for phone and desktop. Add image, title, link, priority, and active state.">
@@ -1750,6 +2105,151 @@ export function AdminDashboardPage() {
       </div>
     ) : null;
 
+  const renderAdmins = () => (
+    <div className="space-y-6">
+      <Panel title={translate(language, "adminAdminsTitle")} description={translate(language, "adminAdminsDescription")}>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <input value={subAdminForm.name} onChange={(event) => setSubAdminForm({ ...subAdminForm, name: event.target.value })} className="field-input" placeholder={translate(language, "adminSubAdminName")} />
+          <input type="email" value={subAdminForm.email} onChange={(event) => setSubAdminForm({ ...subAdminForm, email: event.target.value })} className="field-input" placeholder={translate(language, "adminSubAdminEmail")} />
+          <input type="password" value={subAdminForm.password} onChange={(event) => setSubAdminForm({ ...subAdminForm, password: event.target.value })} className="field-input" placeholder={translate(language, "adminSubAdminPassword")} />
+        </div>
+        <div className="mt-4">
+          <label className="mb-2 block text-sm font-semibold text-slate-700">{translate(language, "adminSubAdminPermissions")}</label>
+          <div className="flex flex-wrap gap-3">
+            {ADMIN_PERMISSIONS.map((permission) => (
+              <label key={permission} className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={subAdminForm.permissions.includes(permission)}
+                  onChange={(event) =>
+                    setSubAdminForm((current) => ({
+                      ...current,
+                      permissions: event.target.checked
+                        ? [...current.permissions, permission]
+                        : current.permissions.filter((item) => item !== permission),
+                    }))
+                  }
+                />
+                {translate(language, permissionLinkMap[permission].labelKey)}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            onClick={() =>
+              void adminService
+                .createAdmin(token, subAdminForm)
+                .then(async () => {
+                  setSubAdminForm(defaultSubAdminForm);
+                  await loadAll();
+                })
+                .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+            }
+            className="primary-button"
+          >
+            {translate(language, "adminCreateSubAdmin")}
+          </button>
+        </div>
+      </Panel>
+
+      {subAdmins.length ? (
+        <div className="grid gap-4">
+          {subAdmins.map((subAdmin) => {
+            const draft = subAdminDrafts[subAdmin._id] || { permissions: subAdmin.permissions, password: "" };
+            return (
+              <div key={subAdmin._id} className="surface-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-lg font-semibold text-slate-950">{subAdmin.name}</div>
+                    <div className="text-sm text-slate-500">{subAdmin.email}</div>
+                  </div>
+                  <StatusBadge label={subAdmin.isActive ? "ACTIVE" : "INACTIVE"} language={language} />
+                </div>
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">{translate(language, "adminSubAdminPermissions")}</label>
+                  <div className="flex flex-wrap gap-3">
+                    {ADMIN_PERMISSIONS.map((permission) => (
+                      <label key={permission} className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={draft.permissions.includes(permission)}
+                          onChange={(event) =>
+                            setSubAdminDrafts((current) => ({
+                              ...current,
+                              [subAdmin._id]: {
+                                ...draft,
+                                permissions: event.target.checked
+                                  ? [...draft.permissions, permission]
+                                  : draft.permissions.filter((item) => item !== permission),
+                              },
+                            }))
+                          }
+                        />
+                        {translate(language, permissionLinkMap[permission].labelKey)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 max-w-sm">
+                  <input
+                    type="password"
+                    value={draft.password}
+                    onChange={(event) => setSubAdminDrafts((current) => ({ ...current, [subAdmin._id]: { ...draft, password: event.target.value } }))}
+                    className="field-input"
+                    placeholder={translate(language, "adminNewPasswordOptional")}
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={() =>
+                      void adminService
+                        .updateAdmin(token, subAdmin._id, {
+                          permissions: draft.permissions,
+                          ...(draft.password ? { password: draft.password } : {}),
+                        })
+                        .then(loadAll)
+                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                    }
+                    className="primary-button"
+                  >
+                    {translate(language, "adminSave")}
+                  </button>
+                  <button
+                    onClick={() =>
+                      void adminService
+                        .updateAdmin(token, subAdmin._id, { isActive: !subAdmin.isActive })
+                        .then(loadAll)
+                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+                    }
+                    className="ghost-button"
+                  >
+                    {subAdmin.isActive ? translate(language, "adminDeactivate") : translate(language, "adminActivate")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(translate(language, "adminConfirmDeleteSubAdmin"))) {
+                        void adminService
+                          .deleteAdmin(token, subAdmin._id)
+                          .then(loadAll)
+                          .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
+                      }
+                    }}
+                    className="ghost-button text-rose-600"
+                  >
+                    {translate(language, "adminDelete")}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState title={translate(language, "adminAdminsTitle")} description={translate(language, "adminNoSubAdmins")} />
+      )}
+    </div>
+  );
+
   const currentView =
     tab === "products"
       ? renderProducts()
@@ -1769,9 +2269,13 @@ export function AdminDashboardPage() {
                     ? renderCommissions()
                     : tab === "withdrawals"
                       ? renderWithdrawals()
-                      : tab === "settings"
-                        ? renderSettings()
-                        : renderDashboard();
+                      : tab === "coupon-requests"
+                        ? renderCouponRequests()
+                        : tab === "settings"
+                          ? renderSettings()
+                          : tab === "admins"
+                            ? renderAdmins()
+                            : renderDashboard();
 
   return (
     <DashboardShell
@@ -1780,6 +2284,7 @@ export function AdminDashboardPage() {
       links={links}
       onLogout={() => setAdminSession(null)}
     >
+      <Seo title={translate(language, "dashboard")} noindex />
       {currentView}
     </DashboardShell>
   );

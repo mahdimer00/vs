@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { adminService } from "@/services/admin.service";
 import { productService } from "@/services/product.service";
@@ -48,6 +49,7 @@ export function CategoriesPage() {
 
   return (
     <div className="space-y-8">
+      <Seo title={translate(language, "categoryTitle")} description={translate(language, "categoryDescription")} path="/categories" />
       <section className="surface-card p-6 md:p-8">
         <p className="section-eyebrow">{translate(language, "categoryEyebrow")}</p>
         <h1 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "categoryTitle")}</h1>

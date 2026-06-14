@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFilters, type ProductFilterState } from "@/components/ProductFilters";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { adminService } from "@/services/admin.service";
 import { productService } from "@/services/product.service";
@@ -63,6 +64,7 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-6">
+      <Seo title={translate(language, "productsTitle")} description={translate(language, "categoryDescription")} path="/products" />
       <section className="surface-card overflow-hidden p-5 sm:p-6 md:p-8">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>

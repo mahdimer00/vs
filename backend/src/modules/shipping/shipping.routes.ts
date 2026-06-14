@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
-import { roleMiddleware } from "../../middleware/role.middleware.js";
+import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { WilayaModel } from "../../models/shipping.model.js";
 import { resolveShippingFee } from "../../utils/order.js";
@@ -16,7 +16,7 @@ router.post("/shipping/calculate", asyncHandler(async (req, res) => {
   return res.json({ fee });
 }));
 
-router.patch("/admin/shipping/:wilayaId", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.patch("/admin/shipping/:wilayaId", authMiddleware, permissionMiddleware("shipping"), asyncHandler(async (req, res) => {
   const input = z.object({ homeDeliveryFee: z.number().optional(), deskPickupFee: z.number().optional(), isActive: z.boolean().optional() }).parse(req.body);
   const wilaya = await WilayaModel.findByIdAndUpdate(req.params.wilayaId, input, { new: true });
   if (!wilaya) {

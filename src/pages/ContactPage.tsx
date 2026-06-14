@@ -1,4 +1,5 @@
 import { Facebook, Instagram, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Truck, Youtube } from "lucide-react";
+import { Seo } from "@/components/Seo";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
@@ -26,6 +27,7 @@ export function ContactPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <Seo title={translate(language, "contactTitle")} description={translate(language, "contactDescription")} path="/contact" />
       <section className="surface-card overflow-hidden p-0">
         <div className="bg-[linear-gradient(135deg,_#fff7ed,_#ffffff_35%,_#eff6ff)] p-6 sm:p-8">
           <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "contactTitle")}</h1>

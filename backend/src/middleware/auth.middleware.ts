@@ -1,11 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import type { AdminPermission } from "../constants/permissions.js";
 
 export interface AuthPayload {
   sub: string;
-  role: "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "AFFILIATE";
+  role: "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "AFFILIATE" | "SUB_ADMIN";
   email: string;
+  permissions?: AdminPermission[];
 }
 
 export interface AuthedRequest extends Request {

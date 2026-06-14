@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
-import { roleMiddleware } from "../../middleware/role.middleware.js";
+import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { PromoCodeModel } from "../../models/orders.model.js";
 import { validatePromoCode } from "../../utils/order.js";
@@ -41,14 +41,14 @@ router.post("/promo/validate", asyncHandler(async (req, res) => {
   });
 }));
 
-router.get("/admin/promo-codes", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
+router.get("/admin/promo-codes", authMiddleware, permissionMiddleware("promo-codes"), asyncHandler(async (_req, res) => {
   return res.json(await PromoCodeModel.find().populate("affiliate").lean());
 }));
-router.post("/admin/promo-codes", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.post("/admin/promo-codes", authMiddleware, permissionMiddleware("promo-codes"), asyncHandler(async (req, res) => {
   const input = promoSchema.parse(req.body);
   return res.status(201).json(await PromoCodeModel.create({ ...input, code: input.code.toUpperCase(), expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined }));
 }));
-router.patch("/admin/promo-codes/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.patch("/admin/promo-codes/:id", authMiddleware, permissionMiddleware("promo-codes"), asyncHandler(async (req, res) => {
   const input = promoSchema.partial().parse(req.body);
   const promoCode = await PromoCodeModel.findByIdAndUpdate(req.params.id, input, { new: true });
   if (!promoCode) {
@@ -56,7 +56,7 @@ router.patch("/admin/promo-codes/:id", authMiddleware, roleMiddleware(["SUPER_AD
   }
   return res.json(promoCode);
 }));
-router.delete("/admin/promo-codes/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (req, res) => {
+router.delete("/admin/promo-codes/:id", authMiddleware, permissionMiddleware("promo-codes"), asyncHandler(async (req, res) => {
   await PromoCodeModel.findByIdAndDelete(req.params.id);
   return res.json({ success: true });
 }));

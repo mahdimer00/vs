@@ -1,5 +1,6 @@
 import { ArrowRight, BadgePercent, Link2, Share2, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
 
@@ -26,6 +27,7 @@ export function EarnMoneyPage() {
 
   return (
     <div className="space-y-8">
+      <Seo title={translate(language, "earnMoneyTitle")} description={translate(language, "earnMoneyDescription")} path="/earn-money" />
       <section className="surface-card-dark relative overflow-hidden p-6 sm:p-8 md:p-12">
         <div className="absolute -end-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
         <span className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-amber-300">

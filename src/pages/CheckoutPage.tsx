@@ -1,14 +1,16 @@
-import { Bot, Home, Lock, MapPin, MapPinned, PackageCheck, Phone, ShieldCheck, Tag, Truck, UserRound } from "lucide-react";
+import { BadgeCheck, Home, Lock, MapPin, MapPinned, Phone, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
 import { OrderSummaryCard } from "@/components/OrderSummaryCard";
+import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
 import { promoService } from "@/services/promo.service";
 import { shippingService } from "@/services/shipping.service";
 import type { DeliveryType, Wilaya } from "@/types";
+import { formatCurrency } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
@@ -25,6 +27,7 @@ export function CheckoutPage() {
   const [address, setAddress] = useState("");
   const [deliveryType, setDeliveryType] = useState<DeliveryType>("DESK_PICKUP");
   const [promoCode, setPromoCode] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [shippingFee, setShippingFee] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +62,12 @@ export function CheckoutPage() {
   const selectedWilaya = wilayas.find((wilaya) => wilaya.code === wilayaCode);
 
   if (cart.length === 0) {
-    return <EmptyState title={translate(language, "emptyCart")} description={translate(language, "cartDescription")} />;
+    return (
+      <>
+        <Seo title={translate(language, "checkoutTitle")} description={translate(language, "checkoutDescription")} path="/checkout" noindex />
+        <EmptyState title={translate(language, "emptyCart")} description={translate(language, "cartDescription")} />
+      </>
+    );
   }
 
   const validate = () => {
@@ -107,15 +115,23 @@ export function CheckoutPage() {
       });
 
       setDiscount(response.discount);
+      setAppliedPromoCode(promoCode);
       pushToast(translate(language, "promoApplied"), "success");
     } catch (error) {
       setDiscount(0);
+      setAppliedPromoCode("");
       const message = error instanceof Error ? error.message : translate(language, "promoRejected");
       setErrorMessage(message);
       pushToast(message, "error");
     } finally {
       setPromoApplying(false);
     }
+  };
+
+  const removePromo = () => {
+    setDiscount(0);
+    setAppliedPromoCode("");
+    setPromoCode("");
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -160,27 +176,13 @@ export function CheckoutPage() {
     }
   };
 
-  const steps = [
-    { icon: UserRound, label: translate(language, "checkoutStepCustomer") },
-    { icon: MapPinned, label: translate(language, "checkoutStepDelivery") },
-    { icon: Bot, label: translate(language, "checkoutStepAi") },
-    { icon: PackageCheck, label: translate(language, "checkoutStepSuccess") },
-  ];
-
   return (
     <div className="space-y-6">
-      <section className="surface-card p-6 md:p-8">
-        <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "checkoutTitle")}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "checkoutDescription")}</p>
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {steps.map((step, index) => (
-            <div key={step.label} className={`rounded-[1.5rem] px-4 py-4 ${index === 0 ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>
-              <step.icon className="h-5 w-5" />
-              <div className="mt-3 text-sm font-semibold">{step.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <Seo title={translate(language, "checkoutTitle")} description={translate(language, "checkoutDescription")} path="/checkout" noindex />
+      <div>
+        <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "checkoutTitle")}</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "checkoutDescription")}</p>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
         <form onSubmit={submit} className="surface-card order-2 space-y-6 p-6 lg:order-1">
@@ -303,19 +305,38 @@ export function CheckoutPage() {
           {siteSettings?.promoCodeEnabled !== false ? (
             <section className="rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50/70 p-4">
               <div className="mb-3 text-sm font-semibold text-slate-900">{translate(language, "promoCode")}</div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <IconField icon={Tag} className="flex-1">
-                  <input
-                    value={promoCode}
-                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
-                    className="field-input field-input-icon w-full uppercase"
-                    placeholder={translate(language, "promoCode")}
-                  />
-                </IconField>
-                <button type="button" onClick={() => void applyPromo()} disabled={promoApplying} className="accent-button">
-                  {promoApplying ? translate(language, "applyingPromo") : translate(language, "applyPromo")}
-                </button>
-              </div>
+              {appliedPromoCode ? (
+                <div className="flex items-center justify-between gap-3 rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                    <BadgeCheck className="h-4 w-4 shrink-0" />
+                    <span>
+                      {appliedPromoCode} · {translate(language, "promoApplied")} (-{formatCurrency(discount, language)})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removePromo}
+                    aria-label={translate(language, "removePromo")}
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-emerald-700 transition hover:bg-emerald-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <IconField icon={Tag} className="flex-1">
+                    <input
+                      value={promoCode}
+                      onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                      className="field-input field-input-icon w-full uppercase"
+                      placeholder={translate(language, "promoCode")}
+                    />
+                  </IconField>
+                  <button type="button" onClick={() => void applyPromo()} disabled={promoApplying} className="accent-button">
+                    {promoApplying ? translate(language, "applyingPromo") : translate(language, "applyPromo")}
+                  </button>
+                </div>
+              )}
             </section>
           ) : null}
 
