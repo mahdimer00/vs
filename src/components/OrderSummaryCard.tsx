@@ -28,7 +28,11 @@ export function OrderSummaryCard({
       <div className="mt-5 space-y-4">
         {cart.map((item, index) => (
           <div key={`${item.product._id}-${index}`} className="flex items-start gap-3">
-            <img src={item.product.images[0]} alt="" className="h-16 w-16 rounded-[1.2rem] object-cover" />
+            <img
+              src={item.product.images[0]}
+              alt={getLocalizedText(item.product.name, language)}
+              className="h-16 w-16 rounded-[1.2rem] object-cover"
+            />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-slate-900">
                 {getLocalizedText(item.product.name, language)}

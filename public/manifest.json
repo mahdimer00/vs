@@ -1,0 +1,17 @@
+{
+  "name": "VisaStore",
+  "short_name": "VisaStore",
+  "description": "Shop quality products online with fast delivery and pay on arrival.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -7,10 +7,12 @@ export function LegalPageLayout({ titleKey, bodyKey, path }: { titleKey: Transla
   const { language, siteSettings } = useApp();
   const storeName = siteSettings?.storeName || "VisaStore";
   const body = translate(language, bodyKey).replaceAll("{store}", storeName);
+  const firstParagraph = body.split("\n\n")[0]?.trim() ?? "";
+  const description = firstParagraph.length > 160 ? `${firstParagraph.slice(0, 157)}...` : firstParagraph;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Seo title={translate(language, titleKey)} path={path} />
+      <Seo title={translate(language, titleKey)} description={description} path={path} />
       <section className="surface-card overflow-hidden p-6 md:p-8">
         <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, titleKey)}</h1>
       </section>
