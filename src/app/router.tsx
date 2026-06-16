@@ -45,7 +45,7 @@ export const router = createBrowserRouter([
       { path: "privacy-policy", element: <PrivacyPolicyPage /> },
       { path: "terms", element: <TermsPage /> },
       { path: "return-policy", element: <ReturnPolicyPage /> },
-      { path: "admin/login", element: <AdminLoginPage /> },
+      { path: "gestion-secure", element: <AdminLoginPage /> },
       {
         path: "admin",
         element: (

@@ -16,7 +16,7 @@ export function ProtectedRoute({
   const session = area === "admin" ? adminSession : affiliateSession;
 
   if (!session) {
-    return <Navigate to={area === "admin" ? "/admin/login" : "/affiliate/login"} replace state={{ from: location.pathname }} />;
+    return <Navigate to={area === "admin" ? "/gestion-secure" : "/affiliate/login"} replace state={{ from: location.pathname }} />;
   }
 
   if (!roles.includes(session.user.role)) {
