@@ -32,3 +32,12 @@ export const promoValidateRateLimitMiddleware = rateLimit({
   legacyHeaders: false,
   message: { message: "Too many promo code attempts. Please try again later." },
 });
+
+// 3 registrations per hour per IP — prevents affiliate account spam
+export const registerRateLimitMiddleware = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many registration attempts. Please try again later." },
+});

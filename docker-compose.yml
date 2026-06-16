@@ -34,16 +34,12 @@ services:
   mongodb:
     image: mongo:7
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     volumes:
       - mongo_data:/data/db
 
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
 

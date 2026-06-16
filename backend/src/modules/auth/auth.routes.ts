@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware, type AuthedRequest } from "../../middleware/auth.middleware.js";
-import { loginRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
+import { loginRateLimitMiddleware, registerRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { comparePassword, hashPassword, signToken } from "../../utils/auth.js";
 import { UserModel } from "../../models/user.model.js";
@@ -63,6 +63,7 @@ router.post(
 
 router.post(
   "/affiliate/register",
+  registerRateLimitMiddleware,
   asyncHandler(async (req, res) => {
     const input = affiliateRegisterSchema.parse(req.body);
     const exists = await AffiliateModel.findOne({ email: input.email.toLowerCase() });
