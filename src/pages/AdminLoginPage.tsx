@@ -39,7 +39,7 @@ export function AdminLoginPage() {
     try {
       const session = await authService.adminLogin({ email, password });
       setAdminSession(session);
-      navigate((location.state as { from?: string } | null)?.from || "/admin");
+      navigate((location.state as { from?: string } | null)?.from || "/gestion");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to login");
     } finally {

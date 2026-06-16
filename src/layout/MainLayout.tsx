@@ -10,7 +10,7 @@ import { useApp } from "@/hooks/useApp";
 export function MainLayout() {
   const { toasts, dismissToast } = useApp();
   const location = useLocation();
-  const isDashboard = location.pathname.startsWith("/admin") || location.pathname.startsWith("/affiliate");
+  const isDashboard = location.pathname.startsWith("/gestion") || location.pathname.startsWith("/affiliate");
 
   return (
     <div className="min-h-screen text-slate-900">

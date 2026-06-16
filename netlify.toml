@@ -7,9 +7,16 @@
   VITE_META_PIXEL_ID = "1523187746118483"
 
 [[redirects]]
-  from = "/admin/login"
+  from = "/admin"
   to = "/404"
   status = 404
+  force = true
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/404"
+  status = 404
+  force = true
 
 [[redirects]]
   from = "/*"

@@ -178,18 +178,18 @@ const defaultSubAdminForm: SubAdminFormState = {
 };
 
 const permissionLinkMap: Record<AdminPermission, { href: string; labelKey: TranslationKey }> = {
-  dashboard: { href: "/admin", labelKey: "dashboard" },
-  products: { href: "/admin/products", labelKey: "products" },
-  categories: { href: "/admin/categories", labelKey: "categories" },
-  brands: { href: "/admin/brands", labelKey: "brands" },
-  orders: { href: "/admin/orders", labelKey: "orders" },
-  shipping: { href: "/admin/shipping", labelKey: "shippingFees" },
-  "promo-codes": { href: "/admin/promo-codes", labelKey: "promoCodes" },
-  affiliates: { href: "/admin/affiliates", labelKey: "affiliates" },
-  commissions: { href: "/admin/commissions", labelKey: "commissions" },
-  withdrawals: { href: "/admin/withdrawals", labelKey: "adminWithdrawalsTitle" },
-  "coupon-requests": { href: "/admin/coupon-requests", labelKey: "adminCouponRequestsTitle" },
-  settings: { href: "/admin/settings", labelKey: "settings" },
+  dashboard: { href: "/gestion", labelKey: "dashboard" },
+  products: { href: "/gestion/products", labelKey: "products" },
+  categories: { href: "/gestion/categories", labelKey: "categories" },
+  brands: { href: "/gestion/brands", labelKey: "brands" },
+  orders: { href: "/gestion/orders", labelKey: "orders" },
+  shipping: { href: "/gestion/shipping", labelKey: "shippingFees" },
+  "promo-codes": { href: "/gestion/promo-codes", labelKey: "promoCodes" },
+  affiliates: { href: "/gestion/affiliates", labelKey: "affiliates" },
+  commissions: { href: "/gestion/commissions", labelKey: "commissions" },
+  withdrawals: { href: "/gestion/withdrawals", labelKey: "adminWithdrawalsTitle" },
+  "coupon-requests": { href: "/gestion/coupon-requests", labelKey: "adminCouponRequestsTitle" },
+  settings: { href: "/gestion/settings", labelKey: "settings" },
 };
 
 function Panel({
@@ -214,7 +214,7 @@ function Panel({
 
 export function AdminDashboardPage() {
   const location = useLocation();
-  const tab = location.pathname.replace("/admin", "").replace(/^\//, "") || "dashboard";
+  const tab = location.pathname.replace("/gestion", "").replace(/^\//, "") || "dashboard";
   const { adminSession, setAdminSession, language, pushToast } = useApp();
   const token = adminSession?.token ?? "";
 
@@ -286,11 +286,11 @@ export function AdminDashboardPage() {
   });
 
   if (role === "SUPER_ADMIN") {
-    links.push({ href: "/admin/admins", label: translate(language, "adminAdminsTitle"), badge: undefined });
+    links.push({ href: "/gestion/admins", label: translate(language, "adminAdminsTitle"), badge: undefined });
   }
   // Analytics is available to anyone with the dashboard permission
   if (!isSubAdmin || userPermissions?.includes("dashboard")) {
-    links.push({ href: "/admin/analytics", label: translate(language, "analyticsTitle"), badge: undefined });
+    links.push({ href: "/gestion/analytics", label: translate(language, "analyticsTitle"), badge: undefined });
   }
 
   const loadAnalytics = async (period: string, from?: string, to?: string) => {
@@ -995,7 +995,7 @@ export function AdminDashboardPage() {
             icon: Users,
             tone: "border-amber-200 bg-amber-50 text-amber-800",
             label: translate(language, "adminAlertAffiliatesPending").replace("{count}", String(notifications.pendingAffiliates)),
-            href: "/admin/affiliates",
+            href: "/gestion/affiliates",
           }
         : null,
       notifications && notifications.pendingWithdrawals > 0
@@ -1004,7 +1004,7 @@ export function AdminDashboardPage() {
             icon: Wallet,
             tone: "border-amber-200 bg-amber-50 text-amber-800",
             label: translate(language, "adminAlertWithdrawalsPending").replace("{count}", String(notifications.pendingWithdrawals)),
-            href: "/admin/withdrawals",
+            href: "/gestion/withdrawals",
           }
         : null,
       notifications && notifications.pendingCouponRequests > 0
@@ -1013,7 +1013,7 @@ export function AdminDashboardPage() {
             icon: Gift,
             tone: "border-amber-200 bg-amber-50 text-amber-800",
             label: translate(language, "adminAlertCouponRequestsPending").replace("{count}", String(notifications.pendingCouponRequests)),
-            href: "/admin/coupon-requests",
+            href: "/gestion/coupon-requests",
           }
         : null,
       actionableOrders.length > 0
@@ -1022,7 +1022,7 @@ export function AdminDashboardPage() {
             icon: BellRing,
             tone: "border-amber-200 bg-amber-50 text-amber-800",
             label: translate(language, "adminAlertOrdersPending").replace("{count}", String(actionableOrders.length)),
-            href: "/admin/orders",
+            href: "/gestion/orders",
           }
         : null,
       stats.lowStockProducts.length > 0
@@ -1031,7 +1031,7 @@ export function AdminDashboardPage() {
             icon: PackageX,
             tone: "border-rose-200 bg-rose-50 text-rose-800",
             label: translate(language, "adminAlertLowStock").replace("{count}", String(stats.lowStockProducts.length)),
-            href: "/admin/products",
+            href: "/gestion/products",
           }
         : null,
       expiringPromos.length > 0
@@ -1040,7 +1040,7 @@ export function AdminDashboardPage() {
             icon: TicketPercent,
             tone: "border-sky-200 bg-sky-50 text-sky-800",
             label: translate(language, "adminAlertPromosExpiring").replace("{count}", String(expiringPromos.length)),
-            href: "/admin/promo-codes",
+            href: "/gestion/promo-codes",
           }
         : null,
     ].filter((alert): alert is NonNullable<typeof alert> => alert !== null);

@@ -47,7 +47,7 @@ export const router = createBrowserRouter([
       { path: "return-policy", element: <ReturnPolicyPage /> },
       { path: "gestion-secure", element: <AdminLoginPage /> },
       {
-        path: "admin",
+        path: "gestion",
         element: (
           <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "SUB_ADMIN"]} area="admin">
             <AdminDashboardPage />
@@ -55,7 +55,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "admin/*",
+        path: "gestion/*",
         element: (
           <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "SUB_ADMIN"]} area="admin">
             <AdminDashboardPage />

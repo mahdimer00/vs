@@ -11,7 +11,7 @@ export function Header() {
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
   const storeName = siteSettings?.storeName || "VisaStore";
   const session = adminSession ?? affiliateSession;
-  const dashboardPath = adminSession ? "/admin" : "/affiliate";
+  const dashboardPath = adminSession ? "/gestion" : "/affiliate";
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

@@ -63,7 +63,7 @@ export function DashboardShell({
           <NavLink
             key={link.href}
             to={link.href}
-            end={link.href === "/admin" || link.href === "/affiliate"}
+            end={link.href === "/gestion" || link.href === "/affiliate"}
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
               `flex items-center justify-between gap-2 rounded-[1.2rem] px-4 py-3 text-sm font-medium transition ${
