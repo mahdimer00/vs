@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  VITE_META_PIXEL_ID = "1523187746118483"
 
 [[redirects]]
   from = "/*"
