@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
+import { promoValidateRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { PromoCodeModel } from "../../models/orders.model.js";
 import { validatePromoCode } from "../../utils/order.js";
@@ -22,7 +23,7 @@ const promoSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-router.post("/promo/validate", asyncHandler(async (req, res) => {
+router.post("/promo/validate", promoValidateRateLimitMiddleware, asyncHandler(async (req, res) => {
   const input = z.object({
     code: z.string(),
     phone: z.string().default(""),

@@ -9,6 +9,7 @@ import { AffiliateModel } from "../../models/affiliate.model.js";
 import { AppError } from "../../utils/app-error.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import type { AdminPermission } from "../../constants/permissions.js";
+import type { AuthPayload } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -52,7 +53,7 @@ router.post(
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = signToken({ sub: String(user._id), role: user.role, email: user.email, permissions: user.permissions as AdminPermission[] | undefined });
+    const token = signToken({ sub: String(user._id), role: user.role as AuthPayload["role"], email: String(user.email), permissions: user.permissions as AdminPermission[] | undefined });
     return res.json({
       token,
       user: { id: String(user._id), name: user.name, email: user.email, role: user.role, permissions: user.permissions },
@@ -99,9 +100,10 @@ router.post(
         `Status: PENDING — waiting for approval`,
     );
 
+    const { passwordHash: _ph, ...safeAffiliate } = affiliate.toObject();
     return res.status(201).json({
       message: "Affiliate registration submitted and pending approval",
-      affiliate,
+      affiliate: safeAffiliate,
     });
   }),
 );
@@ -125,8 +127,9 @@ router.post(
       throw new AppError("Affiliate account is not active", 403);
     }
 
-    const token = signToken({ sub: String(affiliate._id), role: "AFFILIATE", email: affiliate.email });
-    return res.json({ token, affiliate });
+    const token = signToken({ sub: String(affiliate._id), role: "AFFILIATE", email: String(affiliate.email) });
+    const { passwordHash: _ph, ...safeAffiliate } = affiliate.toObject();
+    return res.json({ token, affiliate: safeAffiliate });
   }),
 );
 

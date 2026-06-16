@@ -41,12 +41,13 @@ router.get("/affiliate/dashboard", authMiddleware, roleMiddleware(["AFFILIATE"])
   const settings = await WebsiteSettingModel.findOne();
   const levels = settings?.affiliateLevels as Record<string, { commissionRate: number; referralBonus: number }> | undefined;
 
+  const { passwordHash: _ph, ...safeAffiliate } = affiliate.toObject();
   return res.json({
-    affiliate,
+    affiliate: safeAffiliate,
     clicksCount,
     ordersCount,
     teamCount,
-    referralBonusAmount: levels?.[affiliate.level]?.referralBonus ?? 0,
+    referralBonusAmount: levels?.[String(affiliate.level)]?.referralBonus ?? 0,
     referralLink: `${env.FRONTEND_URL}?ref=${affiliate.referralCode}`,
     inviteLink: `${env.FRONTEND_URL}/affiliate/register?ref=${affiliate.referralCode}`,
     promoCodes,

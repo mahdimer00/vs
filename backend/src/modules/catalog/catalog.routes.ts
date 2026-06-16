@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
+import { validateObjectId } from "../../middleware/objectId.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 
@@ -116,6 +117,7 @@ router.patch(
   "/admin/products/:id",
   authMiddleware,
   permissionMiddleware("products"),
+  validateObjectId,
   asyncHandler(async (req, res) => {
     const input = productSchema.partial().parse(req.body);
     const product = await ProductModel.findByIdAndUpdate(req.params.id, input, { new: true });
@@ -136,6 +138,7 @@ router.delete(
   "/admin/products/:id",
   authMiddleware,
   permissionMiddleware("products"),
+  validateObjectId,
   asyncHandler(async (req, res) => {
     await ProductModel.findByIdAndDelete(req.params.id);
     await ProductVariantModel.deleteMany({ productId: req.params.id });

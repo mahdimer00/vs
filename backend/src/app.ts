@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import mongoSanitize from "express-mongo-sanitize";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
@@ -63,6 +64,8 @@ app.use(rateLimitMiddleware);
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+// Defense-in-depth: strip MongoDB operator keys ($-prefixed) from body/query/params
+app.use(mongoSanitize());
 app.use(
   "/uploads",
   express.static(uploadDir, {

@@ -21,7 +21,7 @@ export function authMiddleware(req: AuthedRequest, res: Response, next: NextFunc
   }
 
   try {
-    req.user = jwt.verify(authorization.slice(7), env.JWT_SECRET) as AuthPayload;
+    req.user = jwt.verify(authorization.slice(7), env.JWT_SECRET, { algorithms: ["HS256"] }) as AuthPayload;
     next();
   } catch {
     return res.status(401).json({ message: "Unauthorized" });

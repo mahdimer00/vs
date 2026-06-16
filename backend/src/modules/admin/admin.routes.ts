@@ -12,6 +12,7 @@ import { syncCommissionForOrder } from "../../utils/commission.js";
 import { hashPassword } from "../../utils/auth.js";
 import { ADMIN_PERMISSIONS } from "../../constants/permissions.js";
 import { AppError } from "../../utils/app-error.js";
+import { validateObjectId } from "../../middleware/objectId.middleware.js";
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.post("/admin/admins", authMiddleware, roleMiddleware(["SUPER_ADMIN"]), as
   return res.status(201).json(rest);
 }));
 
-router.patch("/admin/admins/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"]), asyncHandler(async (req, res) => {
+router.patch("/admin/admins/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"]), validateObjectId, asyncHandler(async (req, res) => {
   const input = subAdminUpdateSchema.parse(req.body);
   const subAdmin = await UserModel.findOne({ _id: req.params.id, role: "SUB_ADMIN" });
   if (!subAdmin) {
@@ -70,7 +71,7 @@ router.patch("/admin/admins/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"]
   return res.json(rest);
 }));
 
-router.delete("/admin/admins/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"]), asyncHandler(async (req, res) => {
+router.delete("/admin/admins/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"]), validateObjectId, asyncHandler(async (req, res) => {
   const subAdmin = await UserModel.findOneAndDelete({ _id: req.params.id, role: "SUB_ADMIN" });
   if (!subAdmin) {
     return res.status(404).json({ message: "Sub-admin not found" });
@@ -103,7 +104,7 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
 }));
 
 router.get("/admin/affiliates", authMiddleware, permissionMiddleware("affiliates"), asyncHandler(async (_req, res) => {
-  return res.json(await AffiliateModel.find().lean());
+  return res.json(await AffiliateModel.find().select("-passwordHash").lean());
 }));
 const affiliateUpdateSchema = z.object({
   status: z.enum(["PENDING", "ACTIVE", "BLOCKED"]).optional(),
@@ -123,7 +124,7 @@ router.patch("/admin/affiliates/:id", authMiddleware, permissionMiddleware("affi
 }));
 
 router.get("/admin/commissions", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (_req, res) => {
-  return res.json(await CommissionModel.find().populate("affiliate").populate("order").lean());
+  return res.json(await CommissionModel.find().populate("affiliate", "-passwordHash").populate("order").lean());
 }));
 router.patch("/admin/commissions/:id/pay", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (req, res) => {
   const commission = await CommissionModel.findById(String(req.params.id)).populate("affiliate");
@@ -142,17 +143,38 @@ router.patch("/admin/commissions/:id/pay", authMiddleware, permissionMiddleware(
   return res.json(commission);
 }));
 
+const websiteSettingsSchema = z.object({
+  storeName: z.string().min(1).max(100).optional(),
+  logo: z.string().url().max(2048).optional().or(z.literal("")),
+  phone: z.string().max(20).optional(),
+  whatsapp: z.string().max(20).optional(),
+  email: z.string().email().max(255).optional(),
+  address: z.string().max(300).optional(),
+  mapUrl: z.string().max(2048).optional(),
+  socialLinks: z.record(z.string().max(50), z.string().max(2048)).optional(),
+  defaultLanguage: z.enum(["ar", "fr", "en"]).optional(),
+  currency: z.string().max(10).optional(),
+  aiEnabled: z.boolean().optional(),
+  maintenanceMode: z.boolean().optional(),
+  promoCodeEnabled: z.boolean().optional(),
+  affiliateLevels: z.record(
+    z.string().max(20),
+    z.object({ commissionRate: z.number().min(0).max(100), referralBonus: z.number().min(0) }),
+  ).optional(),
+});
+
 router.get("/admin/settings", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (_req, res) => {
   const settings = await WebsiteSettingModel.findOne();
   return res.json(settings);
 }));
 router.patch("/admin/settings", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (req, res) => {
-  const settings = await WebsiteSettingModel.findOneAndUpdate({}, req.body, { new: true, upsert: true });
+  const input = websiteSettingsSchema.parse(req.body);
+  const settings = await WebsiteSettingModel.findOneAndUpdate({}, { $set: input }, { new: true, upsert: true });
   return res.json(settings);
 }));
 
 router.get("/admin/withdrawals", authMiddleware, permissionMiddleware("withdrawals"), asyncHandler(async (_req, res) => {
-  return res.json(await WithdrawalRequestModel.find().populate("affiliate").sort({ createdAt: -1 }).lean());
+  return res.json(await WithdrawalRequestModel.find().populate("affiliate", "-passwordHash").sort({ createdAt: -1 }).lean());
 }));
 
 router.patch("/admin/withdrawals/:id", authMiddleware, permissionMiddleware("withdrawals"), asyncHandler(async (req, res) => {
@@ -185,7 +207,7 @@ router.patch("/admin/withdrawals/:id", authMiddleware, permissionMiddleware("wit
 
   withdrawal.status = input.status;
   await withdrawal.save();
-  return res.json(await WithdrawalRequestModel.findById(withdrawal._id).populate("affiliate").lean());
+  return res.json(await WithdrawalRequestModel.findById(withdrawal._id).populate("affiliate", "-passwordHash").lean());
 }));
 
 router.post("/admin/orders/:id/resync-commission", authMiddleware, permissionMiddleware("orders"), asyncHandler(async (req, res) => {
@@ -203,7 +225,7 @@ router.get("/admin/notifications", authMiddleware, permissionMiddleware("dashboa
 }));
 
 router.get("/admin/coupon-requests", authMiddleware, permissionMiddleware("coupon-requests"), asyncHandler(async (_req, res) => {
-  return res.json(await CouponRequestModel.find().populate("affiliate").populate("promoCode").sort({ createdAt: -1 }).lean());
+  return res.json(await CouponRequestModel.find().populate("affiliate", "-passwordHash").populate("promoCode").sort({ createdAt: -1 }).lean());
 }));
 
 router.patch("/admin/coupon-requests/:id", authMiddleware, permissionMiddleware("coupon-requests"), asyncHandler(async (req, res) => {
@@ -248,7 +270,7 @@ router.patch("/admin/coupon-requests/:id", authMiddleware, permissionMiddleware(
   couponRequest.adminNote = input.adminNote ?? couponRequest.adminNote;
   await couponRequest.save();
 
-  return res.json(await CouponRequestModel.findById(couponRequest._id).populate("affiliate").populate("promoCode").lean());
+  return res.json(await CouponRequestModel.findById(couponRequest._id).populate("affiliate", "-passwordHash").populate("promoCode").lean());
 }));
 
 export default router;

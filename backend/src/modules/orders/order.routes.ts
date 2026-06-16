@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
+import { orderCreateRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { OrderModel, PromoCodeUsageModel } from "../../models/orders.model.js";
 import { ProductVariantModel } from "../../models/catalog.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -46,6 +47,7 @@ function createOrderNumber() {
 
 router.post(
   "/orders",
+  orderCreateRateLimitMiddleware,
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
     const { items, subtotal, categoryIds } = await buildOrderItems(input.items);
@@ -104,7 +106,7 @@ router.post(
       });
     }
 
-    const populatedOrder = await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate").lean();
+    const populatedOrder = await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean();
     const customer = populatedOrder?.customer;
 
     const wilayaName =
@@ -163,7 +165,7 @@ router.post(
     }
 
     if (order.status === "AWAITING_CALL_CONFIRMATION" && order.aiConfirmed) {
-      return res.json(await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate").lean());
+      return res.json(await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean());
     }
 
     if (order.status !== "PENDING_AI_CONFIRMATION") {
@@ -185,7 +187,7 @@ router.post(
     order.status = "AWAITING_CALL_CONFIRMATION";
     await order.save();
 
-    return res.json(await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate").lean());
+    return res.json(await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean());
   }),
 );
 
@@ -270,7 +272,7 @@ router.get(
   permissionMiddleware("orders"),
   asyncHandler(async (_req, res) => {
     return res.json(
-      await OrderModel.find().sort({ createdAt: -1 }).populate("customer.wilaya").populate("affiliate").lean(),
+      await OrderModel.find().sort({ createdAt: -1 }).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean(),
     );
   }),
 );
