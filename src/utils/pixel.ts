@@ -17,14 +17,21 @@ export function initPixel() {
   if (!PIXEL_ID || initialized || typeof document === "undefined") return;
   initialized = true;
 
-  // Mirror the official fbq stub snippet
+  // Mirror the official fbq stub snippet exactly — callMethod check is required
+  // so that after fbevents.js loads and attaches callMethod, queued events flush
   if (!window.fbq) {
     const fn = function (...args: unknown[]) {
-      (fn as unknown as { queue: unknown[][] }).queue.push(args);
+      const f = fn as unknown as { callMethod?: (...a: unknown[]) => void; queue: unknown[][] };
+      if (f.callMethod) {
+        f.callMethod.apply(fn, args);
+      } else {
+        f.queue.push(args);
+      }
     } as unknown as ((...a: unknown[]) => void) & {
       loaded: boolean;
       version: string;
       queue: unknown[][];
+      callMethod?: (...args: unknown[]) => void;
     };
     fn.loaded = true;
     fn.version = "2.0";
