@@ -287,3 +287,33 @@ export interface PendingOrderPayload {
   orderId: string;
   orderNumber: string;
 }
+
+export type AnalyticsEventType =
+  | "page_view"
+  | "product_view"
+  | "add_to_cart"
+  | "checkout_start"
+  | "order_submit"
+  | "purchase";
+
+export interface AnalyticsProductEntry {
+  productId: string;
+  productName: LocalizedText;
+  count: number;
+  revenue?: number;
+}
+
+export interface AnalyticsSummary {
+  totalVisitors: number;
+  todayVisitors: number;
+  productViews: number;
+  ordersCount: number;
+  conversionRate: number;
+  mostViewedProducts: AnalyticsProductEntry[];
+  bestSellingProducts: AnalyticsProductEntry[];
+  revenueTotal: number;
+  revenueToday: number;
+  ordersByStatus: Record<string, number>;
+  visitorsByDay: Array<{ date: string; count: number }>;
+  salesByDay: Array<{ date: string; revenue: number; orders: number }>;
+}

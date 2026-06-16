@@ -12,6 +12,8 @@ import { shippingService } from "@/services/shipping.service";
 import type { DeliveryType, Wilaya } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { translate } from "@/utils/i18n";
+import { pixelInitiateCheckout, pixelLead, pixelPurchase } from "@/utils/pixel";
+import { trackEvent } from "@/utils/tracking";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
 
@@ -60,6 +62,15 @@ export function CheckoutPage() {
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.variant.price * item.quantity, 0), [cart]);
   const total = Math.max(0, subtotal + shippingFee - discount);
   const selectedWilaya = wilayas.find((wilaya) => wilaya.code === wilayaCode);
+
+  // Track InitiateCheckout once when the page mounts with items in cart
+  useEffect(() => {
+    if (cart.length === 0) return;
+    const numItems = cart.reduce((n, item) => n + item.quantity, 0);
+    pixelInitiateCheckout({ value: subtotal, numItems });
+    trackEvent({ eventType: "checkout_start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run only once on mount
 
   if (cart.length === 0) {
     return (
@@ -146,6 +157,10 @@ export function CheckoutPage() {
     setSubmitting(true);
     setErrorMessage("");
 
+    // Lead fires when the customer submits the form (intent confirmed)
+    pixelLead();
+    trackEvent({ eventType: "order_submit" });
+
     try {
       const order = await orderService.createOrder({
         customer: {
@@ -164,6 +179,10 @@ export function CheckoutPage() {
         promoCode: promoCode || undefined,
         affiliateRef: affiliateRef || undefined,
       });
+
+      // Purchase fires only after the backend confirms the order was created
+      pixelPurchase({ orderId: order._id, value: total });
+      trackEvent({ eventType: "purchase", orderId: order._id });
 
       rememberPendingOrder({ orderId: order._id, orderNumber: order.orderNumber });
       navigate("/checkout/confirm");

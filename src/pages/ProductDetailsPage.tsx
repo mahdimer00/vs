@@ -10,6 +10,8 @@ import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
 import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText, hashSeed } from "@/utils/format";
 import { translate } from "@/utils/i18n";
+import { pixelViewContent } from "@/utils/pixel";
+import { trackEvent } from "@/utils/tracking";
 
 function getTimeUntilMidnight(): { hours: number; minutes: number; seconds: number } {
   const now = new Date();
@@ -76,6 +78,12 @@ export function ProductDetailsPage() {
         const firstVariant = data.variants[0];
         setSelectedVariantId(firstVariant?._id ?? "");
         setSelectedImage(firstVariant?.images[0] || data.images[0] || "");
+
+        // Track product view for Meta Pixel and internal analytics
+        const productName = data.name.en || data.name.ar || data.name.fr;
+        const price = firstVariant?.price ?? data.discountPrice ?? data.basePrice;
+        pixelViewContent({ productId: data._id, productName, value: price });
+        trackEvent({ eventType: "product_view", productId: data._id });
       })
       .catch((error) => {
         setErrorMessage(error instanceof Error ? error.message : "Unable to load product");

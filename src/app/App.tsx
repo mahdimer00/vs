@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { useApp } from "@/hooks/useApp";
 import { MainLayout } from "@/layout/MainLayout";
 import { initAnalytics, trackPageview } from "@/utils/analytics";
+import { initPixel, pixelPageView } from "@/utils/pixel";
+import { trackEvent } from "@/utils/tracking";
 
 export function App() {
   const location = useLocation();
@@ -22,10 +24,14 @@ export function App() {
 
   useEffect(() => {
     initAnalytics();
+    initPixel();
   }, []);
 
   useEffect(() => {
-    trackPageview(location.pathname + location.search);
+    const path = location.pathname + location.search;
+    trackPageview(path);
+    pixelPageView();
+    trackEvent({ eventType: "page_view" });
   }, [location.pathname, location.search]);
 
   return (

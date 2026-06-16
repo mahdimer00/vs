@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Award,
   BellRing,
+  BarChart3,
   Building2,
   Check,
   Crown,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Store,
   TicketPercent,
+  TrendingUp,
   Users,
   Wallet,
   X,
@@ -48,6 +50,7 @@ import type {
   Category,
   Commission,
   CouponRequest,
+  AnalyticsSummary,
   DashboardStats,
   Order,
   Product,
@@ -230,6 +233,11 @@ export function AdminDashboardPage() {
   const [couponRequests, setCouponRequests] = useState<CouponRequest[]>([]);
   const [notifications, setNotifications] = useState<AdminNotifications | null>(null);
   const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsSummary | null>(null);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<string>("7d");
+  const [analyticsFrom, setAnalyticsFrom] = useState("");
+  const [analyticsTo, setAnalyticsTo] = useState("");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([{ ...defaultVariantDraft }]);
@@ -277,6 +285,22 @@ export function AdminDashboardPage() {
   if (role === "SUPER_ADMIN") {
     links.push({ href: "/admin/admins", label: translate(language, "adminAdminsTitle"), badge: undefined });
   }
+  // Analytics is available to anyone with the dashboard permission
+  if (!isSubAdmin || userPermissions?.includes("dashboard")) {
+    links.push({ href: "/admin/analytics", label: translate(language, "analyticsTitle"), badge: undefined });
+  }
+
+  const loadAnalytics = async (period: string, from?: string, to?: string) => {
+    setAnalyticsLoading(true);
+    try {
+      const data = await adminService.getAnalytics(token, period, from, to);
+      setAnalyticsData(data);
+    } catch {
+      // silently fail — analytics tab shows empty state
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -351,6 +375,13 @@ export function AdminDashboardPage() {
       void loadAll();
     }
   }, [token]);
+
+  // Load analytics data when navigating to analytics tab
+  useEffect(() => {
+    if (token && tab === "analytics") {
+      void loadAnalytics(analyticsPeriod, analyticsFrom || undefined, analyticsTo || undefined);
+    }
+  }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setShippingDrafts(
@@ -684,6 +715,261 @@ export function AdminDashboardPage() {
 
   const updateVariantDraft = (index: number, patch: Partial<VariantDraft>) => {
     setVariantDrafts((current) => current.map((draft, draftIndex) => (draftIndex === index ? { ...draft, ...patch } : draft)));
+  };
+
+  const renderAnalytics = () => {
+    const periods = [
+      { value: "today", label: translate(language, "analyticsToday") },
+      { value: "7d", label: translate(language, "analytics7d") },
+      { value: "30d", label: translate(language, "analytics30d") },
+      { value: "custom", label: translate(language, "analyticsCustom") },
+    ] as const;
+
+    const handlePeriodChange = (value: string) => {
+      setAnalyticsPeriod(value);
+      if (value !== "custom") {
+        void loadAnalytics(value);
+      }
+    };
+
+    const handleCustomApply = () => {
+      if (analyticsFrom && analyticsTo) {
+        void loadAnalytics("custom", analyticsFrom, analyticsTo);
+      }
+    };
+
+    const data = analyticsData;
+
+    // Simple SVG bar chart
+    const BarChart = ({
+      bars,
+      color,
+      formatTip,
+    }: {
+      bars: Array<{ label: string; value: number }>;
+      color: string;
+      formatTip: (v: number) => string;
+    }) => {
+      const max = Math.max(...bars.map((b) => b.value), 1);
+      return (
+        <div className="flex h-40 items-end gap-1">
+          {bars.map((bar) => {
+            const height = Math.max(4, Math.round((bar.value / max) * 100));
+            return (
+              <div key={bar.label} className="group relative flex flex-1 flex-col items-center gap-1" title={`${bar.label}: ${formatTip(bar.value)}`}>
+                <div
+                  className={`w-full rounded-t-md transition-all ${color}`}
+                  style={{ height: `${height}%` }}
+                />
+                <span className="truncate text-center text-[10px] text-slate-400">
+                  {bar.label.slice(5)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    const statusColors: Record<string, string> = {
+      PENDING_AI_CONFIRMATION: "bg-slate-400",
+      AWAITING_CALL_CONFIRMATION: "bg-amber-400",
+      CONFIRMED: "bg-sky-400",
+      PROCESSING: "bg-blue-400",
+      SHIPPED: "bg-violet-400",
+      DELIVERED: "bg-emerald-500",
+      PICKED_UP: "bg-teal-500",
+      CANCELLED: "bg-rose-500",
+      RETURNED: "bg-orange-500",
+      FAILED: "bg-red-400",
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Period filter */}
+        <Panel title={translate(language, "analyticsTitle")}>
+          <div className="flex flex-wrap items-center gap-3">
+            {periods.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => handlePeriodChange(p.value)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  analyticsPeriod === p.value
+                    ? "bg-slate-950 text-white"
+                    : "border border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {analyticsPeriod === "custom" && (
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">{translate(language, "analyticsFrom")}</label>
+                <input
+                  type="date"
+                  value={analyticsFrom}
+                  onChange={(e) => setAnalyticsFrom(e.target.value)}
+                  className="field-input"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">{translate(language, "analyticsTo")}</label>
+                <input
+                  type="date"
+                  value={analyticsTo}
+                  onChange={(e) => setAnalyticsTo(e.target.value)}
+                  className="field-input"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleCustomApply}
+                disabled={!analyticsFrom || !analyticsTo}
+                className="primary-button"
+              >
+                {translate(language, "analyticsCustom")}
+              </button>
+            </div>
+          )}
+        </Panel>
+
+        {analyticsLoading ? (
+          <div className="flex justify-center py-16">
+            <div className="text-sm text-slate-500">{translate(language, "analyticsLoading")}</div>
+          </div>
+        ) : !data ? (
+          <EmptyState title={translate(language, "analyticsNoData")} description="" />
+        ) : (
+          <>
+            {/* KPI stat cards */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {[
+                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString() },
+                { icon: TrendingUp, label: translate(language, "analyticsTodayVisitors"), value: data.todayVisitors.toLocaleString() },
+                { icon: BarChart3, label: translate(language, "analyticsProductViews"), value: data.productViews.toLocaleString() },
+                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString() },
+                { icon: TrendingUp, label: translate(language, "analyticsConversionRate"), value: `${data.conversionRate}%` },
+                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language) },
+                { icon: Wallet, label: translate(language, "analyticsRevenueToday"), value: formatCurrency(data.revenueToday, language) },
+              ].map(({ icon: Icon, label, value }) => (
+                <div key={label} className="stat-card flex items-start gap-4">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">{label}</div>
+                    <div className="mt-1 text-2xl font-semibold text-slate-950">{value}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Charts */}
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Panel title={translate(language, "analyticsVisitorsByDay")}>
+                {data.visitorsByDay.every((d) => d.count === 0) ? (
+                  <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
+                ) : (
+                  <BarChart
+                    bars={data.visitorsByDay.map((d) => ({ label: d.date, value: d.count }))}
+                    color="bg-sky-400"
+                    formatTip={(v) => `${v} ${translate(language, "analyticsVisitors")}`}
+                  />
+                )}
+              </Panel>
+              <Panel title={translate(language, "analyticsSalesByDay")}>
+                {data.salesByDay.every((d) => d.revenue === 0) ? (
+                  <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
+                ) : (
+                  <BarChart
+                    bars={data.salesByDay.map((d) => ({ label: d.date, value: d.revenue }))}
+                    color="bg-emerald-400"
+                    formatTip={(v) => formatCurrency(v, language)}
+                  />
+                )}
+              </Panel>
+            </div>
+
+            {/* Orders by status */}
+            <Panel title={translate(language, "analyticsOrdersByStatus")}>
+              {Object.keys(data.ordersByStatus).length === 0 ? (
+                <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {Object.entries(data.ordersByStatus).map(([status, count]) => (
+                    <div
+                      key={status}
+                      className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2 text-sm"
+                    >
+                      <span className={`h-2.5 w-2.5 rounded-full ${statusColors[status] ?? "bg-slate-400"}`} />
+                      <span className="font-medium text-slate-700">{status}</span>
+                      <span className="font-bold text-slate-950">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            {/* Product tables */}
+            <div className="grid gap-6 xl:grid-cols-2">
+              {/* Most viewed products */}
+              <Panel title={translate(language, "analyticsMostViewed")}>
+                {data.mostViewedProducts.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {data.mostViewedProducts.map((item, index) => (
+                      <div key={item.productId} className="flex items-center gap-3 py-3">
+                        <span className="w-6 shrink-0 text-center text-sm font-bold text-slate-400">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
+                          {getLocalizedText(item.productName, language)}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
+                          {item.count} {translate(language, "analyticsViews")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+
+              {/* Best selling products */}
+              <Panel title={translate(language, "analyticsBestSelling")}>
+                {data.bestSellingProducts.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {data.bestSellingProducts.map((item, index) => (
+                      <div key={item.productId} className="flex items-center gap-3 py-3">
+                        <span className="w-6 shrink-0 text-center text-sm font-bold text-slate-400">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
+                          {getLocalizedText(item.productName, language)}
+                        </span>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            {item.count} {translate(language, "analyticsSales")}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {formatCurrency(item.revenue ?? 0, language)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   const renderDashboard = () => {
@@ -2275,7 +2561,9 @@ export function AdminDashboardPage() {
                           ? renderSettings()
                           : tab === "admins"
                             ? renderAdmins()
-                            : renderDashboard();
+                            : tab === "analytics"
+                              ? renderAnalytics()
+                              : renderDashboard();
 
   return (
     <DashboardShell

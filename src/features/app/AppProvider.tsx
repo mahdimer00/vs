@@ -5,6 +5,8 @@ import { settingsService } from "@/services/settings.service";
 import type { AuthSession, CartItem, Locale, PendingOrderPayload, WebsiteSetting } from "@/types";
 import { buildVariantLabel, getLocalizedText, isRTL } from "@/utils/format";
 import { translate } from "@/utils/i18n";
+import { pixelAddToCart } from "@/utils/pixel";
+import { trackEvent } from "@/utils/tracking";
 import { readStorage, writeStorage } from "@/utils/storage";
 
 type Toast = { id: number; message: string; tone?: "success" | "error" };
@@ -109,6 +111,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     pushToast(`${getLocalizedText(item.product.name, language)} · ${translate(language, "productAddToCart")}`);
+
+    // Track AddToCart for Meta Pixel and internal analytics
+    const productName = item.product.name.en || item.product.name.ar || item.product.name.fr;
+    pixelAddToCart({ productId: item.product._id, productName, value: item.variant.price * item.quantity });
+    trackEvent({ eventType: "add_to_cart", productId: item.product._id });
   };
 
   const rememberPendingOrder = (payload: PendingOrderPayload | null) => setPendingOrderState(payload);

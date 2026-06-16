@@ -1,5 +1,5 @@
 import { apiRequest, apiUpload } from "@/services/apiClient";
-import type { AdminNotifications, AdminPermission, Affiliate, Banner, Brand, Category, Commission, CouponRequest, DashboardStats, Order, Product, PromoCode, SubAdmin, WebsiteSetting, Wilaya, WithdrawalRequest } from "@/types";
+import type { AdminNotifications, AdminPermission, Affiliate, AnalyticsSummary, Banner, Brand, Category, Commission, CouponRequest, DashboardStats, Order, Product, PromoCode, SubAdmin, WebsiteSetting, Wilaya, WithdrawalRequest } from "@/types";
 
 export const adminService = {
   getStats(token: string) {
@@ -199,5 +199,11 @@ export const adminService = {
   },
   deleteAdmin(token: string, id: string) {
     return apiRequest<{ success: boolean }>(`/api/admin/admins/${id}`, { method: "DELETE", token });
+  },
+  getAnalytics(token: string, period: string, from?: string, to?: string) {
+    return apiRequest<AnalyticsSummary>("/api/admin/analytics", {
+      token,
+      query: { period, from, to },
+    });
   },
 };

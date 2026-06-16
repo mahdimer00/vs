@@ -16,6 +16,7 @@ import promoRoutes from "./modules/promo/promo.routes.js";
 import affiliateRoutes from "./modules/affiliate/affiliate.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
 import aiRoutes from "./modules/ai/ai.routes.js";
+import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { roleMiddleware } from "./middleware/role.middleware.js";
 import { AppError } from "./utils/app-error.js";
@@ -90,5 +91,6 @@ app.use("/api", promoRoutes);
 app.use("/api", affiliateRoutes);
 app.use("/api", adminRoutes);
 app.use("/api", aiRoutes);
+app.use("/api", analyticsRoutes);
 
 app.use(errorMiddleware);
