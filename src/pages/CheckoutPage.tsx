@@ -1,4 +1,4 @@
-import { BadgeCheck, Home, Lock, MapPin, MapPinned, Phone, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, Home, Lock, MapPin, MapPinned, Phone, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -237,7 +237,15 @@ export function CheckoutPage() {
               </div>
               <div className="space-y-1.5">
                 <IconField icon={Phone}>
-                  <input required value={phone} onChange={(event) => setPhone(event.target.value)} className="field-input field-input-icon" placeholder="0555 12 34 56" />
+                  <input
+                    required
+                    dir="ltr"
+                    inputMode="tel"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    className="field-input field-input-icon"
+                    placeholder="0555 12 34 56"
+                  />
                 </IconField>
                 <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
               </div>
@@ -305,26 +313,46 @@ export function CheckoutPage() {
                 </div>
               )}
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setDeliveryType("DESK_PICKUP")}
-                className={`rounded-[1.5rem] border px-5 py-4 text-start transition ${
-                  deliveryType === "DESK_PICKUP" ? "border-teal-600 bg-teal-50" : "border-slate-200 bg-white"
+                className={`relative rounded-[1.5rem] border p-4 text-start transition ${
+                  deliveryType === "DESK_PICKUP"
+                    ? "border-teal-500 bg-teal-50 shadow-[0_0_0_3px_rgba(20,184,166,0.12)]"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
+                {deliveryType === "DESK_PICKUP" && (
+                  <span className="absolute end-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-white">
+                    <Check className="h-3 w-3" />
+                  </span>
+                )}
+                <div className={`mb-2 grid h-10 w-10 place-items-center rounded-2xl ${deliveryType === "DESK_PICKUP" ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
+                  <Building2 className="h-5 w-5" />
+                </div>
                 <div className="font-semibold text-slate-950">{translate(language, "deskPickup")}</div>
-                <div className="mt-1 text-sm text-slate-500">{translate(language, "checkoutDeliveryDeskDesc")}</div>
+                <div className="mt-1 text-xs text-slate-500">{translate(language, "checkoutDeliveryDeskDesc")}</div>
               </button>
               <button
                 type="button"
                 onClick={() => setDeliveryType("HOME_DELIVERY")}
-                className={`rounded-[1.5rem] border px-5 py-4 text-start transition ${
-                  deliveryType === "HOME_DELIVERY" ? "border-teal-600 bg-teal-50" : "border-slate-200 bg-white"
+                className={`relative rounded-[1.5rem] border p-4 text-start transition ${
+                  deliveryType === "HOME_DELIVERY"
+                    ? "border-teal-500 bg-teal-50 shadow-[0_0_0_3px_rgba(20,184,166,0.12)]"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
+                {deliveryType === "HOME_DELIVERY" && (
+                  <span className="absolute end-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-white">
+                    <Check className="h-3 w-3" />
+                  </span>
+                )}
+                <div className={`mb-2 grid h-10 w-10 place-items-center rounded-2xl ${deliveryType === "HOME_DELIVERY" ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
+                  <Home className="h-5 w-5" />
+                </div>
                 <div className="font-semibold text-slate-950">{translate(language, "homeDelivery")}</div>
-                <div className="mt-1 text-sm text-slate-500">{translate(language, "checkoutDeliveryHomeDesc")}</div>
+                <div className="mt-1 text-xs text-slate-500">{translate(language, "checkoutDeliveryHomeDesc")}</div>
               </button>
             </div>
 
@@ -375,7 +403,11 @@ export function CheckoutPage() {
           ) : null}
 
           {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
-          <button disabled={submitting} className="secondary-button flex w-full justify-center py-4">
+          <button
+            disabled={submitting}
+            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 py-4 text-base font-semibold text-white shadow-[0_14px_32px_rgba(20,184,166,0.28)] transition hover:from-teal-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ShieldCheck className="h-5 w-5" />
             {submitting ? translate(language, "checkoutSubmitting") : translate(language, "checkoutSubmit")}
           </button>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">

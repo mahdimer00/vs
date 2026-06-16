@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Eye, Flame, Heart, Minus, ShieldCheck, ShoppingCart, Truck, Plus } from "lucide-react";
+import { ChevronRight, Clock, Eye, Flame, Heart, Minus, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -436,8 +436,9 @@ export function ProductDetailsPage() {
               addToCart({ product, variant: selectedVariant, quantity });
               navigate("/checkout");
             }}
-            className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_35px_rgba(16,185,129,0.24)] transition hover:from-emerald-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_40px_rgba(16,185,129,0.3)] transition hover:from-emerald-500 hover:to-teal-500 hover:shadow-[0_20px_50px_rgba(16,185,129,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <Zap className="h-5 w-5 fill-current" />
             {translate(language, "productBuyNow")}
           </button>
 
