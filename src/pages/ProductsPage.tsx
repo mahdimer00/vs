@@ -68,11 +68,17 @@ export function ProductsPage() {
   return (
     <div className="space-y-6">
       <Seo title={translate(language, "productsTitle")} description={translate(language, "categoryDescription")} path="/products" />
-      <section className="surface-card overflow-hidden p-5 sm:p-6 md:p-8">
-        <div className="flex flex-wrap items-end justify-between gap-6">
+      {/* Mobile: slim single-line header */}
+      <section className="surface-card overflow-hidden p-3.5 sm:p-5 md:p-8">
+        <div className="flex items-center justify-between gap-3 md:hidden">
+          <h1 className="font-serif text-lg font-semibold text-slate-950">{translate(language, "productsTitle")}</h1>
+          <span className="shrink-0 rounded-full bg-slate-950 px-3 py-1 text-sm font-semibold text-white">{filtered.length}</span>
+        </div>
+        {/* Desktop: full layout */}
+        <div className="hidden md:flex md:flex-wrap md:items-end md:justify-between md:gap-6">
           <div>
             <p className="section-eyebrow">{translate(language, "productsEyebrow")}</p>
-            <h1 className="mt-2 font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "productsTitle")}</h1>
+            <h1 className="mt-2 font-serif text-3xl font-semibold text-slate-950 md:text-4xl">{translate(language, "productsTitle")}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{translate(language, "categoryDescription")}</p>
           </div>
           <div className="shrink-0 rounded-[1.5rem] bg-slate-950 px-5 py-4 text-white">
@@ -99,7 +105,7 @@ export function ProductsPage() {
           description={translate(language, "noProductsDescription")}
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 xl:grid-cols-3">
           {filtered.map((product) => (
             <ProductCard key={product._id} product={product} language={language} />
           ))}
