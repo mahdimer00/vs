@@ -9,6 +9,7 @@ import { AppError } from "../../utils/app-error.js";
 import { syncCommissionForOrder } from "../../utils/commission.js";
 import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCode } from "../../utils/order.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
+import { sendCapiEvent } from "../../utils/capi.js";
 
 const router = Router();
 
@@ -32,6 +33,11 @@ const createOrderSchema = z.object({
   deliveryType: z.enum(["HOME_DELIVERY", "DESK_PICKUP"]),
   promoCode: z.string().optional(),
   affiliateRef: z.string().optional(),
+  // CAPI deduplication fields — not stored in DB
+  capiEventId: z.string().max(64).optional(),
+  fbp: z.string().max(256).optional(),
+  fbc: z.string().max(256).optional(),
+  clientUserAgent: z.string().max(512).optional(),
 });
 
 function createOrderNumber() {
@@ -116,6 +122,31 @@ router.post(
         `Items:\n${itemsList}\n` +
         `Total: ${order.total} DZD`,
     );
+
+    // Server-side Meta Conversions API — fires alongside the browser Pixel for better signal quality.
+    // capiEventId deduplicates with the browser-side Pixel event so Meta only counts it once.
+    const nameParts = input.customer.fullName.trim().split(/\s+/);
+    const capiBase = {
+      phone: input.customer.phone,
+      firstName: nameParts[0] ?? "",
+      lastName: nameParts.slice(1).join(" "),
+      city: input.customer.commune,
+      clientIp: req.ip,
+      clientUserAgent: input.clientUserAgent ?? String(req.headers["user-agent"] ?? ""),
+      fbp: input.fbp,
+      fbc: input.fbc,
+      currency: "DZD",
+      value: order.total,
+      contentIds: [String(order._id)],
+      sourceUrl: `${process.env.FRONTEND_URL ?? ""}/checkout`,
+    };
+
+    void sendCapiEvent({ eventName: "Lead", eventId: input.capiEventId, ...capiBase });
+    void sendCapiEvent({
+      eventName: "Purchase",
+      eventId: input.capiEventId ? `${input.capiEventId}_purchase` : undefined,
+      ...capiBase,
+    });
 
     return res.status(201).json(populatedOrder);
   }),

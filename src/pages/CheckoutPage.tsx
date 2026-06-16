@@ -157,8 +157,18 @@ export function CheckoutPage() {
     setSubmitting(true);
     setErrorMessage("");
 
+    // Generate a unique ID for this submission so the browser Pixel event and
+    // the server-side CAPI event can be deduplicated by Meta.
+    const capiEventId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    // Read _fbp / _fbc cookies set by Meta Pixel (used by CAPI for better matching)
+    const getCookie = (name: string) =>
+      document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1] ?? undefined;
+    const fbp = getCookie("_fbp");
+    const fbc = getCookie("_fbc");
+
     // Lead fires when the customer submits the form (intent confirmed)
-    pixelLead();
+    pixelLead(capiEventId);
     trackEvent({ eventType: "order_submit" });
 
     try {
@@ -178,10 +188,15 @@ export function CheckoutPage() {
         deliveryType,
         promoCode: promoCode || undefined,
         affiliateRef: affiliateRef || undefined,
+        capiEventId,
+        fbp,
+        fbc,
+        clientUserAgent: navigator.userAgent,
       });
 
-      // Purchase fires only after the backend confirms the order was created
-      pixelPurchase({ orderId: order._id, value: total });
+      // Purchase fires only after the backend confirms the order was created.
+      // eventID matches the _purchase suffix in capi.ts to keep deduplication correct.
+      pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });
       trackEvent({ eventType: "purchase", orderId: order._id });
 
       rememberPendingOrder({ orderId: order._id, orderNumber: order.orderNumber });

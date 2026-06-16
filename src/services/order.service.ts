@@ -14,6 +14,11 @@ export const orderService = {
     deliveryType: DeliveryType;
     promoCode?: string;
     affiliateRef?: string;
+    // CAPI deduplication — these are forwarded server-side to Meta's Conversions API
+    capiEventId?: string;
+    fbp?: string;
+    fbc?: string;
+    clientUserAgent?: string;
   }) {
     return apiRequest<Order>("/api/orders", {
       method: "POST",

@@ -21,6 +21,9 @@ const schema = z.object({
   AFFILIATE_PASSWORD: z.string().min(12).default("ChangeThisAffiliatePassword123!"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
+  // Meta Conversions API (server-side pixel)
+  META_PIXEL_ID: z.string().optional(),
+  FACEBOOK_ACCESS_TOKEN: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

@@ -41,9 +41,12 @@ export function initPixel() {
   window.fbq("init", PIXEL_ID);
 }
 
-function send(event: string, name: string, params?: Record<string, unknown>) {
+function send(event: string, name: string, params?: Record<string, unknown>, options?: { eventID?: string }) {
   if (!PIXEL_ID || typeof window === "undefined" || !window.fbq) return;
-  if (params) {
+  if (options?.eventID) {
+    // Third argument = custom data, fourth = event options (eventID for deduplication)
+    window.fbq(event, name, params ?? {}, { eventID: options.eventID });
+  } else if (params) {
     window.fbq(event, name, params);
   } else {
     window.fbq(event, name);
@@ -96,18 +99,32 @@ export function pixelInitiateCheckout(payload: {
   });
 }
 
-export function pixelLead() {
-  send("track", "Lead");
+/**
+ * @param eventID - Must match the capiEventId sent to the backend
+ *   so Meta can deduplicate this browser event against the server-side CAPI event.
+ */
+export function pixelLead(eventID?: string) {
+  send("track", "Lead", {}, eventID ? { eventID } : undefined);
 }
 
+/**
+ * @param payload.eventID - Must match the capiEventId sent to the backend
+ *   so Meta can deduplicate this browser event against the server-side CAPI Purchase event.
+ */
 export function pixelPurchase(payload: {
   orderId: string;
   value: number;
   currency?: string;
+  eventID?: string;
 }) {
-  send("track", "Purchase", {
-    content_ids: [payload.orderId],
-    value: payload.value,
-    currency: payload.currency ?? "DZD",
-  });
+  send(
+    "track",
+    "Purchase",
+    {
+      content_ids: [payload.orderId],
+      value: payload.value,
+      currency: payload.currency ?? "DZD",
+    },
+    payload.eventID ? { eventID: `${payload.eventID}_purchase` } : undefined,
+  );
 }
