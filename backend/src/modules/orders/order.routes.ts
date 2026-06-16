@@ -131,6 +131,8 @@ router.post(
       firstName: nameParts[0] ?? "",
       lastName: nameParts.slice(1).join(" "),
       city: input.customer.commune,
+      state: wilayaName,
+      country: "dz",
       clientIp: req.ip,
       clientUserAgent: input.clientUserAgent ?? String(req.headers["user-agent"] ?? ""),
       fbp: input.fbp,

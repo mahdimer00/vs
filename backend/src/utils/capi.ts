@@ -31,6 +31,8 @@ export interface CapiEventOptions {
   firstName?: string;
   lastName?: string;
   city?: string;
+  state?: string;
+  country?: string;
   // Browser metadata passed from the frontend (never hash these)
   clientIp?: string;
   clientUserAgent?: string;
@@ -59,6 +61,8 @@ export async function sendCapiEvent(options: CapiEventOptions): Promise<void> {
   if (options.firstName) userData["fn"] = [sha256(options.firstName)];
   if (options.lastName && options.lastName.trim()) userData["ln"] = [sha256(options.lastName)];
   if (options.city) userData["ct"] = [sha256(options.city)];
+  if (options.state) userData["st"] = [sha256(options.state)];
+  if (options.country) userData["country"] = [sha256(options.country)];
 
   // These three must NOT be hashed
   if (options.clientIp) userData["client_ip_address"] = options.clientIp;
