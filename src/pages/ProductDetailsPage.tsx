@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Eye, Flame, Heart, Minus, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { ChevronRight, Clock, Eye, Flame, Heart, MessageCircle, Minus, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,6 +12,7 @@ import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedT
 import { translate } from "@/utils/i18n";
 import { pixelViewContent } from "@/utils/pixel";
 import { trackEvent } from "@/utils/tracking";
+import { addRecentlyViewed } from "@/utils/recentlyViewed";
 
 function getTimeUntilMidnight(): { hours: number; minutes: number; seconds: number } {
   const now = new Date();
@@ -50,7 +51,7 @@ function pickMatchingVariant(
 export function ProductDetailsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { language, addToCart, toggleWishlist, isWishlisted } = useApp();
+  const { language, addToCart, toggleWishlist, isWishlisted, siteSettings } = useApp();
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +85,15 @@ export function ProductDetailsPage() {
         const price = firstVariant?.price ?? data.discountPrice ?? data.basePrice;
         pixelViewContent({ productId: data._id, productName, value: price });
         trackEvent({ eventType: "product_view", productId: data._id });
+        addRecentlyViewed({
+          id: data._id,
+          slug: data.slug,
+          nameAr: data.name.ar,
+          nameFr: data.name.fr,
+          nameEn: data.name.en,
+          image: firstVariant?.images[0] || data.images[0] || "",
+          price,
+        });
       })
       .catch((error) => {
         setErrorMessage(error instanceof Error ? error.message : "Unable to load product");
@@ -155,7 +165,8 @@ export function ProductDetailsPage() {
   const legacyHint = formatLegacyDinarHint(price, language);
   const gallery = selectedVariant.images.length ? selectedVariant.images : product.images;
   const saving = Math.max(0, product.basePrice - price);
-  const lowStock = selectedVariant.stock <= 5;
+  const adminSoldOut = !!product.isSoldOut;
+  const lowStock = !adminSoldOut && selectedVariant.stock <= 5;
   const viewerCount = 8 + hashSeed(product._id);
   const boughtToday = 3 + hashSeed(product._id) % 12;
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -360,11 +371,11 @@ export function ProductDetailsPage() {
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs sm:text-sm">
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
-                selectedVariant.stock > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                !adminSoldOut && selectedVariant.stock > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${selectedVariant.stock > 0 ? "bg-emerald-500" : "bg-rose-500"}`} />
-              {selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productSoldOut")}
+              <span className={`h-1.5 w-1.5 rounded-full ${!adminSoldOut && selectedVariant.stock > 0 ? "bg-emerald-500" : "bg-rose-500"}`} />
+              {!adminSoldOut && selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productSoldOut")}
             </span>
             <span className="inline-flex items-center gap-1.5 text-slate-500">
               <Eye className="h-4 w-4" />
@@ -431,7 +442,7 @@ export function ProductDetailsPage() {
           </div>
 
           <button
-            disabled={selectedVariant.stock <= 0}
+            disabled={adminSoldOut || selectedVariant.stock <= 0}
             onClick={() => {
               addToCart({ product, variant: selectedVariant, quantity });
               navigate("/checkout");
@@ -439,12 +450,12 @@ export function ProductDetailsPage() {
             className="mt-5 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-7 py-4 text-base font-semibold text-white shadow-[0_16px_40px_rgba(16,185,129,0.3)] transition hover:from-emerald-500 hover:to-teal-500 hover:shadow-[0_20px_50px_rgba(16,185,129,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Zap className="h-5 w-5 fill-current" />
-            {translate(language, "productBuyNow")}
+            {adminSoldOut ? translate(language, "productSoldOut") : translate(language, "productBuyNow")}
           </button>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
             <button
-              disabled={selectedVariant.stock <= 0}
+              disabled={adminSoldOut || selectedVariant.stock <= 0}
               onClick={() => addToCart({ product, variant: selectedVariant, quantity })}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -466,6 +477,18 @@ export function ProductDetailsPage() {
               <span className="sm:hidden">{translate(language, isWishlisted(product._id) ? "wishlistRemove" : "wishlistAdd")}</span>
             </button>
           </div>
+
+          {siteSettings?.whatsapp ? (
+            <a
+              href={`https://wa.me/${siteSettings.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`مرحبا، أريد الاستفسار عن: ${productName}`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-7 py-3.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            >
+              <MessageCircle className="h-5 w-5" />
+              {translate(language, "contactWhatsapp") || "استفسار عبر واتساب"}
+            </a>
+          ) : null}
 
           <div className="mt-5 grid grid-cols-2 gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 rounded-[1.35rem] border border-slate-200 bg-slate-50/90 px-3 py-3 text-slate-700 sm:px-4">

@@ -89,6 +89,7 @@ type ProductFormState = {
   stock: string;
   condition: "NEW" | "USED";
   adminNote: string;
+  isSoldOut: boolean;
   affiliateEnabled: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: string;
@@ -111,6 +112,7 @@ const defaultProductForm: ProductFormState = {
   stock: "1",
   condition: "NEW",
   adminNote: "",
+  isSoldOut: false,
   affiliateEnabled: false,
   commissionType: "PERCENTAGE",
   commissionValue: "",
@@ -263,6 +265,7 @@ export function AdminDashboardPage() {
     wilaya: "all",
     date: "",
     phone: "",
+    orderNumber: "",
   });
   const [subAdminForm, setSubAdminForm] = useState<SubAdminFormState>(defaultSubAdminForm);
   const [subAdminDrafts, setSubAdminDrafts] = useState<Record<string, { permissions: AdminPermission[]; password: string }>>({});
@@ -543,7 +546,8 @@ export function AdminDashboardPage() {
         (orderFilters.status === "all" || order.status === orderFilters.status) &&
         (orderFilters.wilaya === "all" || wilayaLabel === orderFilters.wilaya) &&
         (!orderFilters.phone || order.customer.phone.includes(orderFilters.phone)) &&
-        (!orderFilters.date || order.createdAt.slice(0, 10) >= orderFilters.date)
+        (!orderFilters.date || order.createdAt.slice(0, 10) >= orderFilters.date) &&
+        (!orderFilters.orderNumber || order.orderNumber.toLowerCase().includes(orderFilters.orderNumber.toLowerCase()))
       );
     });
   }, [language, orderFilters, orders]);
@@ -591,6 +595,7 @@ export function AdminDashboardPage() {
       stock: String(product.stock),
       condition: product.condition || "NEW",
       adminNote: product.adminNote || "",
+      isSoldOut: product.isSoldOut ?? false,
       affiliateEnabled: product.affiliateEnabled,
       commissionType: product.commissionType,
       commissionValue: product.commissionValue ? String(product.commissionValue) : "",
@@ -648,6 +653,7 @@ export function AdminDashboardPage() {
       adminNote: productForm.adminNote.trim() || undefined,
       status: "ACTIVE",
       isFeatured: false,
+      isSoldOut: productForm.isSoldOut,
       affiliateEnabled: productForm.affiliateEnabled,
       commissionType: productForm.commissionType,
       commissionValue: Number(productForm.commissionValue || 0),
@@ -1209,6 +1215,18 @@ export function AdminDashboardPage() {
             placeholder={translate(language, "adminNotePlaceholder")}
           />
 
+          <div className="md:col-span-2 xl:col-span-4 flex flex-wrap gap-4">
+            <label className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={productForm.isSoldOut}
+                onChange={(event) => setProductForm({ ...productForm, isSoldOut: event.target.checked })}
+                className="h-4 w-4 rounded border-rose-300 accent-rose-600"
+              />
+              {translate(language, "productSoldOut")} — {translate(language, "adminSoldOutHint") || "يُظهر المنتج كـ Sold Out ولا يمكن الشراء منه"}
+            </label>
+          </div>
+
           <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
             <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
               <input
@@ -1281,6 +1299,7 @@ export function AdminDashboardPage() {
               <th>{translate(language, "adminBrand")}</th>
               <th>{translate(language, "adminBasePrice")}</th>
               <th>{translate(language, "productStock")}</th>
+              <th>Status</th>
               <th>{translate(language, "settings")}</th>
             </tr>
           </thead>
@@ -1292,7 +1311,22 @@ export function AdminDashboardPage() {
                 <td>{formatCurrency(product.basePrice, language)}</td>
                 <td>{product.stock}</td>
                 <td>
+                  {product.isSoldOut ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                      <PackageX className="h-3.5 w-3.5" /> Sold Out
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>
+                  )}
+                </td>
+                <td>
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => void adminService.updateProduct(token, product._id, { isSoldOut: !product.isSoldOut }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+                      className={`text-xs font-semibold ${product.isSoldOut ? "text-emerald-600" : "text-rose-600"}`}
+                    >
+                      {product.isSoldOut ? "✓ Activate" : "✗ Sold Out"}
+                    </button>
                     <button onClick={() => startEditProduct(product)} className="text-sm font-semibold text-teal-700">
                       {translate(language, "adminEdit")}
                     </button>
@@ -1468,10 +1502,33 @@ export function AdminDashboardPage() {
     </div>
   );
 
+  const exportOrdersCSV = () => {
+    const headers = ["Order #", "Customer", "Phone", "Wilaya", "Status", "Total (DZD)", "Date", "Items"];
+    const rows = filteredOrders.map((order) => [
+      order.orderNumber,
+      order.customer.fullName,
+      order.customer.phone,
+      typeof order.customer.wilaya === "string" ? order.customer.wilaya : order.customer.wilaya.name.fr,
+      order.status,
+      String(order.total),
+      order.createdAt.slice(0, 10),
+      order.items.map((item) => `${item.productName.en ?? item.productName.ar} x${item.quantity}`).join("; "),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderOrders = () => (
     <div className="space-y-6">
       <Panel title={translate(language, "adminOrdersTitle")} description={translate(language, "adminOrdersDescription")}>
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+          <input value={orderFilters.orderNumber} onChange={(event) => setOrderFilters((current) => ({ ...current, orderNumber: event.target.value }))} className="field-input" placeholder="Order #" />
           <select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))} className="field-select">
             <option value="all">{translate(language, "filterAllStatuses")}</option>
             {["PENDING_AI_CONFIRMATION", "AWAITING_CALL_CONFIRMATION", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED", "FAILED"].map((status) => (
@@ -1500,6 +1557,12 @@ export function AdminDashboardPage() {
           </select>
           <input type="date" value={orderFilters.date} onChange={(event) => setOrderFilters((current) => ({ ...current, date: event.target.value }))} className="field-input" />
           <input value={orderFilters.phone} onChange={(event) => setOrderFilters((current) => ({ ...current, phone: event.target.value }))} className="field-input" placeholder={translate(language, "filterPhonePlaceholder")} />
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <div className="text-sm text-slate-500">{filteredOrders.length} {translate(language, "orders")}</div>
+          <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 text-sm">
+            <BarChart3 className="h-4 w-4" /> Export CSV
+          </button>
         </div>
       </Panel>
 

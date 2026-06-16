@@ -1,5 +1,6 @@
 {
   "home": "Accueil",
+  "search": "Rechercher",
   "products": "Produits",
   "categories": "Catégories",
   "cart": "Panier",
@@ -218,7 +219,8 @@
   "contactTitle": "Contacter VisaStore",
   "contactDescription": "Le support client, la clarification de livraison et l'aide commande sont disponibles par téléphone, WhatsApp et email.",
   "contactPhone": "Téléphone",
-  "contactWhatsapp": "WhatsApp",
+  "contactWhatsapp": "Demander sur WhatsApp",
+  "adminSoldOutHint": "Afficher le produit comme épuisé — les acheteurs ne peuvent pas acheter",
   "contactEmail": "Email",
   "contactHours": "Support quotidien",
   "contactHoursValue": "09:00 - 21:00",

@@ -13,7 +13,7 @@ export function ProductCard({ product, language }: { product: Product; language:
   const discountPercent = hasDiscount ? Math.round(((product.basePrice - price) / product.basePrice) * 100) : 0;
   const wishlisted = isWishlisted(product._id);
   const legacyHint = formatLegacyDinarHint(price, language);
-  const soldOut = product.stock <= 0;
+  const soldOut = product.stock <= 0 || !!product.isSoldOut;
   const lowStock = !soldOut && product.stock <= 5;
   const boughtToday = 3 + hashSeed(product._id) % 12;
 

@@ -1,6 +1,6 @@
-import { ArrowUpRight, Headphones, Package, ShieldCheck, Truck, WalletCards } from "lucide-react";
+import { ArrowUpRight, Clock, Headphones, Package, Search, ShieldCheck, Truck, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
@@ -11,22 +11,32 @@ import { adminService } from "@/services/admin.service";
 import { bannerService } from "@/services/banner.service";
 import { productService } from "@/services/product.service";
 import type { Banner, Brand, Category, Product } from "@/types";
-import { getLocalizedText } from "@/utils/format";
+import { formatCurrency, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
+import { getRecentlyViewed, type RecentlyViewedItem } from "@/utils/recentlyViewed";
 
 export function HomePage() {
   const { language } = useApp();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [soldOutProducts, setSoldOutProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
+
+  useEffect(() => {
+    setRecentlyViewed(getRecentlyViewed());
+  }, []);
 
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories(), bannerService.getBanners(), adminService.getBrands()])
       .then(([productData, categoryData, bannerData, brandData]) => {
-        setProducts(productData.filter((product) => product.isFeatured).slice(0, 6));
+        setProducts(productData.filter((product) => product.isFeatured && !product.isSoldOut).slice(0, 6));
+        setSoldOutProducts(productData.filter((product) => product.isSoldOut).slice(0, 6));
         setCategories(categoryData.filter((category) => category.isActive).slice(0, 4));
         setBanners(bannerData);
         setBrands(brandData.filter((brand) => brand.isActive && brand.logo));
@@ -47,6 +57,15 @@ export function HomePage() {
     { icon: Headphones, label: translate(language, "trustSupport"), color: "text-blue-600", bg: "bg-blue-50" },
   ];
 
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/products?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      navigate("/products");
+    }
+  };
+
   return (
     <div className="space-y-12">
       <Seo
@@ -61,6 +80,28 @@ export function HomePage() {
       />
 
       <PromoSlider banners={banners} language={language} />
+
+      {/* Search bar */}
+      <section>
+        <form onSubmit={handleSearch} className="mx-auto flex max-w-2xl items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={translate(language, "search") || "ابحث عن منتج..."}
+              className="w-full rounded-full border border-slate-200 bg-white py-3.5 pe-5 ps-12 text-sm shadow-sm outline-none ring-0 transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+          <button
+            type="submit"
+            className="shrink-0 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-md transition hover:from-teal-500 hover:to-emerald-500"
+          >
+            {translate(language, "search") || "بحث"}
+          </button>
+        </form>
+      </section>
 
       {/* Trust bar */}
       <section className="surface-card grid grid-cols-2 gap-0 overflow-hidden p-0 sm:grid-cols-4">
@@ -191,6 +232,74 @@ export function HomePage() {
                   loading="lazy"
                 />
               </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Recently Viewed */}
+      {recentlyViewed.length > 0 ? (
+        <section className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-slate-100">
+              <Clock className="h-5 w-5 text-slate-600" />
+            </div>
+            <div>
+              <p className="section-eyebrow">{language === "ar" ? "سجل المشاهدة" : language === "fr" ? "Récemment vus" : "Recently Viewed"}</p>
+              <h2 className="font-serif text-xl font-semibold text-slate-950">{language === "ar" ? "المنتجات التي شاهدتها" : language === "fr" ? "Produits vus récemment" : "Your Recent Views"}</h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+            {recentlyViewed.map((item) => (
+              <Link
+                key={item.id}
+                to={`/products/${item.slug}`}
+                className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="aspect-square overflow-hidden bg-slate-50 p-2">
+                  <img src={item.image} alt={language === "ar" ? item.nameAr : language === "fr" ? item.nameFr : item.nameEn} className="h-full w-full object-contain transition duration-300 group-hover:scale-105" loading="lazy" />
+                </div>
+                <div className="p-3">
+                  <div className="line-clamp-2 text-xs font-semibold leading-snug text-slate-800 sm:text-sm">
+                    {language === "ar" ? item.nameAr : language === "fr" ? item.nameFr : item.nameEn}
+                  </div>
+                  <div className="mt-1.5 text-sm font-bold text-teal-700">{formatCurrency(item.price, language)}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Sold Out / Previous Sales — social proof */}
+      {soldOutProducts.length > 0 ? (
+        <section className="space-y-5 rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6">
+          <div>
+            <p className="section-eyebrow text-rose-500">
+              {language === "ar" ? "مباع بالكامل" : language === "fr" ? "Épuisé" : "Sold Out"}
+            </p>
+            <h2 className="mt-1 font-serif text-xl font-semibold text-slate-950 sm:text-2xl">
+              {language === "ar" ? "منتجات تم بيعها — إثبات الثقة" : language === "fr" ? "Produits précédemment vendus" : "Previously Sold Products"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {language === "ar" ? "هذه المنتجات تم بيعها بالكامل، شكراً لثقتكم" : language === "fr" ? "Ces produits ont été complètement vendus, merci pour votre confiance" : "These products are completely sold out, thank you for your trust"}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+            {soldOutProducts.map((product) => (
+              <div key={product._id} className="relative overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+                <div className="aspect-square overflow-hidden bg-slate-50 p-2">
+                  <img src={product.images[0]} alt={getLocalizedText(product.name, language)} className="h-full w-full object-contain opacity-50 grayscale" loading="lazy" />
+                </div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-slate-950/25">
+                  <span className="rounded-full bg-slate-950/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-sm">
+                    {language === "ar" ? "نفذ" : "Sold Out"}
+                  </span>
+                </div>
+                <div className="p-2.5">
+                  <div className="line-clamp-2 text-xs font-medium leading-snug text-slate-500">{getLocalizedText(product.name, language)}</div>
+                </div>
+              </div>
             ))}
           </div>
         </section>

@@ -80,6 +80,7 @@ export interface Product {
   adminNote?: string;
   status: "ACTIVE" | "DRAFT" | "ARCHIVED";
   isFeatured: boolean;
+  isSoldOut?: boolean;
   affiliateEnabled: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: number;

@@ -22,6 +22,7 @@ const productSchema = z.object({
   adminNote: z.string().optional(),
   status: z.enum(["ACTIVE", "DRAFT", "ARCHIVED"]).default("ACTIVE"),
   isFeatured: z.boolean().default(false),
+  isSoldOut: z.boolean().default(false),
   affiliateEnabled: z.boolean().default(false),
   commissionType: z.enum(["PERCENTAGE", "FIXED"]).default("PERCENTAGE"),
   commissionValue: z.number().nonnegative().default(0),

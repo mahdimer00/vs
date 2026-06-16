@@ -1,5 +1,6 @@
 {
   "home": "الرئيسية",
+  "search": "بحث",
   "products": "المنتجات",
   "categories": "الفئات",
   "cart": "السلة",
@@ -218,7 +219,8 @@
   "contactTitle": "اتصل بـ VisaStore",
   "contactDescription": "خدمة الزبائن، توضيح التوصيل، ومساعدة الطلبات متوفرة عبر الهاتف وواتساب والبريد.",
   "contactPhone": "الهاتف",
-  "contactWhatsapp": "واتساب",
+  "contactWhatsapp": "استفسار عبر واتساب",
+  "adminSoldOutHint": "عرض المنتج كـ مباع — لا يمكن الشراء منه",
   "contactEmail": "البريد الإلكتروني",
   "contactHours": "الدعم اليومي",
   "contactHoursValue": "09:00 - 21:00",

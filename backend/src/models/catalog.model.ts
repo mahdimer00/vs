@@ -36,6 +36,7 @@ const productSchema = new Schema(
     adminNote: String,
     status: { type: String, enum: ["ACTIVE", "DRAFT", "ARCHIVED"], default: "ACTIVE" },
     isFeatured: { type: Boolean, default: false },
+    isSoldOut: { type: Boolean, default: false },
     affiliateEnabled: { type: Boolean, default: false },
     commissionType: { type: String, enum: ["PERCENTAGE", "FIXED"], default: "PERCENTAGE" },
     commissionValue: { type: Number, default: 0 },

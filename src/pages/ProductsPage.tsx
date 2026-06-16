@@ -20,7 +20,7 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [filters, setFilters] = useState<ProductFilterState>({
-    search: "",
+    search: searchParams.get("q") || "",
     category: searchParams.get("category") || "all",
     brand: searchParams.get("brand") || "all",
     maxPrice: 500000,
@@ -40,6 +40,7 @@ export function ProductsPage() {
 
   const filtered = useMemo(() => {
     return products.filter((product) => {
+      if (product.isSoldOut) return false;
       const productCategory = typeof product.category === "string" ? product.category : product.category.slug;
       const productBrand = typeof product.brand === "string" ? product.brand : product.brand.name;
       const localizedName = `${product.name.ar} ${product.name.fr} ${product.name.en} ${productBrand}`.toLowerCase();
@@ -53,6 +54,8 @@ export function ProductsPage() {
       );
     });
   }, [filters, products]);
+
+  const soldOutProducts = useMemo(() => products.filter((p) => p.isSoldOut), [products]);
 
   if (loading) {
     return <LoadingState label={translate(language, "loading")} />;
@@ -102,6 +105,36 @@ export function ProductsPage() {
           ))}
         </div>
       )}
+
+      {soldOutProducts.length > 0 ? (
+        <section className="space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-500">
+              {language === "ar" ? "مباع بالكامل" : language === "fr" ? "Épuisé" : "Sold Out"}
+            </p>
+            <h2 className="mt-1 font-serif text-lg font-semibold text-slate-900">
+              {language === "ar" ? "منتجات تم بيعها — دليل على ثقتكم" : language === "fr" ? "Produits précédemment vendus" : "Previously Sold — Proof of Trust"}
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+            {soldOutProducts.map((product) => (
+              <div key={product._id} className="relative overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+                <div className="aspect-square overflow-hidden bg-slate-50 p-2">
+                  <img src={product.images[0]} alt={getLocalizedText(product.name, language)} className="h-full w-full object-contain opacity-40 grayscale" loading="lazy" />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
+                  <span className="rounded-full bg-slate-950/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-sm">
+                    {language === "ar" ? "نفذ" : "Sold Out"}
+                  </span>
+                </div>
+                <div className="p-2.5">
+                  <div className="line-clamp-2 text-xs font-medium leading-snug text-slate-500">{getLocalizedText(product.name, language)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
