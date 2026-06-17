@@ -1785,6 +1785,12 @@ export function AdminDashboardPage() {
                   {order.deliveryType === "HOME_DELIVERY" ? translate(language, "homeDelivery") : translate(language, "deskPickup")}
                 </span>
               </div>
+              {order.customer.address ? (
+                <div className="mt-1.5 flex items-start gap-1.5 ps-1 text-xs text-slate-500">
+                  <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-slate-300" />
+                  <span>{order.customer.address}</span>
+                </div>
+              ) : null}
 
               {/* Row 3: Products as chips */}
               <div className="mt-2.5 flex flex-wrap gap-2">

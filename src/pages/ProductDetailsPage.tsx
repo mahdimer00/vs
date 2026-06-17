@@ -240,7 +240,7 @@ export function ProductDetailsPage() {
   const specifications = Object.entries(product.specifications ?? {});
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24 lg:pb-0">
       <Seo
         title={productName}
         description={productDescription}
@@ -565,6 +565,29 @@ export function ProductDetailsPage() {
             ))}
           </div>
         </section>
+      ) : null}
+
+      {/* Mobile sticky buy bar */}
+      {!adminSoldOut && selectedVariant.stock > 0 ? (
+        <div className="fixed bottom-0 start-0 end-0 z-30 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur-md lg:hidden">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-slate-950">{productName}</div>
+              <div className="text-base font-bold text-teal-600">{formatCurrency(price, language)}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                addToCart({ product, variant: selectedVariant, quantity });
+                navigate("/checkout");
+              }}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(16,185,129,0.35)] transition active:scale-95"
+            >
+              <Zap className="h-4 w-4 fill-current" />
+              {translate(language, "productBuyNow")}
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

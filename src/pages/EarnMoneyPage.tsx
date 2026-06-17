@@ -5,14 +5,53 @@ import { useApp } from "@/hooks/useApp";
 import { translate } from "@/utils/i18n";
 
 const levelTiers = [
-  { label: "Bronze", color: "from-amber-700 to-amber-500", bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-800" },
-  { label: "Silver", color: "from-slate-500 to-slate-400", bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700" },
-  { label: "Gold", color: "from-yellow-500 to-amber-400", bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800" },
-  { label: "Platinum", color: "from-teal-600 to-emerald-500", bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-800" },
+  {
+    label: "Bronze",
+    percent: "5%",
+    maxCap: "500",
+    color: "from-amber-700 to-amber-500",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-800",
+    badge: "bg-amber-100",
+  },
+  {
+    label: "Silver",
+    percent: "8%",
+    maxCap: "800",
+    color: "from-slate-500 to-slate-400",
+    bg: "bg-slate-50",
+    border: "border-slate-200",
+    text: "text-slate-700",
+    badge: "bg-slate-200",
+  },
+  {
+    label: "Gold",
+    percent: "11%",
+    maxCap: "1200",
+    color: "from-yellow-500 to-amber-400",
+    bg: "bg-yellow-50",
+    border: "border-yellow-200",
+    text: "text-yellow-800",
+    badge: "bg-yellow-100",
+  },
+  {
+    label: "Platinum",
+    percent: "14%",
+    maxCap: "1500",
+    color: "from-teal-600 to-emerald-500",
+    bg: "bg-teal-50",
+    border: "border-teal-200",
+    text: "text-teal-800",
+    badge: "bg-teal-100",
+  },
 ];
 
 export function EarnMoneyPage() {
   const { language } = useApp();
+
+  const isAr = language === "ar";
+  const isFr = language === "fr";
 
   const steps = [
     { icon: Share2, title: translate(language, "earnMoneyStep1Title"), description: translate(language, "earnMoneyStep1Description") },
@@ -31,6 +70,10 @@ export function EarnMoneyPage() {
     translate(language, "earnMoneyHighlight2Title"),
     translate(language, "earnMoneyHighlight3Title"),
   ];
+
+  const capLabel = isAr ? "أقصى ربح" : isFr ? "Gain max" : "Max earnings";
+  const commLabel = isAr ? "عمولة" : isFr ? "Commission" : "Commission";
+  const perOrderLabel = isAr ? "لكل طلب" : isFr ? "par commande" : "per order";
 
   return (
     <div className="space-y-8">
@@ -56,23 +99,23 @@ export function EarnMoneyPage() {
             {/* Quick stats */}
             <div className="mt-8 grid grid-cols-3 gap-4">
               {[
-                { value: "5–15%", label: translate(language, "earnMoneyHighlight2Title") },
-                { value: "48h", label: language === "ar" ? "دفع سريع" : language === "fr" ? "Paiement rapide" : "Fast payout" },
-                { value: "100%", label: language === "ar" ? "مجاني" : language === "fr" ? "Gratuit" : "Free" },
+                { value: "5–14%", label: commLabel },
+                { value: "1500", label: isAr ? "أقصى ربح (دج)" : isFr ? "Gain max (DA)" : "Max (DZD)" },
+                { value: "100%", label: isAr ? "مجاني" : isFr ? "Gratuit" : "Free" },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4 text-center backdrop-blur-sm">
-                  <div className="text-2xl font-bold text-amber-300">{stat.value}</div>
+                  <div className="text-xl font-bold text-amber-300">{stat.value}</div>
                   <div className="mt-1 text-xs text-slate-400">{stat.label}</div>
                 </div>
               ))}
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/affiliate/register" className="primary-button inline-flex items-center gap-2 bg-amber-400 text-slate-950 hover:bg-amber-300">
+              <Link to="/affiliate/register" className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow transition hover:bg-amber-300">
                 {translate(language, "earnMoneyCtaRegister")}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link to="/affiliate/login" className="ghost-button inline-flex items-center gap-2 border border-white/15 text-white hover:bg-white/10">
+              <Link to="/affiliate/login" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20">
                 {translate(language, "earnMoneyCtaLogin")}
               </Link>
             </div>
@@ -132,24 +175,33 @@ export function EarnMoneyPage() {
       {/* Commission tiers */}
       <section className="surface-card p-8 md:p-12">
         <div className="text-center">
-          <span className="section-eyebrow">{translate(language, "earnMoneyCommissionTitle")}</span>
+          <span className="section-eyebrow">{commLabel}</span>
           <h2 className="mt-3 font-serif text-3xl font-semibold text-slate-950">{translate(language, "earnMoneyCommissionTitle")}</h2>
-          <p className="mt-3 max-w-xl mx-auto text-sm leading-7 text-slate-600">{translate(language, "affiliateCommissionRule")}</p>
+          <p className="mt-3 mx-auto max-w-xl text-sm leading-7 text-slate-600">{translate(language, "affiliateCommissionRule")}</p>
         </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {levelTiers.map((tier, index) => (
             <div key={tier.label} className={`relative overflow-hidden rounded-[1.75rem] border p-6 ${tier.bg} ${tier.border}`}>
               <div className={`absolute -end-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${tier.color} opacity-15`} />
-              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${tier.bg} ${tier.text} border ${tier.border}`}>
+              {/* Tier name */}
+              <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${tier.badge} ${tier.text}`}>
                 <Star className="h-3 w-3" fill="currentColor" />
                 {tier.label}
               </div>
-              <div className={`mt-4 text-3xl font-bold ${tier.text}`}>{(index + 1) * 3 + 2}%</div>
-              <div className="mt-1 text-xs text-slate-500">{language === "ar" ? "عمولة على كل مبيعاتك" : language === "fr" ? "commission sur vos ventes" : "commission on sales"}</div>
+              {/* Commission % — medium size, not overwhelming */}
+              <div className={`mt-4 text-2xl font-bold ${tier.text}`}>{tier.percent}</div>
+              <div className="text-xs text-slate-500">{commLabel}</div>
+              {/* Max cap */}
+              <div className={`mt-3 flex items-center gap-1.5 rounded-[1rem] border ${tier.border} ${tier.bg} px-3 py-2`}>
+                <TrendingUp className={`h-3.5 w-3.5 shrink-0 ${tier.text}`} />
+                <div>
+                  <div className={`text-sm font-bold ${tier.text}`}>{tier.maxCap} DZD</div>
+                  <div className="text-[10px] text-slate-500">{capLabel} {perOrderLabel}</div>
+                </div>
+              </div>
               {index === levelTiers.length - 1 && (
-                <div className={`mt-3 inline-flex items-center gap-1 text-xs font-semibold ${tier.text}`}>
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  {language === "ar" ? "أعلى مستوى" : language === "fr" ? "Niveau maximum" : "Top tier"}
+                <div className={`mt-2 text-[11px] font-semibold ${tier.text}`}>
+                  ★ {isAr ? "أعلى مستوى" : isFr ? "Niveau maximum" : "Top tier"}
                 </div>
               )}
             </div>
@@ -190,7 +242,7 @@ export function EarnMoneyPage() {
               {translate(language, "earnMoneyCtaRegister")}
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link to="/affiliate/login" className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10">
+            <Link to="/affiliate/login" className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/20">
               {translate(language, "earnMoneyCtaLogin")}
             </Link>
           </div>
