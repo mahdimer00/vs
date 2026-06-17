@@ -41,3 +41,12 @@ export const registerRateLimitMiddleware = rateLimit({
   legacyHeaders: false,
   message: { message: "Too many registration attempts. Please try again later." },
 });
+
+// Track-order lookups are customer-facing, but keep them tight to slow scraping.
+export const orderTrackRateLimitMiddleware = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many tracking attempts. Please try again later." },
+});

@@ -1,4 +1,4 @@
-import { Hash, Phone, Search, Truck } from "lucide-react";
+import { ArrowLeft, Hash, Phone, Search, Truck } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
@@ -7,22 +7,25 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
 import type { Order } from "@/types";
-import { formatCurrency, getLocalizedText } from "@/utils/format";
+import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
 export function TrackOrderPage() {
   const { language } = useApp();
+  const [mode, setMode] = useState<"number" | "phone">("number");
   const [orderNumber, setOrderNumber] = useState("");
   const [phone, setPhone] = useState("");
   const [order, setOrder] = useState<Order | null>(null);
+  const [phoneResults, setPhoneResults] = useState<Order[] | null>(null);
   const [error, setError] = useState("");
 
   const reset = () => {
     setOrder(null);
+    setPhoneResults(null);
     setError("");
   };
 
-  const search = async () => {
+  const searchByNumber = async () => {
     if (!orderNumber.trim() || !phone.trim()) {
       return;
     }
@@ -36,11 +39,44 @@ export function TrackOrderPage() {
     }
   };
 
+  const searchByPhone = async () => {
+    if (!phone.trim()) {
+      return;
+    }
+
+    try {
+      reset();
+      const results = await orderService.trackOrdersByPhone(phone.trim());
+      setPhoneResults(results);
+      if (results.length === 0) {
+        setError(translate(language, "trackPhoneEmptyDescription"));
+      }
+    } catch (searchError) {
+      setPhoneResults(null);
+      setError(searchError instanceof Error ? searchError.message : "Unable to search orders");
+    }
+  };
+
+  const search = () => {
+    void (mode === "number" ? searchByNumber() : searchByPhone());
+  };
+
+  const switchMode = (next: "number" | "phone") => {
+    setMode(next);
+    reset();
+  };
+
   const orderDetail = (current: Order) => (
     <div className="space-y-6">
       <div className="surface-card p-6 md:p-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
+            {phoneResults ? (
+              <button onClick={() => setOrder(null)} className="ghost-button mb-3 gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                {translate(language, "trackByPhone")}
+              </button>
+            ) : null}
             <div className="text-sm text-slate-500">{translate(language, "trackOrder")}</div>
             <div className="text-2xl font-semibold text-slate-950">{current.orderNumber}</div>
           </div>
@@ -99,6 +135,27 @@ export function TrackOrderPage() {
     </div>
   );
 
+  const phoneList = (results: Order[]) => (
+    <div className="space-y-4">
+      {results.map((entry) => (
+        <button
+          key={entry._id}
+          onClick={() => setOrder(entry)}
+          className="surface-card flex w-full flex-col gap-3 p-5 text-start transition hover:border-teal-300 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <div className="text-lg font-semibold text-slate-950">{entry.orderNumber}</div>
+            <div className="mt-1 text-sm text-slate-500">{formatDate(entry.createdAt, language)}</div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-lg font-semibold text-slate-950">{formatCurrency(entry.total, language)}</div>
+            <StatusBadge label={entry.status} language={language} />
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Seo title={translate(language, "trackTitle")} description={translate(language, "trackDescription")} path="/track-order" />
@@ -107,36 +164,70 @@ export function TrackOrderPage() {
           <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "trackTitle")}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "trackDescription")}</p>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-[1.2fr_1fr_auto]">
-            <IconField icon={Hash}>
-              <input
-                value={orderNumber}
-                onChange={(event) => setOrderNumber(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void search();
-                  }
-                }}
-                className="field-input field-input-icon w-full uppercase"
-                placeholder={translate(language, "trackPlaceholder")}
-              />
-            </IconField>
-            <IconField icon={Phone}>
-              <input
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void search();
-                  }
-                }}
-                className="field-input field-input-icon w-full"
-                placeholder={translate(language, "trackPhonePlaceholder")}
-              />
-            </IconField>
-            <button onClick={() => void search()} className="primary-button gap-2">
+          <div className="mt-6 inline-flex rounded-full bg-slate-100 p-1">
+            <button
+              onClick={() => switchMode("number")}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${mode === "number" ? "bg-slate-950 text-white" : "text-slate-600"}`}
+            >
+              {translate(language, "trackByOrderNumber")}
+            </button>
+            <button
+              onClick={() => switchMode("phone")}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${mode === "phone" ? "bg-slate-950 text-white" : "text-slate-600"}`}
+            >
+              {translate(language, "trackByPhone")}
+            </button>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            {mode === "number" ? (
+              <>
+                <IconField icon={Hash} className="flex-1">
+                  <input
+                    value={orderNumber}
+                    onChange={(event) => setOrderNumber(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        search();
+                      }
+                    }}
+                    className="field-input field-input-icon w-full uppercase"
+                    placeholder={translate(language, "trackPlaceholder")}
+                  />
+                </IconField>
+                <IconField icon={Phone} className="flex-1">
+                  <input
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        search();
+                      }
+                    }}
+                    className="field-input field-input-icon w-full"
+                    placeholder={translate(language, "trackPhonePlaceholder")}
+                  />
+                </IconField>
+              </>
+            ) : (
+              <IconField icon={Phone} className="flex-1">
+                <input
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      search();
+                    }
+                  }}
+                  className="field-input field-input-icon w-full"
+                  placeholder={translate(language, "trackPhonePlaceholder")}
+                />
+              </IconField>
+            )}
+            <button onClick={search} className="primary-button gap-2">
               <Search className="h-4 w-4" />
               {translate(language, "trackSearch")}
             </button>
@@ -145,7 +236,13 @@ export function TrackOrderPage() {
         </div>
       </div>
 
-      {order ? orderDetail(order) : <EmptyState title={translate(language, "trackEmptyTitle")} description={translate(language, "trackEmptyDescription")} />}
+      {order ? (
+        orderDetail(order)
+      ) : phoneResults && phoneResults.length > 0 ? (
+        phoneList(phoneResults)
+      ) : (
+        <EmptyState title={translate(language, "trackEmptyTitle")} description={translate(language, "trackEmptyDescription")} />
+      )}
     </div>
   );
 }

@@ -42,4 +42,7 @@ export const orderService = {
       query: { phone },
     });
   },
+  trackOrdersByPhone(phone: string) {
+    return apiRequest<Order[]>(`/api/orders/track-by-phone/${phone}`);
+  },
 };

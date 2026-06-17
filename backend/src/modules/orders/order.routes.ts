@@ -3,7 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
-import { orderCreateRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
+import { orderCreateRateLimitMiddleware, orderTrackRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { OrderModel, PromoCodeUsageModel } from "../../models/orders.model.js";
 import { ProductVariantModel } from "../../models/catalog.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -322,6 +322,7 @@ ${itemsList}
 
 router.get(
   "/orders/track/:orderNumber",
+  orderTrackRateLimitMiddleware,
   asyncHandler(async (req, res) => {
     const input = z.object({
       phone: z.string().regex(/^(05|06|07)\d{8}$/),
@@ -335,6 +336,24 @@ router.get(
     }
 
     return res.json(serializeTrackedOrder(order));
+  }),
+);
+
+router.get(
+  "/orders/track-by-phone/:phone",
+  orderTrackRateLimitMiddleware,
+  asyncHandler(async (req, res) => {
+    const input = z.object({
+      phone: z.string().regex(/^(05|06|07)\d{8}$/),
+    }).parse(req.params);
+
+    const orders = await OrderModel.find({ "customer.phone": input.phone })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("customer.wilaya")
+      .lean();
+
+    return res.json(orders.map((order) => serializeTrackedOrder(order)));
   }),
 );
 
