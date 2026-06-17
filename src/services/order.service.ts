@@ -37,11 +37,6 @@ export const orderService = {
       body: JSON.stringify({ confirmationToken }),
     });
   },
-  trackOrder(orderNumber: string, phone: string) {
-    return apiRequest<Order>(`/api/orders/track/${orderNumber}`, {
-      query: { phone },
-    });
-  },
   trackOrdersByPhone(phone: string) {
     return apiRequest<Order[]>(`/api/orders/track-by-phone/${phone}`);
   },

@@ -38,15 +38,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const method = (options.method ?? "GET").toUpperCase();
+  const bodyText = typeof options.body === "string" ? options.body : undefined;
+  const hasJsonBody = bodyText !== undefined;
   const sigHeaders = await getSignatureHeaders({
     method,
     path: `${url.pathname}${url.search}`,
-    body: typeof options.body === "string" ? options.body : "",
+    body: bodyText ?? "",
   });
   const response = await fetch(url.toString(), {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
       ...sigHeaders,
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       ...(options.headers ?? {}),

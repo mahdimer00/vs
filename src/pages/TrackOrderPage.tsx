@@ -1,4 +1,4 @@
-import { ArrowLeft, Hash, Phone, Search, Truck } from "lucide-react";
+import { ArrowLeft, Phone, Search, Truck } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
@@ -12,8 +12,6 @@ import { translate } from "@/utils/i18n";
 
 export function TrackOrderPage() {
   const { language } = useApp();
-  const [mode, setMode] = useState<"number" | "phone">("number");
-  const [orderNumber, setOrderNumber] = useState("");
   const [phone, setPhone] = useState("");
   const [order, setOrder] = useState<Order | null>(null);
   const [phoneResults, setPhoneResults] = useState<Order[] | null>(null);
@@ -25,21 +23,7 @@ export function TrackOrderPage() {
     setError("");
   };
 
-  const searchByNumber = async () => {
-    if (!orderNumber.trim() || !phone.trim()) {
-      return;
-    }
-
-    try {
-      reset();
-      setOrder(await orderService.trackOrder(orderNumber.trim(), phone.trim()));
-    } catch (searchError) {
-      setOrder(null);
-      setError(searchError instanceof Error ? searchError.message : "Order not found");
-    }
-  };
-
-  const searchByPhone = async () => {
+  const search = async () => {
     if (!phone.trim()) {
       return;
     }
@@ -55,15 +39,6 @@ export function TrackOrderPage() {
       setPhoneResults(null);
       setError(searchError instanceof Error ? searchError.message : "Unable to search orders");
     }
-  };
-
-  const search = () => {
-    void (mode === "number" ? searchByNumber() : searchByPhone());
-  };
-
-  const switchMode = (next: "number" | "phone") => {
-    setMode(next);
-    reset();
   };
 
   const orderDetail = (current: Order) => (
@@ -164,70 +139,22 @@ export function TrackOrderPage() {
           <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "trackTitle")}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "trackDescription")}</p>
 
-          <div className="mt-6 inline-flex rounded-full bg-slate-100 p-1">
-            <button
-              onClick={() => switchMode("number")}
-              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${mode === "number" ? "bg-slate-950 text-white" : "text-slate-600"}`}
-            >
-              {translate(language, "trackByOrderNumber")}
-            </button>
-            <button
-              onClick={() => switchMode("phone")}
-              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${mode === "phone" ? "bg-slate-950 text-white" : "text-slate-600"}`}
-            >
-              {translate(language, "trackByPhone")}
-            </button>
-          </div>
-
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            {mode === "number" ? (
-              <>
-                <IconField icon={Hash} className="flex-1">
-                  <input
-                    value={orderNumber}
-                    onChange={(event) => setOrderNumber(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        search();
-                      }
-                    }}
-                    className="field-input field-input-icon w-full uppercase"
-                    placeholder={translate(language, "trackPlaceholder")}
-                  />
-                </IconField>
-                <IconField icon={Phone} className="flex-1">
-                  <input
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        search();
-                      }
-                    }}
-                    className="field-input field-input-icon w-full"
-                    placeholder={translate(language, "trackPhonePlaceholder")}
-                  />
-                </IconField>
-              </>
-            ) : (
-              <IconField icon={Phone} className="flex-1">
-                <input
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      search();
-                    }
-                  }}
-                  className="field-input field-input-icon w-full"
-                  placeholder={translate(language, "trackPhonePlaceholder")}
-                />
-              </IconField>
-            )}
-            <button onClick={search} className="primary-button gap-2">
+            <IconField icon={Phone} className="flex-1">
+              <input
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void search();
+                  }
+                }}
+                className="field-input field-input-icon w-full"
+                placeholder={translate(language, "trackPhonePlaceholder")}
+              />
+            </IconField>
+            <button onClick={() => void search()} className="primary-button gap-2">
               <Search className="h-4 w-4" />
               {translate(language, "trackSearch")}
             </button>

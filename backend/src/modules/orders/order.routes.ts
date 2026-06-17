@@ -321,25 +321,6 @@ ${itemsList}
 );
 
 router.get(
-  "/orders/track/:orderNumber",
-  orderTrackRateLimitMiddleware,
-  asyncHandler(async (req, res) => {
-    const input = z.object({
-      phone: z.string().regex(/^(05|06|07)\d{8}$/),
-    }).parse(req.query);
-    const order = await OrderModel.findOne({ orderNumber: req.params.orderNumber, "customer.phone": input.phone })
-      .populate("customer.wilaya")
-      .lean();
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    return res.json(serializeTrackedOrder(order));
-  }),
-);
-
-router.get(
   "/orders/track-by-phone/:phone",
   orderTrackRateLimitMiddleware,
   asyncHandler(async (req, res) => {
