@@ -5,6 +5,7 @@ import {
   BarChart3,
   Building2,
   Check,
+  ChevronDown,
   Crown,
   Facebook,
   Gift,
@@ -29,7 +30,7 @@ import {
   X,
   Youtube,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
@@ -299,6 +300,7 @@ export function AdminDashboardPage() {
     orderNumber: "",
   });
   const [orderActionId, setOrderActionId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [subAdminForm, setSubAdminForm] = useState<SubAdminFormState>(defaultSubAdminForm);
   const [subAdminDrafts, setSubAdminDrafts] = useState<Record<string, { permissions: AdminPermission[]; password: string }>>({});
 
@@ -1645,11 +1647,19 @@ export function AdminDashboardPage() {
     }
   };
 
-  const renderOrders = () => (
-    <div className="space-y-5">
-      <Panel title={translate(language, "adminOrdersTitle")} description={translate(language, "adminOrdersDescription")}>
+  const renderOrders = () => {
+    const colOrder = language === "ar" ? "الطلب" : language === "fr" ? "Commande" : "Order";
+    const colCustomer = language === "ar" ? "العميل" : language === "fr" ? "Client" : "Customer";
+    const colPhone = language === "ar" ? "الهاتف" : language === "fr" ? "Téléphone" : "Phone";
+    const colStatus = language === "ar" ? "الحالة" : language === "fr" ? "Statut" : "Status";
+    const colTotal = language === "ar" ? "المبلغ" : language === "fr" ? "Total" : "Total";
+    const colDate = language === "ar" ? "التاريخ" : language === "fr" ? "Date" : "Date";
+    const emptyText = language === "ar" ? "لا توجد طلبات" : language === "fr" ? "Aucune commande" : "No orders found";
+
+    return (
+      <div className="space-y-4">
         {/* Status summary tiles */}
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
           {orderSummaryCards.map((card) => {
             const Icon = card.icon;
             const active = orderFilters.status === card.key || (card.key === "all" && orderFilters.status === "all");
@@ -1657,203 +1667,241 @@ export function AdminDashboardPage() {
               <button
                 key={card.key}
                 type="button"
-                onClick={() => setOrderFilters((current) => ({ ...current, status: card.key === "all" ? "all" : card.key }))}
-                className={`rounded-[1.5rem] border px-4 py-3 text-start transition ${active ? "border-slate-950 shadow-lg shadow-slate-200/60" : "border-slate-200 hover:border-slate-300"} ${card.tone}`}
+                onClick={() => setOrderFilters((c) => ({ ...c, status: card.key === "all" ? "all" : card.key }))}
+                className={`rounded-2xl border px-3 py-2.5 text-start transition ${active ? "border-slate-950 shadow-md shadow-slate-200/50" : "border-slate-200 hover:border-slate-300"} ${card.tone}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Icon className="h-4 w-4 opacity-70" />
-                  <div className="text-xl font-bold">{card.count}</div>
+                  <Icon className="h-3.5 w-3.5 opacity-60" />
+                  <span className="text-lg font-bold">{card.count}</span>
                 </div>
-                <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.22em] opacity-75 leading-4">{card.label}</div>
+                <div className="mt-1 truncate text-[9px] font-bold uppercase tracking-widest opacity-70">{card.label}</div>
               </button>
             );
           })}
         </div>
 
-        {/* Filters */}
-        <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-          <input value={orderFilters.orderNumber} onChange={(event) => setOrderFilters((current) => ({ ...current, orderNumber: event.target.value }))} className="field-input text-sm py-2.5" placeholder="Order #" />
-          <select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))} className="field-select text-sm py-2.5">
-            <option value="all">{translate(language, "filterAllStatuses")}</option>
-            {orderStatusOptions.map((status) => (
-              <option key={status} value={status}>
-                {translate(language, `status_${status}` as TranslationKey)}
-              </option>
-            ))}
-          </select>
-          <select value={orderFilters.wilaya} onChange={(event) => setOrderFilters((current) => ({ ...current, wilaya: event.target.value }))} className="field-select text-sm py-2.5">
-            <option value="all">{translate(language, "filterAllWilayas")}</option>
-            {[...new Set(
-              orders.map((order) =>
-                typeof order.customer.wilaya === "string"
-                  ? order.customer.wilaya
-                  : language === "ar"
-                    ? order.customer.wilaya.name.ar
-                    : language === "fr"
-                      ? order.customer.wilaya.name.fr
-                      : order.customer.wilaya.name.en,
-              ),
-            )].map((entry) => (
-              <option key={entry} value={entry}>
-                {entry}
-              </option>
-            ))}
-          </select>
-          <input type="date" value={orderFilters.date} onChange={(event) => setOrderFilters((current) => ({ ...current, date: event.target.value }))} className="field-input text-sm py-2.5" />
-          <input value={orderFilters.phone} onChange={(event) => setOrderFilters((current) => ({ ...current, phone: event.target.value }))} className="field-input text-sm py-2.5" placeholder={translate(language, "filterPhonePlaceholder")} />
+        {/* Filter bar */}
+        <div className="admin-panel py-4 px-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              value={orderFilters.orderNumber}
+              onChange={(e) => setOrderFilters((c) => ({ ...c, orderNumber: e.target.value }))}
+              className="field-input min-w-[110px] flex-1 py-2 text-sm"
+              placeholder="Order #"
+            />
+            <select
+              value={orderFilters.status}
+              onChange={(e) => setOrderFilters((c) => ({ ...c, status: e.target.value }))}
+              className="field-select min-w-[140px] flex-1 py-2 text-sm"
+            >
+              <option value="all">{translate(language, "filterAllStatuses")}</option>
+              {orderStatusOptions.map((s) => (
+                <option key={s} value={s}>{translate(language, `status_${s}` as TranslationKey)}</option>
+              ))}
+            </select>
+            <select
+              value={orderFilters.wilaya}
+              onChange={(e) => setOrderFilters((c) => ({ ...c, wilaya: e.target.value }))}
+              className="field-select min-w-[130px] flex-1 py-2 text-sm"
+            >
+              <option value="all">{translate(language, "filterAllWilayas")}</option>
+              {[...new Set(orders.map((o) =>
+                typeof o.customer.wilaya === "string"
+                  ? o.customer.wilaya
+                  : language === "ar" ? o.customer.wilaya.name.ar : language === "fr" ? o.customer.wilaya.name.fr : o.customer.wilaya.name.en,
+              ))].map((w) => <option key={w} value={w}>{w}</option>)}
+            </select>
+            <input
+              type="date"
+              value={orderFilters.date}
+              onChange={(e) => setOrderFilters((c) => ({ ...c, date: e.target.value }))}
+              className="field-input min-w-[130px] flex-1 py-2 text-sm"
+            />
+            <input
+              value={orderFilters.phone}
+              onChange={(e) => setOrderFilters((c) => ({ ...c, phone: e.target.value }))}
+              className="field-input min-w-[130px] flex-1 py-2 text-sm"
+              placeholder={translate(language, "filterPhonePlaceholder")}
+            />
+            <div className="ms-auto flex shrink-0 items-center gap-2">
+              <span className="text-sm text-slate-400">{filteredOrders.length} {translate(language, "orders")}</span>
+              <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 px-3 py-2 text-sm">
+                <BarChart3 className="h-4 w-4" /> CSV
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-slate-500">{filteredOrders.length} {translate(language, "orders")}</div>
-          <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 text-sm py-2 px-4">
-            <BarChart3 className="h-4 w-4" /> Export CSV
-          </button>
-        </div>
-      </Panel>
 
-      {/* Compact order cards */}
-      <div className="space-y-3">
-        {filteredOrders.map((order) => {
-          const busy = orderActionId === order._id;
-          const phoneFlow = order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION";
-          const quickActions =
-            order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION"
-              ? [
-                  { status: "CONFIRMED" as const, icon: Check },
-                  { status: "PROCESSING" as const, icon: Store },
-                  { status: "CANCELLED" as const, icon: X },
-                ]
-              : order.status === "CONFIRMED"
-                ? [
-                    { status: "PROCESSING" as const, icon: Store },
-                    { status: "CANCELLED" as const, icon: X },
-                  ]
-                : order.status === "PROCESSING"
-                  ? [
-                      { status: "SHIPPED" as const, icon: Truck },
-                      { status: "CANCELLED" as const, icon: X },
-                    ]
-                  : order.status === "SHIPPED"
-                    ? [
-                        { status: "DELIVERED" as const, icon: Shield },
-                        { status: "RETURNED" as const, icon: AlertTriangle },
-                      ]
-                    : [];
+        {/* Orders table */}
+        <div className="table-wrap">
+          {filteredOrders.length === 0 ? (
+            <div className="py-16 text-center text-sm text-slate-400">{emptyText}</div>
+          ) : (
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th className="w-6 ps-5" />
+                  <th>{colOrder}</th>
+                  <th>{colCustomer}</th>
+                  <th>{colPhone}</th>
+                  <th>{colStatus}</th>
+                  <th>{colTotal}</th>
+                  <th>{colDate}</th>
+                  <th className="w-8 pe-5" />
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const busy = orderActionId === order._id;
+                  const urgent = order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION";
+                  const isExpanded = expandedOrderId === order._id;
+                  const wilayaLabel =
+                    typeof order.customer.wilaya === "string"
+                      ? order.customer.wilaya
+                      : language === "ar"
+                        ? order.customer.wilaya.name.ar
+                        : language === "fr"
+                          ? order.customer.wilaya.name.fr
+                          : order.customer.wilaya.name.en;
 
-          const wilayaLabel =
-            typeof order.customer.wilaya === "string"
-              ? order.customer.wilaya
-              : language === "ar"
-                ? order.customer.wilaya.name.ar
-                : language === "fr"
-                  ? order.customer.wilaya.name.fr
-                  : order.customer.wilaya.name.en;
+                  const quickActions =
+                    order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION"
+                      ? [{ status: "CONFIRMED" as const, icon: Check }, { status: "PROCESSING" as const, icon: Store }, { status: "CANCELLED" as const, icon: X }]
+                      : order.status === "CONFIRMED"
+                        ? [{ status: "PROCESSING" as const, icon: Store }, { status: "CANCELLED" as const, icon: X }]
+                        : order.status === "PROCESSING"
+                          ? [{ status: "SHIPPED" as const, icon: Truck }, { status: "CANCELLED" as const, icon: X }]
+                          : order.status === "SHIPPED"
+                            ? [{ status: "DELIVERED" as const, icon: Shield }, { status: "RETURNED" as const, icon: AlertTriangle }]
+                            : [];
 
-          return (
-            <div key={order._id} className={`admin-order-card ${phoneFlow ? "admin-order-card-highlight" : ""}`}>
-              {/* Row 1: Order# + status + total + date */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="admin-section-label">{order.orderNumber}</span>
-                  {phoneFlow && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-bold text-amber-700">
-                      ⚡ {translate(language, "status_AWAITING_CALL_CONFIRMATION")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <StatusBadge label={order.status} language={language} />
-                  <span className="text-base font-bold text-slate-950">{formatCurrency(order.total, language)}</span>
-                  <span className="text-xs text-slate-400">{formatDate(order.createdAt, language)}</span>
-                </div>
-              </div>
-
-              {/* Row 2: Customer + phone + location + delivery */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="text-lg font-semibold text-slate-950">{order.customer.fullName}</span>
-                <a
-                  href={`tel:${order.customer.phone}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  {order.customer.phone}
-                </a>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600">
-                  <MapPin className="h-3 w-3 text-slate-400" />
-                  {wilayaLabel}{order.customer.commune ? ` · ${order.customer.commune}` : ""}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
-                  {order.deliveryType === "HOME_DELIVERY" ? translate(language, "homeDelivery") : translate(language, "deskPickup")}
-                </span>
-              </div>
-              {order.customer.address ? (
-                <div className="mt-1.5 flex items-start gap-1.5 ps-1 text-xs text-slate-500">
-                  <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-slate-300" />
-                  <span>{order.customer.address}</span>
-                </div>
-              ) : null}
-
-              {/* Row 3: Products as chips */}
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                {order.items.map((item) => (
-                  <span
-                    key={`${order._id}-${item.productId}-${item.variantId ?? item.variantLabel}`}
-                    className="inline-flex items-center gap-1.5 rounded-[1rem] border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs font-medium text-slate-700"
-                  >
-                    {getLocalizedText(item.productName, language)}
-                    {item.variantLabel ? <span className="text-slate-400">· {item.variantLabel}</span> : null}
-                    <span className="ms-0.5 font-bold text-slate-950">×{item.quantity}</span>
-                  </span>
-                ))}
-              </div>
-
-              {/* Row 4: Actions */}
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-                <select
-                  value={order.status}
-                  onChange={(event) => void updateOrderStatusAction(order._id, event.target.value as Order["status"])}
-                  disabled={busy}
-                  className="field-select max-w-[200px] py-2 text-sm"
-                >
-                  {orderStatusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {translate(language, `status_${status}` as TranslationKey)}
-                    </option>
-                  ))}
-                </select>
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
                   return (
-                    <button
-                      key={action.status}
-                      type="button"
-                      onClick={() => void updateOrderStatusAction(order._id, action.status)}
-                      disabled={busy}
-                      className="ghost-button gap-2 px-4 py-2 text-sm"
-                    >
-                      <Icon className="h-4 w-4" />
-                      {translate(language, `status_${action.status}` as TranslationKey)}
-                    </button>
+                    <Fragment key={order._id}>
+                      <tr
+                        onClick={() => setExpandedOrderId(isExpanded ? null : order._id)}
+                        className={`cursor-pointer transition-colors ${urgent ? "bg-amber-50/50 hover:bg-amber-50" : isExpanded ? "bg-slate-50" : "hover:bg-slate-50/70"}`}
+                      >
+                        <td className="ps-5 py-3.5">
+                          <span
+                            className={`block h-2.5 w-2.5 rounded-full ${
+                              urgent
+                                ? "bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.25)]"
+                                : order.status === "DELIVERED" || order.status === "PICKED_UP"
+                                  ? "bg-emerald-400"
+                                  : order.status === "CANCELLED" || order.status === "RETURNED" || order.status === "FAILED"
+                                    ? "bg-rose-400"
+                                    : "bg-slate-300"
+                            }`}
+                          />
+                        </td>
+                        <td className="py-3.5 font-mono text-xs font-semibold text-slate-600">{order.orderNumber}</td>
+                        <td className="py-3.5">
+                          <div className="text-sm font-semibold leading-tight text-slate-950">{order.customer.fullName}</div>
+                          <div className="mt-0.5 text-xs text-slate-400">{wilayaLabel}{order.customer.commune ? ` · ${order.customer.commune}` : ""}</div>
+                        </td>
+                        <td className="py-3.5">
+                          <a
+                            href={`tel:${order.customer.phone}`}
+                            className="text-sm font-medium text-teal-600 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {order.customer.phone}
+                          </a>
+                        </td>
+                        <td className="py-3.5">
+                          <StatusBadge label={order.status} language={language} />
+                        </td>
+                        <td className="whitespace-nowrap py-3.5 text-sm font-bold text-slate-950">{formatCurrency(order.total, language)}</td>
+                        <td className="whitespace-nowrap py-3.5 text-xs text-slate-400">{formatDate(order.createdAt, language)}</td>
+                        <td className="pe-5 py-3.5 text-end">
+                          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                        </td>
+                      </tr>
+
+                      {isExpanded && (
+                        <tr className={urgent ? "bg-amber-50/30" : "bg-slate-50/60"}>
+                          <td />
+                          <td colSpan={7} className="pb-5 pe-5 pt-1">
+                            {/* Products */}
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              {order.items.map((item) => (
+                                <span
+                                  key={`${order._id}-${item.productId}-${item.variantId ?? item.variantLabel}`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm"
+                                >
+                                  {getLocalizedText(item.productName, language)}
+                                  {item.variantLabel ? <span className="text-slate-400">· {item.variantLabel}</span> : null}
+                                  <span className="ms-0.5 font-bold text-slate-950">×{item.quantity}</span>
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Address + delivery type */}
+                            {order.customer.address ? (
+                              <div className="mb-3 flex items-center gap-1.5 text-xs text-slate-500">
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <span>{order.customer.address}</span>
+                                <span className="ms-1.5 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                                  {order.deliveryType === "HOME_DELIVERY" ? translate(language, "homeDelivery") : translate(language, "deskPickup")}
+                                </span>
+                              </div>
+                            ) : null}
+
+                            {/* Actions */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <select
+                                value={order.status}
+                                onChange={(e) => void updateOrderStatusAction(order._id, e.target.value as Order["status"])}
+                                disabled={busy}
+                                className="field-select max-w-[200px] py-2 text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {orderStatusOptions.map((s) => (
+                                  <option key={s} value={s}>{translate(language, `status_${s}` as TranslationKey)}</option>
+                                ))}
+                              </select>
+                              {quickActions.map((action) => {
+                                const Icon = action.icon;
+                                return (
+                                  <button
+                                    key={action.status}
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); void updateOrderStatusAction(order._id, action.status); }}
+                                    disabled={busy}
+                                    className="ghost-button gap-1.5 px-4 py-2 text-sm"
+                                  >
+                                    <Icon className="h-4 w-4" />
+                                    {translate(language, `status_${action.status}` as TranslationKey)}
+                                  </button>
+                                );
+                              })}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
+                                    void deleteOrderAction(order._id);
+                                  }
+                                }}
+                                disabled={busy}
+                                className="ms-auto rounded-full px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+                              >
+                                {translate(language, "adminDelete")}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
-                      void deleteOrderAction(order._id);
-                    }
-                  }}
-                  disabled={busy}
-                  className="ms-auto rounded-full px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
-                >
-                  {translate(language, "adminDelete")}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderShipping = () => (
     <div className="grid gap-4 xl:grid-cols-2">

@@ -7,8 +7,8 @@ import { translate } from "@/utils/i18n";
 const levelTiers = [
   {
     label: "Bronze",
-    percent: "5%",
-    maxCap: "500",
+    percent: "3%",
+    maxCap: "200",
     color: "from-amber-700 to-amber-500",
     bg: "bg-amber-50",
     border: "border-amber-200",
@@ -17,8 +17,8 @@ const levelTiers = [
   },
   {
     label: "Silver",
-    percent: "8%",
-    maxCap: "800",
+    percent: "5%",
+    maxCap: "350",
     color: "from-slate-500 to-slate-400",
     bg: "bg-slate-50",
     border: "border-slate-200",
@@ -27,8 +27,8 @@ const levelTiers = [
   },
   {
     label: "Gold",
-    percent: "11%",
-    maxCap: "1200",
+    percent: "7%",
+    maxCap: "500",
     color: "from-yellow-500 to-amber-400",
     bg: "bg-yellow-50",
     border: "border-yellow-200",
@@ -37,8 +37,8 @@ const levelTiers = [
   },
   {
     label: "Platinum",
-    percent: "14%",
-    maxCap: "1500",
+    percent: "10%",
+    maxCap: "700",
     color: "from-teal-600 to-emerald-500",
     bg: "bg-teal-50",
     border: "border-teal-200",
@@ -99,8 +99,8 @@ export function EarnMoneyPage() {
             {/* Quick stats */}
             <div className="mt-8 grid grid-cols-3 gap-4">
               {[
-                { value: "5–14%", label: commLabel },
-                { value: "1500", label: isAr ? "أقصى ربح (دج)" : isFr ? "Gain max (DA)" : "Max (DZD)" },
+                { value: "3–10%", label: commLabel },
+                { value: "700", label: isAr ? "أقصى ربح (دج)" : isFr ? "Gain max (DA)" : "Max (DZD)" },
                 { value: "100%", label: isAr ? "مجاني" : isFr ? "Gratuit" : "Free" },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4 text-center backdrop-blur-sm">
@@ -209,6 +209,67 @@ export function EarnMoneyPage() {
         </div>
         <div className="mt-6 rounded-[1.5rem] border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
           <BadgePercent className="mb-1 inline-block h-4 w-4" /> {translate(language, "affiliateCancelledRule")}
+        </div>
+      </section>
+
+      {/* Payout methods */}
+      <section className="surface-card p-8 md:p-12">
+        <div className="text-center">
+          <span className="section-eyebrow">{isAr ? "طرق السحب" : isFr ? "Méthodes de retrait" : "Payout methods"}</span>
+          <h2 className="mt-3 font-serif text-3xl font-semibold text-slate-950">
+            {isAr ? "استلم أرباحك بسهولة" : isFr ? "Recevez vos gains facilement" : "Receive your earnings easily"}
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-600">
+            {isAr ? "اسحب رصيدك عبر الطرق المعتمدة في الجزائر بشكل سريع وآمن." : isFr ? "Retirez votre solde via les méthodes approuvées en Algérie." : "Withdraw your balance via approved Algerian payment methods."}
+          </p>
+        </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {/* BaridiMob */}
+          <div className="flex items-start gap-5 rounded-[1.75rem] border border-[#007C4E]/20 bg-[#007C4E]/5 p-6">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#007C4E] shadow-lg shadow-[#007C4E]/25">
+              <svg viewBox="0 0 40 40" className="h-8 w-8 fill-white" aria-label="BaridiMob">
+                <rect x="6" y="8" width="28" height="20" rx="3" fill="none" stroke="white" strokeWidth="2.5" />
+                <rect x="6" y="14" width="28" height="5" fill="white" opacity="0.9" />
+                <circle cx="11" cy="23" r="1.8" />
+                <circle cx="17" cy="23" r="1.8" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-semibold text-[#007C4E] text-lg">BaridiMob</div>
+              <div className="mt-1 text-sm leading-6 text-slate-600">
+                {isAr ? "تحويل مباشر إلى حساب بريدي موب الخاص بك" : isFr ? "Virement direct vers votre compte BaridiMob" : "Direct transfer to your BaridiMob account"}
+              </div>
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#007C4E]/10 px-3 py-1 text-xs font-semibold text-[#007C4E]">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {isAr ? "متاح حالياً" : isFr ? "Disponible" : "Available"}
+              </div>
+            </div>
+          </div>
+
+          {/* Cardless */}
+          <div className="flex items-start gap-5 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-6">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-800 shadow-lg shadow-slate-800/20">
+              <svg viewBox="0 0 40 40" className="h-8 w-8" aria-label="Cardless">
+                <rect x="5" y="11" width="30" height="19" rx="3.5" fill="none" stroke="white" strokeWidth="2.5" />
+                <line x1="5" y1="17" x2="35" y2="17" stroke="white" strokeWidth="2.5" />
+                <rect x="9" y="22" width="8" height="3" rx="1" fill="white" opacity="0.8" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-950 text-lg">Cardless</div>
+              <div className="mt-1 text-sm leading-6 text-slate-600">
+                {isAr ? "سحب نقدي بدون بطاقة من أقرب موزع أوتوماتيكي" : isFr ? "Retrait sans carte au distributeur le plus proche" : "Cardless cash withdrawal at the nearest ATM"}
+              </div>
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {isAr ? "متاح حالياً" : isFr ? "Disponible" : "Available"}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-[1.5rem] border border-teal-100 bg-teal-50 p-4 text-sm text-teal-800">
+          <Wallet className="mb-1 inline-block h-4 w-4" />{" "}
+          {isAr ? "الحد الأدنى للسحب: 500 دج. تتم المعالجة خلال 3–5 أيام عمل." : isFr ? "Retrait minimum : 500 DA. Traitement sous 3–5 jours ouvrables." : "Minimum withdrawal: 500 DZD. Processing within 3–5 business days."}
         </div>
       </section>
 

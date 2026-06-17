@@ -7,7 +7,7 @@ const affiliateSchema = new Schema(
     passwordHash: { type: String, required: true },
     phone: { type: String, required: true },
     referralCode: { type: String, required: true, unique: true, uppercase: true },
-    commissionRate: { type: Number, min: 1, max: 3, default: 1 },
+    commissionRate: { type: Number, min: 1, max: 10, default: 3 },
     status: { type: String, enum: ["PENDING", "ACTIVE", "BLOCKED"], default: "PENDING" },
     level: { type: String, enum: ["BRONZE", "SILVER", "GOLD", "PLATINUM"], default: "BRONZE" },
     referredBy: { type: Schema.Types.ObjectId, ref: "Affiliate" },

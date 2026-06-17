@@ -3,7 +3,17 @@ import { ProductModel, WebsiteSettingModel } from "../models/catalog.model.js";
 import { OrderModel } from "../models/orders.model.js";
 import { sendTelegramMessage } from "./telegram.js";
 
-async function calculateOrderCommissionAmount(order: { items: { productId: string; quantity: number; lineTotal: number }[] }) {
+const LEVEL_CAPS: Record<string, number> = {
+  BRONZE: 200,
+  SILVER: 350,
+  GOLD: 500,
+  PLATINUM: 700,
+};
+
+async function calculateOrderCommissionAmount(
+  order: { items: { productId: string; quantity: number; lineTotal: number }[] },
+  level?: string,
+) {
   const products = await ProductModel.find({ _id: { $in: order.items.map((item) => item.productId) } });
   const productsById = new Map(products.map((product) => [String(product._id), product]));
 
@@ -20,7 +30,8 @@ async function calculateOrderCommissionAmount(order: { items: { productId: strin
         : Math.round((item.lineTotal * product.commissionValue) / 100);
   }
 
-  return amount;
+  const cap = level ? (LEVEL_CAPS[level] ?? 700) : 700;
+  return Math.min(amount, cap);
 }
 
 async function maybeAwardReferralBonus(affiliate: InstanceType<typeof AffiliateModel>) {
@@ -87,7 +98,7 @@ export async function syncCommissionForOrder(orderId: string, createdBy = "syste
   const rejected = ["CANCELLED", "RETURNED", "FAILED"].includes(order.status);
 
   if (eligible) {
-    const amount = await calculateOrderCommissionAmount(order);
+    const amount = await calculateOrderCommissionAmount(order, affiliate.level);
     if (!commission) {
       commission = await CommissionModel.create({
         affiliate: affiliate._id,
