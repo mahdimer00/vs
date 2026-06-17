@@ -507,5 +507,7 @@
   "adminDeactivate": "تعطيل",
   "adminActivate": "تفعيل",
   "adminNewPasswordOptional": "كلمة مرور جديدة (اتركها فارغة للاحتفاظ بالحالية)",
-  "adminConfirmDeleteSubAdmin": "حذف حساب المشرف الفرعي هذا؟ لا يمكن التراجع عن هذا الإجراء."
+  "adminConfirmDeleteSubAdmin": "حذف حساب المشرف الفرعي هذا؟ لا يمكن التراجع عن هذا الإجراء.",
+  "decreaseQuantity": "تقليل الكمية",
+  "increaseQuantity": "زيادة الكمية"
 }

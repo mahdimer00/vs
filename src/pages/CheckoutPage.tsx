@@ -261,7 +261,7 @@ export function CheckoutPage() {
         >
           <span className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5" />
-            {translate(language, "checkoutSubmit")}
+            {language === "ar" ? "أكمل بياناتك" : language === "fr" ? "Remplir le formulaire" : "Fill in your details"}
           </span>
           <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">{formatCurrency(total, language)}</span>
         </button>
@@ -272,7 +272,7 @@ export function CheckoutPage() {
         <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "checkoutDescription")}</p>
         <div className="mt-4 flex max-w-3xl items-start gap-3 rounded-[1.5rem] border border-teal-100 bg-teal-50/80 p-4 text-sm text-teal-900">
           <Phone className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>{translate(language, "orderSuccessDescription")}</div>
+          <div>{translate(language, "checkoutHintPhone")}</div>
         </div>
       </div>
 

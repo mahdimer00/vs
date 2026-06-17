@@ -507,5 +507,7 @@
   "adminDeactivate": "Désactiver",
   "adminActivate": "Activer",
   "adminNewPasswordOptional": "Nouveau mot de passe (laisser vide pour conserver l'actuel)",
-  "adminConfirmDeleteSubAdmin": "Supprimer ce compte sous-administrateur ? Cette action est irréversible."
+  "adminConfirmDeleteSubAdmin": "Supprimer ce compte sous-administrateur ? Cette action est irréversible.",
+  "decreaseQuantity": "Diminuer la quantité",
+  "increaseQuantity": "Augmenter la quantité"
 }

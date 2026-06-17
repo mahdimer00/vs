@@ -152,11 +152,20 @@ export function ProductDetailsPage() {
     return <LoadingState label={translate(language, "loading")} />;
   }
 
+  if (errorMessage && !product) {
+    return (
+      <EmptyState
+        title={translate(language, "homeLoadErrorTitle")}
+        description={errorMessage}
+      />
+    );
+  }
+
   if (!product || !selectedVariant) {
     return (
       <EmptyState
         title={translate(language, "productOutOfStock")}
-        description={errorMessage || translate(language, "dashboardNoData")}
+        description={translate(language, "dashboardNoData")}
       />
     );
   }

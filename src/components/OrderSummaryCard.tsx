@@ -42,15 +42,17 @@ export function OrderSummaryCard({
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     type="button"
+                    aria-label={translate(language, "decreaseQuantity")}
                     onClick={() => onUpdateQuantity(index, item.quantity - 1)}
                     disabled={item.quantity <= 1}
                     className="grid h-7 w-7 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:border-teal-600 hover:text-teal-600 disabled:opacity-40"
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="min-w-[1.5rem] text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
+                  <span aria-live="polite" className="min-w-[1.5rem] text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
                   <button
                     type="button"
+                    aria-label={translate(language, "increaseQuantity")}
                     onClick={() => onUpdateQuantity(index, item.quantity + 1)}
                     disabled={item.quantity >= item.variant.stock}
                     className="grid h-7 w-7 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:border-teal-600 hover:text-teal-600 disabled:opacity-40"

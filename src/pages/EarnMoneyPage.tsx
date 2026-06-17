@@ -226,13 +226,8 @@ export function EarnMoneyPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {/* BaridiMob */}
           <div className="flex items-start gap-5 rounded-[1.75rem] border border-[#007C4E]/20 bg-[#007C4E]/5 p-6">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#007C4E] shadow-lg shadow-[#007C4E]/25">
-              <svg viewBox="0 0 40 40" className="h-8 w-8 fill-white" aria-label="BaridiMob">
-                <rect x="6" y="8" width="28" height="20" rx="3" fill="none" stroke="white" strokeWidth="2.5" />
-                <rect x="6" y="14" width="28" height="5" fill="white" opacity="0.9" />
-                <circle cx="11" cy="23" r="1.8" />
-                <circle cx="17" cy="23" r="1.8" />
-              </svg>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-[#007C4E]/20 ring-1 ring-[#007C4E]/15">
+              <img src="/baridimob-logo.png" alt="BaridiMob" className="h-12 w-12 object-contain" />
             </div>
             <div>
               <div className="font-semibold text-[#007C4E] text-lg">BaridiMob</div>

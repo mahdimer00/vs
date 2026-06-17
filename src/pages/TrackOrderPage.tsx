@@ -16,6 +16,7 @@ export function TrackOrderPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [phoneResults, setPhoneResults] = useState<Order[] | null>(null);
   const [error, setError] = useState("");
+  const [searching, setSearching] = useState(false);
 
   const reset = () => {
     setOrder(null);
@@ -24,10 +25,11 @@ export function TrackOrderPage() {
   };
 
   const search = async () => {
-    if (!phone.trim()) {
+    if (!phone.trim() || searching) {
       return;
     }
 
+    setSearching(true);
     try {
       reset();
       const results = await orderService.trackOrdersByPhone(phone.trim());
@@ -38,6 +40,8 @@ export function TrackOrderPage() {
     } catch (searchError) {
       setPhoneResults(null);
       setError(searchError instanceof Error ? searchError.message : "Unable to search orders");
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -83,7 +87,7 @@ export function TrackOrderPage() {
             <div className="text-sm text-slate-500">{translate(language, "deliveryType")}</div>
             <div className="mt-2 inline-flex items-center gap-2 font-semibold text-slate-950">
               <Truck className="h-4 w-4 text-teal-700" />
-              {current.deliveryType}
+              {current.deliveryType === "HOME_DELIVERY" ? translate(language, "homeDelivery") : translate(language, "deskPickup")}
             </div>
           </div>
         </div>
@@ -154,9 +158,9 @@ export function TrackOrderPage() {
                 placeholder={translate(language, "trackPhonePlaceholder")}
               />
             </IconField>
-            <button onClick={() => void search()} className="primary-button gap-2">
-              <Search className="h-4 w-4" />
-              {translate(language, "trackSearch")}
+            <button onClick={() => void search()} disabled={searching} className="primary-button gap-2 disabled:opacity-60">
+              <Search className={`h-4 w-4 ${searching ? "animate-spin" : ""}`} />
+              {searching ? (translate(language, "loading")) : translate(language, "trackSearch")}
             </button>
           </div>
           {error ? <div className="mt-3 text-sm text-rose-600">{error}</div> : null}

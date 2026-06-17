@@ -507,5 +507,7 @@
   "adminDeactivate": "Deactivate",
   "adminActivate": "Activate",
   "adminNewPasswordOptional": "New password (leave empty to keep current)",
-  "adminConfirmDeleteSubAdmin": "Delete this sub-admin account? This cannot be undone."
+  "adminConfirmDeleteSubAdmin": "Delete this sub-admin account? This cannot be undone.",
+  "decreaseQuantity": "Decrease quantity",
+  "increaseQuantity": "Increase quantity"
 }
