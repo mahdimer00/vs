@@ -249,8 +249,24 @@ export function CheckoutPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 lg:pb-0">
       <Seo title={translate(language, "checkoutTitle")} description={translate(language, "checkoutDescription")} path="/checkout" noindex />
+
+      {/* Fixed mobile CTA — scrolls to the form */}
+      <div className="fixed bottom-0 start-0 end-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden">
+        <button
+          type="button"
+          onClick={() => document.getElementById("checkout-form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="flex w-full items-center justify-between gap-3 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-[0_8px_24px_rgba(20,184,166,0.35)] transition active:scale-95"
+        >
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5" />
+            {translate(language, "checkoutSubmit")}
+          </span>
+          <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">{formatCurrency(total, language)}</span>
+        </button>
+      </div>
+
       <div>
         <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "checkoutTitle")}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "checkoutDescription")}</p>
@@ -261,7 +277,7 @@ export function CheckoutPage() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <form onSubmit={submit} className="surface-card order-2 space-y-6 p-6 lg:order-1">
+        <form id="checkout-form" onSubmit={submit} className="surface-card order-2 space-y-6 p-6 lg:order-1">
           <section>
             <div className="mb-4 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-white">1</div>

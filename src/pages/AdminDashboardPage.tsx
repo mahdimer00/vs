@@ -270,6 +270,7 @@ export function AdminDashboardPage() {
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [showAddProductForm, setShowAddProductForm] = useState(false);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([{ ...defaultVariantDraft }]);
@@ -710,6 +711,7 @@ export function AdminDashboardPage() {
     setEditingProductId(null);
     setProductForm(defaultProductForm);
     setVariantDrafts([{ ...defaultVariantDraft }]);
+    setShowAddProductForm(false);
   };
 
   const submitProduct = async (event: React.FormEvent) => {
@@ -766,6 +768,7 @@ export function AdminDashboardPage() {
         await adminService.createProduct(token, basePayload);
         setProductForm(defaultProductForm);
         setVariantDrafts([{ ...defaultVariantDraft }]);
+        setShowAddProductForm(false);
       }
       await loadAll();
     } catch (error) {
@@ -1195,6 +1198,8 @@ export function AdminDashboardPage() {
 
   const renderProducts = () => (
     <div className="space-y-6">
+      {(showAddProductForm || editingProductId) && (
+      <div id="product-add-form">
       <Panel title={editingProductId ? translate(language, "adminEditingProduct") : translate(language, "adminProductCreate")} description={translate(language, "adminProductsTitle")}>
         {editingProductId ? (
           <div className="mb-4 flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -1380,6 +1385,8 @@ export function AdminDashboardPage() {
           </div>
         </form>
       </Panel>
+      </div>
+      )}
 
       <div className="table-wrap">
         <table className="table-base">
@@ -1639,9 +1646,10 @@ export function AdminDashboardPage() {
   };
 
   const renderOrders = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Panel title={translate(language, "adminOrdersTitle")} description={translate(language, "adminOrdersDescription")}>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        {/* Status summary tiles */}
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
           {orderSummaryCards.map((card) => {
             const Icon = card.icon;
             const active = orderFilters.status === card.key || (card.key === "all" && orderFilters.status === "all");
@@ -1650,21 +1658,22 @@ export function AdminDashboardPage() {
                 key={card.key}
                 type="button"
                 onClick={() => setOrderFilters((current) => ({ ...current, status: card.key === "all" ? "all" : card.key }))}
-                className={`rounded-[1.5rem] border px-4 py-4 text-start transition ${active ? "border-slate-950 shadow-lg shadow-slate-200/60" : "border-slate-200 hover:border-slate-300"} ${card.tone}`}
+                className={`rounded-[1.5rem] border px-4 py-3 text-start transition ${active ? "border-slate-950 shadow-lg shadow-slate-200/60" : "border-slate-200 hover:border-slate-300"} ${card.tone}`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <Icon className="h-5 w-5" />
-                  <div className="text-2xl font-semibold">{card.count}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <Icon className="h-4 w-4 opacity-70" />
+                  <div className="text-xl font-bold">{card.count}</div>
                 </div>
-                <div className="mt-3 text-xs font-semibold uppercase tracking-[0.24em] opacity-80">{card.label}</div>
+                <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.22em] opacity-75 leading-4">{card.label}</div>
               </button>
             );
           })}
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-          <input value={orderFilters.orderNumber} onChange={(event) => setOrderFilters((current) => ({ ...current, orderNumber: event.target.value }))} className="field-input" placeholder="Order #" />
-          <select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))} className="field-select">
+        {/* Filters */}
+        <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <input value={orderFilters.orderNumber} onChange={(event) => setOrderFilters((current) => ({ ...current, orderNumber: event.target.value }))} className="field-input text-sm py-2.5" placeholder="Order #" />
+          <select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))} className="field-select text-sm py-2.5">
             <option value="all">{translate(language, "filterAllStatuses")}</option>
             {orderStatusOptions.map((status) => (
               <option key={status} value={status}>
@@ -1672,7 +1681,7 @@ export function AdminDashboardPage() {
               </option>
             ))}
           </select>
-          <select value={orderFilters.wilaya} onChange={(event) => setOrderFilters((current) => ({ ...current, wilaya: event.target.value }))} className="field-select">
+          <select value={orderFilters.wilaya} onChange={(event) => setOrderFilters((current) => ({ ...current, wilaya: event.target.value }))} className="field-select text-sm py-2.5">
             <option value="all">{translate(language, "filterAllWilayas")}</option>
             {[...new Set(
               orders.map((order) =>
@@ -1690,18 +1699,19 @@ export function AdminDashboardPage() {
               </option>
             ))}
           </select>
-          <input type="date" value={orderFilters.date} onChange={(event) => setOrderFilters((current) => ({ ...current, date: event.target.value }))} className="field-input" />
-          <input value={orderFilters.phone} onChange={(event) => setOrderFilters((current) => ({ ...current, phone: event.target.value }))} className="field-input" placeholder={translate(language, "filterPhonePlaceholder")} />
+          <input type="date" value={orderFilters.date} onChange={(event) => setOrderFilters((current) => ({ ...current, date: event.target.value }))} className="field-input text-sm py-2.5" />
+          <input value={orderFilters.phone} onChange={(event) => setOrderFilters((current) => ({ ...current, phone: event.target.value }))} className="field-input text-sm py-2.5" placeholder={translate(language, "filterPhonePlaceholder")} />
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-slate-500">{filteredOrders.length} {translate(language, "orders")}</div>
-          <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 text-sm">
+          <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 text-sm py-2 px-4">
             <BarChart3 className="h-4 w-4" /> Export CSV
           </button>
         </div>
       </Panel>
 
-      <div className="space-y-4">
+      {/* Compact order cards */}
+      <div className="space-y-3">
         {filteredOrders.map((order) => {
           const busy = orderActionId === order._id;
           const phoneFlow = order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION";
@@ -1729,146 +1739,108 @@ export function AdminDashboardPage() {
                       ]
                     : [];
 
+          const wilayaLabel =
+            typeof order.customer.wilaya === "string"
+              ? order.customer.wilaya
+              : language === "ar"
+                ? order.customer.wilaya.name.ar
+                : language === "fr"
+                  ? order.customer.wilaya.name.fr
+                  : order.customer.wilaya.name.en;
+
           return (
             <div key={order._id} className={`admin-order-card ${phoneFlow ? "admin-order-card-highlight" : ""}`}>
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-4 rounded-[1.6rem] border border-slate-200/80 bg-white/88 p-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-3">
-                      <div className="admin-section-label">{order.orderNumber}</div>
-                      <div className="text-3xl font-semibold tracking-tight text-slate-950">{order.customer.fullName}</div>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
-                          <Phone className="h-3.5 w-3.5" />
-                          {order.customer.phone}
-                        </span>
-                        <a href={`tel:${order.customer.phone}`} className="ghost-button gap-2 px-4 py-2 text-xs">
-                          <Phone className="h-3.5 w-3.5" />
-                          {translate(language, "phone")}
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-start gap-2 lg:items-end">
-                      <StatusBadge label={order.status} language={language} />
-                      <div className="text-sm font-medium text-slate-400">{formatDate(order.createdAt, language)}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-                    <div className="admin-soft-card text-sm">
-                      <div className="admin-section-label">{translate(language, "wilaya")}</div>
-                      <div className="mt-2 text-lg font-semibold text-slate-950">
-                        {typeof order.customer.wilaya === "string"
-                          ? order.customer.wilaya
-                          : language === "ar"
-                            ? order.customer.wilaya.name.ar
-                            : language === "fr"
-                              ? order.customer.wilaya.name.fr
-                              : order.customer.wilaya.name.en}
-                      </div>
-                    </div>
-                    <div className="admin-soft-card text-sm">
-                      <div className="admin-section-label">{translate(language, "deliveryType")}</div>
-                      <div className="mt-2 text-lg font-semibold text-slate-950">{order.deliveryType}</div>
-                    </div>
-                    <div className="admin-soft-card text-sm">
-                      <div className="admin-section-label">{translate(language, "adminOrderTotal")}</div>
-                      <div className="mt-2 text-lg font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
-                    </div>
-                    <div className="admin-soft-card text-sm">
-                      <div className="admin-section-label">{translate(language, "adminOrderCreated")}</div>
-                      <div className="mt-2 text-lg font-semibold text-slate-950">{formatDate(order.createdAt, language)}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 lg:grid-cols-[0.95fr_1.05fr]">
-                    <div className="admin-record-card text-sm text-slate-700">
-                      <div className="mb-3 flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-slate-400" />
-                        <div className="admin-section-label">{translate(language, "address")}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-base font-semibold text-slate-900">{order.customer.commune}</div>
-                        <div className="leading-7">{order.customer.address}</div>
-                      </div>
-                    </div>
-
-                    <div className="admin-record-card text-sm text-slate-700">
-                      <div className="mb-3 flex items-center gap-2">
-                        <Package className="h-4 w-4 text-slate-400" />
-                        <div className="admin-section-label">{translate(language, "adminOrderItems")}</div>
-                      </div>
-                      <div className="space-y-3">
-                        {order.items.map((item) => (
-                          <div key={`${order._id}-${item.productId}-${item.variantId || item.variantLabel}`} className="flex flex-col gap-2 rounded-[1.25rem] bg-slate-50/90 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <div className="truncate font-semibold text-slate-900">{getLocalizedText(item.productName, language)}</div>
-                              <div className="mt-1 text-slate-500">{item.variantLabel}</div>
-                            </div>
-                            <div className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-900">x{item.quantity}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+              {/* Row 1: Order# + status + total + date */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="admin-section-label">{order.orderNumber}</span>
+                  {phoneFlow && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+                      ⚡ {translate(language, "status_AWAITING_CALL_CONFIRMATION")}
+                    </span>
+                  )}
                 </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <StatusBadge label={order.status} language={language} />
+                  <span className="text-base font-bold text-slate-950">{formatCurrency(order.total, language)}</span>
+                  <span className="text-xs text-slate-400">{formatDate(order.createdAt, language)}</span>
+                </div>
+              </div>
 
-                <aside className="admin-record-card space-y-4 xl:sticky xl:top-6">
-                  <div>
-                    <div className="admin-section-label">{translate(language, "filterAllStatuses")}</div>
-                    <div className="mt-3">
-                      <select value={order.status} onChange={(event) => void updateOrderStatusAction(order._id, event.target.value as Order["status"])} disabled={busy} className="field-select">
-                        {orderStatusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {translate(language, `status_${status}` as TranslationKey)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+              {/* Row 2: Customer + phone + location + delivery */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-lg font-semibold text-slate-950">{order.customer.fullName}</span>
+                <a
+                  href={`tel:${order.customer.phone}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {order.customer.phone}
+                </a>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600">
+                  <MapPin className="h-3 w-3 text-slate-400" />
+                  {wilayaLabel}{order.customer.commune ? ` · ${order.customer.commune}` : ""}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                  {order.deliveryType === "HOME_DELIVERY" ? translate(language, "homeDelivery") : translate(language, "deskPickup")}
+                </span>
+              </div>
 
-                  {quickActions.length ? (
-                    <div>
-                      <div className="admin-section-label">{translate(language, "adminOrderUpdate")}</div>
-                      <div className="admin-action-grid mt-3">
-                        {quickActions.map((action) => {
-                          const Icon = action.icon;
-                          return (
-                            <button
-                              key={action.status}
-                              type="button"
-                              onClick={() => void updateOrderStatusAction(order._id, action.status)}
-                              disabled={busy}
-                              className="ghost-button gap-2 px-4 py-3 text-sm"
-                            >
-                              <Icon className="h-4 w-4" />
-                              {translate(language, `status_${action.status}` as TranslationKey)}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
-                    {phoneFlow
-                      ? translate(language, "adminAlertOrdersPending").replace("{count}", "1")
-                      : translate(language, "adminOrdersDescription")}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
-                        void deleteOrderAction(order._id);
-                      }
-                    }}
-                    disabled={busy}
-                    className="w-full rounded-full border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+              {/* Row 3: Products as chips */}
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {order.items.map((item) => (
+                  <span
+                    key={`${order._id}-${item.productId}-${item.variantId ?? item.variantLabel}`}
+                    className="inline-flex items-center gap-1.5 rounded-[1rem] border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs font-medium text-slate-700"
                   >
-                    {translate(language, "adminDelete")}
-                  </button>
-                </aside>
+                    {getLocalizedText(item.productName, language)}
+                    {item.variantLabel ? <span className="text-slate-400">· {item.variantLabel}</span> : null}
+                    <span className="ms-0.5 font-bold text-slate-950">×{item.quantity}</span>
+                  </span>
+                ))}
+              </div>
+
+              {/* Row 4: Actions */}
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                <select
+                  value={order.status}
+                  onChange={(event) => void updateOrderStatusAction(order._id, event.target.value as Order["status"])}
+                  disabled={busy}
+                  className="field-select max-w-[200px] py-2 text-sm"
+                >
+                  {orderStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {translate(language, `status_${status}` as TranslationKey)}
+                    </option>
+                  ))}
+                </select>
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <button
+                      key={action.status}
+                      type="button"
+                      onClick={() => void updateOrderStatusAction(order._id, action.status)}
+                      disabled={busy}
+                      className="ghost-button gap-2 px-4 py-2 text-sm"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {translate(language, `status_${action.status}` as TranslationKey)}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
+                      void deleteOrderAction(order._id);
+                    }
+                  }}
+                  disabled={busy}
+                  className="ms-auto rounded-full px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+                >
+                  {translate(language, "adminDelete")}
+                </button>
               </div>
             </div>
           );
@@ -2964,6 +2936,30 @@ export function AdminDashboardPage() {
             </div>
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-white md:text-4xl">{activeViewMeta.title}</h1>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">{activeViewMeta.description}</p>
+            {tab === "products" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddProductForm(true);
+                  setEditingProductId(null);
+                  setProductForm(defaultProductForm);
+                  setVariantDrafts([{ ...defaultVariantDraft }]);
+                  setTimeout(() => document.getElementById("product-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                }}
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-slate-100"
+              >
+                + {translate(language, "adminCreate")}
+              </button>
+            )}
+            {tab === "orders" && (
+              <button
+                type="button"
+                onClick={exportOrdersCSV}
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+              >
+                <BarChart3 className="h-4 w-4" /> Export CSV
+              </button>
+            )}
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
