@@ -9,6 +9,7 @@ import { corsMiddleware } from "./config/cors.js";
 import { env } from "./config/env.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { rateLimitMiddleware } from "./middleware/rateLimit.middleware.js";
+import { signatureMiddleware } from "./middleware/signature.middleware.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import catalogRoutes from "./modules/catalog/catalog.routes.js";
 import shippingRoutes from "./modules/shipping/shipping.routes.js";
@@ -86,6 +87,7 @@ app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "A
   });
 });
 
+app.use("/api", signatureMiddleware);
 app.use("/api/auth", authRoutes);
 app.use("/api", catalogRoutes);
 app.use("/api", shippingRoutes);
