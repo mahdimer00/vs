@@ -3,7 +3,8 @@ import { NextFunction, Request, Response } from "express";
 import { env } from "../config/env.js";
 
 export function signatureMiddleware(req: Request, res: Response, next: NextFunction) {
-  if (!env.API_REQUEST_SECRET) {
+  // Only verify writes — GET requests are public catalog data (no attack risk)
+  if (!env.API_REQUEST_SECRET || req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
     next();
     return;
   }
