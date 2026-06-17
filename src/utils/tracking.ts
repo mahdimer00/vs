@@ -26,6 +26,7 @@ function getEndpoint(): string {
 export function trackEvent(payload: EventPayload): void {
   const url = getEndpoint();
   if (!url) return;
+  const requestUrl = new URL(url, typeof window !== "undefined" ? window.location.origin : "http://localhost");
 
   const body = JSON.stringify({
     eventType: payload.eventType,
@@ -35,7 +36,11 @@ export function trackEvent(payload: EventPayload): void {
     referrer: typeof document !== "undefined" ? document.referrer : "",
   });
 
-  void getSignatureHeaders()
+  void getSignatureHeaders({
+    method: "POST",
+    path: `${requestUrl.pathname}${requestUrl.search}`,
+    body,
+  })
     .then((sigHeaders) =>
       fetch(url, {
         method: "POST",

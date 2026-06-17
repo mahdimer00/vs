@@ -58,13 +58,19 @@ const upload = multer({
 
 export const app = express();
 
+function captureRawBody(req: express.Request, _res: express.Response, buf: Buffer) {
+  if (buf.length > 0) {
+    (req as express.Request & { rawBody?: string }).rawBody = buf.toString("utf8");
+  }
+}
+
 app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(corsMiddleware);
 app.use(rateLimitMiddleware);
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "2mb", verify: captureRawBody }));
+app.use(express.urlencoded({ extended: true, verify: captureRawBody }));
 // Defense-in-depth: strip MongoDB operator keys ($-prefixed) from body/query/params
 app.use(mongoSanitize());
 app.use(

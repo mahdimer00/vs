@@ -22,12 +22,12 @@ export function CheckoutConfirmationPage() {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!pendingOrder?.orderId) {
+    if (!pendingOrder?.orderId || !pendingOrder.confirmationToken) {
       return;
     }
 
     void orderService
-      .startAiConfirmation(pendingOrder.orderId)
+      .startAiConfirmation(pendingOrder.orderId, pendingOrder.confirmationToken)
       .then((response) => {
         setMessages([{ role: "assistant", text: response.message, time: Date.now() }]);
       })
@@ -37,7 +37,7 @@ export function CheckoutConfirmationPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [pendingOrder?.orderId]);
+  }, [pendingOrder?.confirmationToken, pendingOrder?.orderId]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -52,7 +52,7 @@ export function CheckoutConfirmationPage() {
     }
   }, [loading, sending]);
 
-  if (!pendingOrder) {
+  if (!pendingOrder?.orderId || !pendingOrder.confirmationToken) {
     return <Navigate to="/checkout" replace />;
   }
 
@@ -82,7 +82,7 @@ export function CheckoutConfirmationPage() {
       setMessages((current) => [...current, { role: "assistant", text: response.message, time: Date.now() }]);
 
       if (response.confirmed) {
-        const order = await orderService.confirmOrder(pendingOrder.orderId);
+        const order = await orderService.confirmOrder(pendingOrder.orderId, pendingOrder.confirmationToken);
         rememberConfirmedOrder(order);
         clearCart();
         setConfirmed(true);

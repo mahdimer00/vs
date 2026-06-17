@@ -179,6 +179,7 @@ export interface Order {
   status: OrderStatus;
   aiConfirmed: boolean;
   createdAt: string;
+  confirmationToken?: string;
 }
 
 export interface Commission {
@@ -287,6 +288,7 @@ export interface CartItem {
 export interface PendingOrderPayload {
   orderId: string;
   orderNumber: string;
+  confirmationToken: string;
 }
 
 export type AnalyticsEventType =

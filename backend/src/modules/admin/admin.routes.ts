@@ -124,10 +124,15 @@ router.patch("/admin/affiliates/:id", authMiddleware, permissionMiddleware("affi
 }));
 
 router.get("/admin/commissions", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (_req, res) => {
-  return res.json(await CommissionModel.find().populate("affiliate", "-passwordHash").populate("order").lean());
+  return res.json(
+    await CommissionModel.find()
+      .populate("affiliate", "-passwordHash")
+      .populate({ path: "order", select: "-confirmationTokenHash" })
+      .lean(),
+  );
 }));
 router.patch("/admin/commissions/:id/pay", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (req, res) => {
-  const commission = await CommissionModel.findById(String(req.params.id)).populate("affiliate");
+  const commission = await CommissionModel.findById(String(req.params.id)).populate("affiliate", "-passwordHash");
   if (!commission) {
     return res.status(404).json({ message: "Commission not found" });
   }

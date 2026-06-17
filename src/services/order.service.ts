@@ -25,20 +25,21 @@ export const orderService = {
       body: JSON.stringify(payload),
     });
   },
-  startAiConfirmation(orderId: string) {
+  startAiConfirmation(orderId: string, confirmationToken: string) {
     return apiRequest<{ message: string }>("/api/orders/" + orderId + "/ai-confirm", {
       method: "POST",
+      body: JSON.stringify({ confirmationToken }),
     });
   },
-  confirmOrder(orderId: string) {
+  confirmOrder(orderId: string, confirmationToken: string) {
     return apiRequest<Order>(`/api/orders/${orderId}/confirm`, {
       method: "POST",
+      body: JSON.stringify({ confirmationToken }),
     });
   },
-  trackOrder(orderNumber: string) {
-    return apiRequest<Order>(`/api/orders/track/${orderNumber}`);
-  },
-  trackOrdersByPhone(phone: string) {
-    return apiRequest<Order[]>(`/api/orders/track-by-phone/${phone}`);
+  trackOrder(orderNumber: string, phone: string) {
+    return apiRequest<Order>(`/api/orders/track/${orderNumber}`, {
+      query: { phone },
+    });
   },
 };

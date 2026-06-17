@@ -7,7 +7,7 @@ import { buildVariantLabel, getLocalizedText, isRTL } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { pixelAddToCart } from "@/utils/pixel";
 import { trackEvent } from "@/utils/tracking";
-import { readStorage, writeStorage } from "@/utils/storage";
+import { readSessionStorage, readStorage, writeSessionStorage, writeStorage } from "@/utils/storage";
 
 type Toast = { id: number; message: string; tone?: "success" | "error" };
 
@@ -44,19 +44,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Locale>(() => readStorage(STORAGE_KEYS.language, "ar"));
   const [cart, setCart] = useState<CartItem[]>(() => readStorage(STORAGE_KEYS.cart, []));
   const [adminSession, setAdminSessionState] = useState<AuthSession | null>(() =>
-    readStorage(STORAGE_KEYS.adminSession, null),
+    readSessionStorage(STORAGE_KEYS.adminSession, null),
   );
   const [affiliateSession, setAffiliateSessionState] = useState<AuthSession | null>(() =>
-    readStorage(STORAGE_KEYS.affiliateSession, null),
+    readSessionStorage(STORAGE_KEYS.affiliateSession, null),
   );
   const [affiliateRef, setAffiliateRefState] = useState<string | null>(() =>
     readStorage(STORAGE_KEYS.affiliateRef, null),
   );
   const [pendingOrder, setPendingOrderState] = useState<PendingOrderPayload | null>(() =>
-    readStorage(STORAGE_KEYS.pendingOrder, null),
+    readSessionStorage(STORAGE_KEYS.pendingOrder, null),
   );
   const [confirmedOrder, setConfirmedOrderState] = useState<unknown>(() =>
-    readStorage(STORAGE_KEYS.confirmedOrder, null),
+    readSessionStorage(STORAGE_KEYS.confirmedOrder, null),
   );
   const [wishlist, setWishlist] = useState<string[]>(() => readStorage(STORAGE_KEYS.wishlist, []));
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -76,11 +76,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [language]);
 
   useEffect(() => writeStorage(STORAGE_KEYS.cart, cart), [cart]);
-  useEffect(() => writeStorage(STORAGE_KEYS.adminSession, adminSession), [adminSession]);
-  useEffect(() => writeStorage(STORAGE_KEYS.affiliateSession, affiliateSession), [affiliateSession]);
+  useEffect(() => writeSessionStorage(STORAGE_KEYS.adminSession, adminSession), [adminSession]);
+  useEffect(() => writeSessionStorage(STORAGE_KEYS.affiliateSession, affiliateSession), [affiliateSession]);
   useEffect(() => writeStorage(STORAGE_KEYS.affiliateRef, affiliateRef), [affiliateRef]);
-  useEffect(() => writeStorage(STORAGE_KEYS.pendingOrder, pendingOrder), [pendingOrder]);
-  useEffect(() => writeStorage(STORAGE_KEYS.confirmedOrder, confirmedOrder), [confirmedOrder]);
+  useEffect(() => writeSessionStorage(STORAGE_KEYS.pendingOrder, pendingOrder), [pendingOrder]);
+  useEffect(() => writeSessionStorage(STORAGE_KEYS.confirmedOrder, confirmedOrder), [confirmedOrder]);
   useEffect(() => writeStorage(STORAGE_KEYS.wishlist, wishlist), [wishlist]);
 
   const pushToast = (message: string, tone: "success" | "error" = "success") => {

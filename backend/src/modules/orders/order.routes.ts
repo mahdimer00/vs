@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
@@ -45,11 +46,58 @@ function createOrderNumber() {
   return `VS-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
+function createConfirmationToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function hashConfirmationToken(token: string) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function hasValidConfirmationToken(order: { confirmationTokenHash: string }, token: string) {
+  const providedHash = hashConfirmationToken(token);
+  return crypto.timingSafeEqual(Buffer.from(order.confirmationTokenHash, "hex"), Buffer.from(providedHash, "hex"));
+}
+
+function maskPhone(phone: string) {
+  return phone.length >= 4 ? `${phone.slice(0, 2)}******${phone.slice(-2)}` : phone;
+}
+
+function serializeTrackedOrder(order: any) {
+  if (!order?.customer) {
+    return null;
+  }
+
+  return {
+    _id: String(order._id),
+    orderNumber: order.orderNumber,
+    customer: {
+      fullName: order.customer.fullName,
+      phone: maskPhone(order.customer.phone),
+      wilaya: order.customer.wilaya,
+      commune: order.customer.commune,
+      address: "",
+    },
+    items: order.items,
+    subtotal: order.subtotal,
+    discount: order.discount,
+    shippingFee: order.shippingFee,
+    total: order.total,
+    deliveryType: order.deliveryType,
+    paymentMethod: order.paymentMethod,
+    promoCode: order.promoCode,
+    status: order.status,
+    aiConfirmed: order.aiConfirmed,
+    createdAt: order.createdAt,
+  };
+}
+
 router.post(
   "/orders",
   orderCreateRateLimitMiddleware,
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
+    const confirmationToken = createConfirmationToken();
     const { items, subtotal, categoryIds } = await buildOrderItems(input.items);
     const { wilaya, fee } = await resolveShippingFee(input.customer.wilayaCode, input.deliveryType);
 
@@ -77,6 +125,7 @@ router.post(
     const affiliate = await resolveAffiliate(input.affiliateRef, promoAffiliateId);
     const order = await OrderModel.create({
       orderNumber: createOrderNumber(),
+      confirmationTokenHash: hashConfirmationToken(confirmationToken),
       customer: {
         fullName: input.customer.fullName,
         phone: input.customer.phone,
@@ -106,7 +155,11 @@ router.post(
       });
     }
 
-    const populatedOrder = await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean();
+    const populatedOrder = await OrderModel.findById(order._id)
+      .select("-confirmationTokenHash")
+      .populate("customer.wilaya")
+      .populate("affiliate", "-passwordHash")
+      .lean();
     const customer = populatedOrder?.customer;
 
     const wilayaName =
@@ -152,20 +205,37 @@ router.post(
       ...capiBase,
     });
 
-    return res.status(201).json(populatedOrder);
+    return res.status(201).json({
+      ...populatedOrder,
+      confirmationToken,
+    });
   }),
 );
 
 router.post(
   "/orders/:id/confirm",
   asyncHandler(async (req, res) => {
+    const input = z
+      .object({
+        confirmationToken: z.string().regex(/^[0-9a-f]{64}$/i, "Invalid confirmation token"),
+      })
+      .parse(req.body);
     const order = await OrderModel.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
+    if (!hasValidConfirmationToken(order, input.confirmationToken)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     if (order.status === "AWAITING_CALL_CONFIRMATION" && order.aiConfirmed) {
-      return res.json(await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean());
+      return res.json(
+        await OrderModel.findById(order._id)
+          .select("-confirmationTokenHash")
+          .populate("customer.wilaya")
+          .populate("affiliate", "-passwordHash")
+          .lean(),
+      );
     }
 
     if (order.status !== "PENDING_AI_CONFIRMATION") {
@@ -187,16 +257,30 @@ router.post(
     order.status = "AWAITING_CALL_CONFIRMATION";
     await order.save();
 
-    return res.json(await OrderModel.findById(order._id).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean());
+    return res.json(
+      await OrderModel.findById(order._id)
+        .select("-confirmationTokenHash")
+        .populate("customer.wilaya")
+        .populate("affiliate", "-passwordHash")
+        .lean(),
+    );
   }),
 );
 
 router.post(
   "/orders/:id/ai-confirm",
   asyncHandler(async (req, res) => {
+    const input = z
+      .object({
+        confirmationToken: z.string().regex(/^[0-9a-f]{64}$/i, "Invalid confirmation token"),
+      })
+      .parse(req.body);
     const order = await OrderModel.findById(req.params.id).populate("customer.wilaya").lean();
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
+    }
+    if (!hasValidConfirmationToken(order, input.confirmationToken)) {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
     if (order.status !== "PENDING_AI_CONFIRMATION") {
@@ -239,30 +323,18 @@ ${itemsList}
 router.get(
   "/orders/track/:orderNumber",
   asyncHandler(async (req, res) => {
-    const order = await OrderModel.findOne({ orderNumber: req.params.orderNumber })
+    const input = z.object({
+      phone: z.string().regex(/^(05|06|07)\d{8}$/),
+    }).parse(req.query);
+    const order = await OrderModel.findOne({ orderNumber: req.params.orderNumber, "customer.phone": input.phone })
       .populate("customer.wilaya")
-      .populate("affiliate")
       .lean();
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    return res.json(order);
-  }),
-);
-
-router.get(
-  "/orders/track-by-phone/:phone",
-  asyncHandler(async (req, res) => {
-    const orders = await OrderModel.find({ "customer.phone": req.params.phone })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .populate("customer.wilaya")
-      .populate("affiliate")
-      .lean();
-
-    return res.json(orders);
+    return res.json(serializeTrackedOrder(order));
   }),
 );
 
@@ -272,7 +344,12 @@ router.get(
   permissionMiddleware("orders"),
   asyncHandler(async (_req, res) => {
     return res.json(
-      await OrderModel.find().sort({ createdAt: -1 }).populate("customer.wilaya").populate("affiliate", "-passwordHash").lean(),
+      await OrderModel.find()
+        .select("-confirmationTokenHash")
+        .sort({ createdAt: -1 })
+        .populate("customer.wilaya")
+        .populate("affiliate", "-passwordHash")
+        .lean(),
     );
   }),
 );
@@ -318,8 +395,9 @@ router.patch(
     }
 
     const order = await OrderModel.findByIdAndUpdate(req.params.id, { status: input.status }, { new: true })
+      .select("-confirmationTokenHash")
       .populate("customer.wilaya")
-      .populate("affiliate");
+      .populate("affiliate", "-passwordHash");
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });

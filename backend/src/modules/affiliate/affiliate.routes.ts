@@ -55,11 +55,20 @@ router.get("/affiliate/dashboard", authMiddleware, roleMiddleware(["AFFILIATE"])
 }));
 
 router.get("/affiliate/orders", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {
-  return res.json(await OrderModel.find({ affiliate: req.user?.sub }).populate("customer.wilaya").lean());
+  return res.json(
+    await OrderModel.find({ affiliate: req.user?.sub })
+      .select("-confirmationTokenHash")
+      .populate("customer.wilaya")
+      .lean(),
+  );
 }));
 
 router.get("/affiliate/commissions", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {
-  return res.json(await CommissionModel.find({ affiliate: req.user?.sub }).populate("order").lean());
+  return res.json(
+    await CommissionModel.find({ affiliate: req.user?.sub })
+      .populate({ path: "order", select: "-confirmationTokenHash" })
+      .lean(),
+  );
 }));
 
 router.get("/affiliate/referral-link", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {

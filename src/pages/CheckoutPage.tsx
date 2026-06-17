@@ -199,7 +199,10 @@ export function CheckoutPage() {
       pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });
       trackEvent({ eventType: "purchase", orderId: order._id });
 
-      rememberPendingOrder({ orderId: order._id, orderNumber: order.orderNumber });
+      if (!order.confirmationToken) {
+        throw new Error("Missing confirmation token");
+      }
+      rememberPendingOrder({ orderId: order._id, orderNumber: order.orderNumber, confirmationToken: order.confirmationToken });
       navigate("/checkout/confirm");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create order";

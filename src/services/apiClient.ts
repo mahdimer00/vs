@@ -37,7 +37,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const sigHeaders = await getSignatureHeaders();
+  const method = (options.method ?? "GET").toUpperCase();
+  const sigHeaders = await getSignatureHeaders({
+    method,
+    path: `${url.pathname}${url.search}`,
+    body: typeof options.body === "string" ? options.body : "",
+  });
   const response = await fetch(url.toString(), {
     ...options,
     headers: {
@@ -78,10 +83,9 @@ export async function apiUpload<T>(path: string, file: File, token: string): Pro
   const formData = new FormData();
   formData.append("file", file);
 
-  const sigHeaders = await getSignatureHeaders();
   const response = await fetch(url.toString(), {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, ...sigHeaders },
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
 

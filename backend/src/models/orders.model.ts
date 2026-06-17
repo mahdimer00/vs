@@ -19,6 +19,7 @@ const orderItemSchema = new Schema(
 const orderSchema = new Schema(
   {
     orderNumber: { type: String, required: true, unique: true },
+    confirmationTokenHash: { type: String, required: true },
     customer: {
       fullName: { type: String, required: true },
       phone: { type: String, required: true },
