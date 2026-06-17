@@ -14,11 +14,13 @@ import {
   MapPin,
   Medal,
   MessageCircle,
+  Package,
   PackageX,
   Phone,
   Shield,
   Sparkles,
   Store,
+  Tag,
   TicketPercent,
   TrendingUp,
   Truck,
@@ -228,10 +230,12 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="surface-card p-6">
-      <div className="mb-5">
-        <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
-        {description ? <p className="mt-2 text-sm leading-7 text-slate-600">{description}</p> : null}
+    <section className="admin-panel">
+      <div className="admin-panel-header">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
+          {description ? <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{description}</p> : null}
+        </div>
       </div>
       {children}
     </section>
@@ -1229,7 +1233,7 @@ export function AdminDashboardPage() {
           <textarea value={productForm.descriptionFr} onChange={(event) => setProductForm({ ...productForm, descriptionFr: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionFr")} />
           <textarea value={productForm.descriptionEn} onChange={(event) => setProductForm({ ...productForm, descriptionEn: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionEn")} />
 
-          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
             <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductImages")}</div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {productForm.images.map((image, index) => (
@@ -1251,7 +1255,7 @@ export function AdminDashboardPage() {
             </button>
           </div>
 
-          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
             <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductSpecifications")}</div>
             <p className="text-sm text-slate-500">{translate(language, "adminProductSpecificationsHint")}</p>
             <div className="grid gap-3">
@@ -1313,7 +1317,7 @@ export function AdminDashboardPage() {
             </label>
           </div>
 
-          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
             <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
               <input
                 type="checkbox"
@@ -1343,7 +1347,7 @@ export function AdminDashboardPage() {
             ) : null}
           </div>
 
-          <div className="md:col-span-2 xl:col-span-4 space-y-3 rounded-2xl border border-slate-200 p-4">
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
             <div className="text-sm font-semibold text-slate-700">{translate(language, "adminVariantsTitle")}</div>
             <p className="text-xs leading-6 text-slate-500">{translate(language, "adminVariantsHint")}</p>
             {variantDrafts.map((draft, index) => (
@@ -1469,7 +1473,7 @@ export function AdminDashboardPage() {
 
           if (isEditing && draft) {
             return (
-              <div key={category._id} className="surface-card space-y-3 p-5">
+              <div key={category._id} className="admin-record-card space-y-3">
                 <input value={draft.ar} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, ar: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameAr")} />
                 <input value={draft.fr} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, fr: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameFr")} />
                 <input value={draft.en} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [category._id]: { ...draft, en: event.target.value } }))} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
@@ -1504,17 +1508,17 @@ export function AdminDashboardPage() {
           }
 
           return (
-            <div key={category._id} className="surface-card p-5">
+            <div key={category._id} className="admin-record-card">
               {category.image ? (
                 <img src={category.image} alt="" className="mb-3 h-24 w-full rounded-[1rem] object-cover" />
               ) : null}
               <div className="text-lg font-semibold text-slate-950">{getLocalizedText(category.name, language)}</div>
               <div className="mt-1 text-sm text-slate-500">{category.slug}</div>
               <div className="mt-4 flex items-center gap-3">
-                <button onClick={() => setEditingCategoryId(category._id)} className="text-sm font-semibold text-teal-700">
+                <button onClick={() => setEditingCategoryId(category._id)} className="ghost-button px-4 py-2 text-xs">
                   {translate(language, "adminEdit")}
                 </button>
-                <button onClick={() => void adminService.deleteCategory(token, category._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                <button onClick={() => void adminService.deleteCategory(token, category._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="ghost-button px-4 py-2 text-xs text-rose-600">
                   {translate(language, "adminDelete")}
                 </button>
               </div>
@@ -1544,7 +1548,7 @@ export function AdminDashboardPage() {
 
           if (isEditing && draft) {
             return (
-              <div key={brand._id} className="surface-card space-y-3 p-5">
+              <div key={brand._id} className="admin-record-card space-y-3">
                 <input value={draft.name} onChange={(event) => setBrandDrafts((current) => ({ ...current, [brand._id]: { ...draft, name: event.target.value } }))} className="field-input" placeholder={translate(language, "adminBrand")} />
                 <ImageUploadField token={token} value={draft.logo} onChange={(url) => setBrandDrafts((current) => ({ ...current, [brand._id]: { ...draft, logo: url } }))} />
                 <div className="flex flex-wrap gap-3">
@@ -1571,13 +1575,13 @@ export function AdminDashboardPage() {
           }
 
           return (
-            <div key={brand._id} className="surface-card p-5">
+            <div key={brand._id} className="admin-record-card">
               <div className="text-lg font-semibold text-slate-950">{brand.name}</div>
               <div className="mt-4 flex items-center gap-3">
-                <button onClick={() => setEditingBrandId(brand._id)} className="text-sm font-semibold text-teal-700">
+                <button onClick={() => setEditingBrandId(brand._id)} className="ghost-button px-4 py-2 text-xs">
                   {translate(language, "adminEdit")}
                 </button>
-                <button onClick={() => void adminService.deleteBrand(token, brand._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                <button onClick={() => void adminService.deleteBrand(token, brand._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="ghost-button px-4 py-2 text-xs text-rose-600">
                   {translate(language, "adminDelete")}
                 </button>
               </div>
@@ -1726,31 +1730,34 @@ export function AdminDashboardPage() {
                     : [];
 
           return (
-            <div key={order._id} className={`surface-card border p-6 ${phoneFlow ? "border-amber-300 shadow-lg shadow-amber-100/70" : "border-transparent"}`}>
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex-1 space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="text-sm uppercase tracking-[0.24em] text-slate-400">{order.orderNumber}</div>
-                      <div className="mt-1 text-xl font-semibold text-slate-950">{order.customer.fullName}</div>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                        <span>{order.customer.phone}</span>
-                        <a href={`tel:${order.customer.phone}`} className="ghost-button gap-2 px-3 py-2 text-xs">
+            <div key={order._id} className={`admin-order-card ${phoneFlow ? "admin-order-card-highlight" : ""}`}>
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-4 rounded-[1.6rem] border border-slate-200/80 bg-white/88 p-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-3">
+                      <div className="admin-section-label">{order.orderNumber}</div>
+                      <div className="text-3xl font-semibold tracking-tight text-slate-950">{order.customer.fullName}</div>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 font-medium text-slate-700">
+                          <Phone className="h-3.5 w-3.5" />
+                          {order.customer.phone}
+                        </span>
+                        <a href={`tel:${order.customer.phone}`} className="ghost-button gap-2 px-4 py-2 text-xs">
                           <Phone className="h-3.5 w-3.5" />
                           {translate(language, "phone")}
                         </a>
                       </div>
                     </div>
-                    <div className="flex flex-col items-start gap-2 sm:items-end">
+                    <div className="flex flex-col items-start gap-2 lg:items-end">
                       <StatusBadge label={order.status} language={language} />
-                      <div className="text-xs text-slate-400">{formatDate(order.createdAt, language)}</div>
+                      <div className="text-sm font-medium text-slate-400">{formatDate(order.createdAt, language)}</div>
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <div className="muted-card px-4 py-3 text-sm">
-                      <div className="text-slate-500">{translate(language, "wilaya")}</div>
-                      <div className="mt-1 font-semibold text-slate-950">
+                  <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                    <div className="admin-soft-card text-sm">
+                      <div className="admin-section-label">{translate(language, "wilaya")}</div>
+                      <div className="mt-2 text-lg font-semibold text-slate-950">
                         {typeof order.customer.wilaya === "string"
                           ? order.customer.wilaya
                           : language === "ar"
@@ -1760,67 +1767,94 @@ export function AdminDashboardPage() {
                               : order.customer.wilaya.name.en}
                       </div>
                     </div>
-                    <div className="muted-card px-4 py-3 text-sm">
-                      <div className="text-slate-500">{translate(language, "deliveryType")}</div>
-                      <div className="mt-1 font-semibold text-slate-950">{order.deliveryType}</div>
+                    <div className="admin-soft-card text-sm">
+                      <div className="admin-section-label">{translate(language, "deliveryType")}</div>
+                      <div className="mt-2 text-lg font-semibold text-slate-950">{order.deliveryType}</div>
                     </div>
-                    <div className="muted-card px-4 py-3 text-sm">
-                      <div className="text-slate-500">{translate(language, "adminOrderTotal")}</div>
-                      <div className="mt-1 font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
+                    <div className="admin-soft-card text-sm">
+                      <div className="admin-section-label">{translate(language, "adminOrderTotal")}</div>
+                      <div className="mt-2 text-lg font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
                     </div>
-                    <div className="muted-card px-4 py-3 text-sm">
-                      <div className="text-slate-500">{translate(language, "adminOrderCreated")}</div>
-                      <div className="mt-1 font-semibold text-slate-950">{formatDate(order.createdAt, language)}</div>
+                    <div className="admin-soft-card text-sm">
+                      <div className="admin-section-label">{translate(language, "adminOrderCreated")}</div>
+                      <div className="mt-2 text-lg font-semibold text-slate-950">{formatDate(order.createdAt, language)}</div>
                     </div>
                   </div>
 
-                  <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{translate(language, "address")}</div>
-                    <div>{order.customer.address}</div>
-                    <div className="mt-1">{order.customer.commune}</div>
-                  </div>
+                  <div className="grid gap-3 lg:grid-cols-[0.95fr_1.05fr]">
+                    <div className="admin-record-card text-sm text-slate-700">
+                      <div className="mb-3 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-slate-400" />
+                        <div className="admin-section-label">{translate(language, "address")}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-base font-semibold text-slate-900">{order.customer.commune}</div>
+                        <div className="leading-7">{order.customer.address}</div>
+                      </div>
+                    </div>
 
-                  <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{translate(language, "adminOrderItems")}</div>
-                    <div className="space-y-2">
-                      {order.items.map((item) => (
-                        <div key={`${order._id}-${item.productId}-${item.variantId || item.variantLabel}`} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <div>{getLocalizedText(item.productName, language)} ({item.variantLabel})</div>
-                          <div className="font-semibold text-slate-900">x{item.quantity}</div>
-                        </div>
-                      ))}
+                    <div className="admin-record-card text-sm text-slate-700">
+                      <div className="mb-3 flex items-center gap-2">
+                        <Package className="h-4 w-4 text-slate-400" />
+                        <div className="admin-section-label">{translate(language, "adminOrderItems")}</div>
+                      </div>
+                      <div className="space-y-3">
+                        {order.items.map((item) => (
+                          <div key={`${order._id}-${item.productId}-${item.variantId || item.variantLabel}`} className="flex flex-col gap-2 rounded-[1.25rem] bg-slate-50/90 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="truncate font-semibold text-slate-900">{getLocalizedText(item.productName, language)}</div>
+                              <div className="mt-1 text-slate-500">{item.variantLabel}</div>
+                            </div>
+                            <div className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-900">x{item.quantity}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="w-full max-w-xs space-y-3">
-                  <select value={order.status} onChange={(event) => void updateOrderStatusAction(order._id, event.target.value as Order["status"])} disabled={busy} className="field-select">
-                    {orderStatusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {translate(language, `status_${status}` as TranslationKey)}
-                      </option>
-                    ))}
-                  </select>
+                <aside className="admin-record-card space-y-4 xl:sticky xl:top-6">
+                  <div>
+                    <div className="admin-section-label">{translate(language, "filterAllStatuses")}</div>
+                    <div className="mt-3">
+                      <select value={order.status} onChange={(event) => void updateOrderStatusAction(order._id, event.target.value as Order["status"])} disabled={busy} className="field-select">
+                        {orderStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {translate(language, `status_${status}` as TranslationKey)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
                   {quickActions.length ? (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {quickActions.map((action) => {
-                        const Icon = action.icon;
-                        return (
-                          <button
-                            key={action.status}
-                            type="button"
-                            onClick={() => void updateOrderStatusAction(order._id, action.status)}
-                            disabled={busy}
-                            className="ghost-button gap-2 text-sm"
-                          >
-                            <Icon className="h-4 w-4" />
-                            {translate(language, `status_${action.status}` as TranslationKey)}
-                          </button>
-                        );
-                      })}
+                    <div>
+                      <div className="admin-section-label">{translate(language, "adminOrderUpdate")}</div>
+                      <div className="admin-action-grid mt-3">
+                        {quickActions.map((action) => {
+                          const Icon = action.icon;
+                          return (
+                            <button
+                              key={action.status}
+                              type="button"
+                              onClick={() => void updateOrderStatusAction(order._id, action.status)}
+                              disabled={busy}
+                              className="ghost-button gap-2 px-4 py-3 text-sm"
+                            >
+                              <Icon className="h-4 w-4" />
+                              {translate(language, `status_${action.status}` as TranslationKey)}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : null}
+
+                  <div className="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
+                    {phoneFlow
+                      ? translate(language, "adminAlertOrdersPending").replace("{count}", "1")
+                      : translate(language, "adminOrdersDescription")}
+                  </div>
 
                   <button
                     type="button"
@@ -1830,11 +1864,11 @@ export function AdminDashboardPage() {
                       }
                     }}
                     disabled={busy}
-                    className="w-full text-sm font-semibold text-rose-600"
+                    className="w-full rounded-full border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
                   >
                     {translate(language, "adminDelete")}
                   </button>
-                </div>
+                </aside>
               </div>
             </div>
           );
@@ -2810,6 +2844,81 @@ export function AdminDashboardPage() {
     </div>
   );
 
+  const currentViewMeta: Record<string, { icon: typeof BarChart3; title: string; description: string }> = {
+    dashboard: {
+      icon: Sparkles,
+      title: translate(language, "dashboard"),
+      description: translate(language, "authAdminDescription"),
+    },
+    products: {
+      icon: Package,
+      title: translate(language, "products"),
+      description: translate(language, "adminProductsTitle"),
+    },
+    categories: {
+      icon: Tag,
+      title: translate(language, "categories"),
+      description: translate(language, "adminCategoriesTitle"),
+    },
+    brands: {
+      icon: Building2,
+      title: translate(language, "adminBrandsTitle"),
+      description: translate(language, "adminBrand"),
+    },
+    orders: {
+      icon: Phone,
+      title: translate(language, "adminOrdersTitle"),
+      description: translate(language, "adminOrdersDescription"),
+    },
+    shipping: {
+      icon: MapPin,
+      title: translate(language, "shippingFees"),
+      description: translate(language, "checkoutShippingFeeError"),
+    },
+    "promo-codes": {
+      icon: TicketPercent,
+      title: translate(language, "promoCodes"),
+      description: translate(language, "adminPromoCreateDescription"),
+    },
+    affiliates: {
+      icon: Users,
+      title: translate(language, "affiliates"),
+      description: translate(language, "authAffiliateDescription"),
+    },
+    commissions: {
+      icon: Wallet,
+      title: translate(language, "commissions"),
+      description: translate(language, "affiliateCommissionRule"),
+    },
+    withdrawals: {
+      icon: Wallet,
+      title: translate(language, "adminWithdrawalsTitle"),
+      description: translate(language, "adminWithdrawalsDescription"),
+    },
+    "coupon-requests": {
+      icon: Gift,
+      title: translate(language, "adminCouponRequestsTitle"),
+      description: translate(language, "adminCouponRequestsDescription"),
+    },
+    settings: {
+      icon: Shield,
+      title: translate(language, "settings"),
+      description: translate(language, "authAdminDescription"),
+    },
+    admins: {
+      icon: Crown,
+      title: translate(language, "adminAdminsTitle"),
+      description: translate(language, "adminAdminsDescription"),
+    },
+    analytics: {
+      icon: BarChart3,
+      title: translate(language, "analyticsTitle"),
+      description: translate(language, "analyticsVisitorsByDay"),
+    },
+  };
+
+  const activeViewMeta = currentViewMeta[tab] || currentViewMeta.dashboard;
+
   const currentView =
     tab === "products"
       ? renderProducts()
@@ -2847,6 +2956,33 @@ export function AdminDashboardPage() {
       onLogout={() => setAdminSession(null)}
     >
       <Seo title={translate(language, "dashboard")} noindex />
+      <section className="admin-page-header">
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-amber-300 ring-1 ring-white/12">
+              <activeViewMeta.icon className="h-5 w-5" />
+            </div>
+            <h1 className="font-serif text-3xl font-semibold tracking-tight text-white md:text-4xl">{activeViewMeta.title}</h1>
+            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">{activeViewMeta.description}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
+              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">{translate(language, "orders")}</div>
+              <div className="mt-2 text-2xl font-semibold text-white">{orders.length}</div>
+            </div>
+            <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
+              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">{translate(language, "dashboardPending")}</div>
+              <div className="mt-2 text-2xl font-semibold text-white">
+                {orders.filter((order) => order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION").length}
+              </div>
+            </div>
+            <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
+              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">{translate(language, "products")}</div>
+              <div className="mt-2 text-2xl font-semibold text-white">{products.length}</div>
+            </div>
+          </div>
+        </div>
+      </section>
       {currentView}
     </DashboardShell>
   );

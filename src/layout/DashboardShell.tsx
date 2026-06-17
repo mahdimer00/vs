@@ -117,7 +117,7 @@ export function DashboardShell({
   );
 
   return (
-    <div className="relative">
+    <div className="dashboard-shell relative">
       {/* Mobile top bar */}
       <div className="mb-4 flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-slate-950 px-4 py-3 text-white lg:hidden">
         <div className="flex items-center gap-3">
@@ -157,11 +157,11 @@ export function DashboardShell({
       ) : null}
 
       {/* Desktop layout */}
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <aside className="surface-card-dark hidden h-fit p-6 lg:block lg:sticky lg:top-6">
+      <div className="dashboard-main grid gap-6 lg:grid-cols-[300px_1fr]">
+        <aside className="dashboard-sidebar surface-card-dark hidden h-fit p-6 lg:block lg:sticky lg:top-6">
           <SidebarContent />
         </aside>
-        <section className="min-w-0 space-y-6">{children}</section>
+        <section className="dashboard-workspace min-w-0 space-y-6">{children}</section>
       </div>
     </div>
   );
