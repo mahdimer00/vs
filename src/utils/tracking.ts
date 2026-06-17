@@ -1,4 +1,5 @@
 import type { AnalyticsEventType } from "@/types";
+import { getSignatureHeaders } from "@/utils/apiSignature";
 
 interface EventPayload {
   eventType: AnalyticsEventType;
@@ -34,12 +35,16 @@ export function trackEvent(payload: EventPayload): void {
     referrer: typeof document !== "undefined" ? document.referrer : "",
   });
 
-  void fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-    keepalive: true,
-  }).catch(() => {
-    // silently ignore — analytics failures must not surface to users
-  });
+  void getSignatureHeaders()
+    .then((sigHeaders) =>
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...sigHeaders },
+        body,
+        keepalive: true,
+      }),
+    )
+    .catch(() => {
+      // silently ignore — analytics failures must not surface to users
+    });
 }

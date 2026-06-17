@@ -6,6 +6,7 @@ import { asyncHandler } from "../../utils/async-handler.js";
 import { AnalyticsEventModel } from "../../models/analytics.model.js";
 import { OrderModel } from "../../models/orders.model.js";
 import { ProductModel } from "../../models/catalog.model.js";
+import { sendCapiEvent } from "../../utils/capi.js";
 
 const router = Router();
 
@@ -15,7 +16,17 @@ const eventSchema = z.object({
   orderId: z.string().max(128).optional(),
   pageUrl: z.string().max(2048).default(""),
   referrer: z.string().max(2048).default(""),
+  // CAPI deduplication / matching — no PII stored
+  fbp: z.string().max(256).optional(),
+  fbc: z.string().max(256).optional(),
 });
+
+const capiEventMap: Partial<Record<string, string>> = {
+  page_view: "PageView",
+  product_view: "ViewContent",
+  add_to_cart: "AddToCart",
+  checkout_start: "InitiateCheckout",
+};
 
 // Public — log a frontend analytics event. No auth, fire-and-forget.
 router.post("/analytics/event", asyncHandler(async (req, res) => {
@@ -25,6 +36,7 @@ router.post("/analytics/event", asyncHandler(async (req, res) => {
   }
 
   const userAgent = String(req.headers["user-agent"] ?? "").slice(0, 512);
+  const clientIp = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "").split(",")[0].trim();
 
   await AnalyticsEventModel.create({
     eventType: parsed.data.eventType,
@@ -34,6 +46,19 @@ router.post("/analytics/event", asyncHandler(async (req, res) => {
     referrer: parsed.data.referrer,
     userAgent,
   });
+
+  const capiName = capiEventMap[parsed.data.eventType];
+  if (capiName) {
+    void sendCapiEvent({
+      eventName: capiName,
+      sourceUrl: parsed.data.pageUrl || undefined,
+      clientIp,
+      clientUserAgent: userAgent,
+      fbp: parsed.data.fbp,
+      fbc: parsed.data.fbc,
+      contentIds: parsed.data.productId ? [parsed.data.productId] : undefined,
+    });
+  }
 
   return res.status(204).end();
 }));
