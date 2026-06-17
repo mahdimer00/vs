@@ -12,7 +12,6 @@ const AffiliateLoginPage = lazy(() => import("@/pages/AffiliateLoginPage").then(
 const AffiliateRegisterPage = lazy(() => import("@/pages/AffiliateRegisterPage").then((module) => ({ default: module.AffiliateRegisterPage })));
 const CartPage = lazy(() => import("@/pages/CartPage").then((module) => ({ default: module.CartPage })));
 const CategoriesPage = lazy(() => import("@/pages/CategoriesPage").then((module) => ({ default: module.CategoriesPage })));
-const CheckoutConfirmationPage = lazy(() => import("@/pages/CheckoutConfirmationPage").then((module) => ({ default: module.CheckoutConfirmationPage })));
 const CheckoutPage = lazy(() => import("@/pages/CheckoutPage").then((module) => ({ default: module.CheckoutPage })));
 const ContactPage = lazy(() => import("@/pages/ContactPage").then((module) => ({ default: module.ContactPage })));
 const EarnMoneyPage = lazy(() => import("@/pages/EarnMoneyPage").then((module) => ({ default: module.EarnMoneyPage })));
@@ -37,7 +36,6 @@ export const router = createBrowserRouter([
       { path: "cart", element: <CartPage /> },
       { path: "wishlist", element: <WishlistPage /> },
       { path: "checkout", element: <CheckoutPage /> },
-      { path: "checkout/confirm", element: <CheckoutConfirmationPage /> },
       { path: "order/success", element: <OrderSuccessPage /> },
       { path: "track-order", element: <TrackOrderPage /> },
       { path: "contact", element: <ContactPage /> },

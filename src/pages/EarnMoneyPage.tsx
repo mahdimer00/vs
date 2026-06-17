@@ -1,4 +1,4 @@
-import { ArrowRight, BadgePercent, Link2, Share2, Wallet } from "lucide-react";
+import { ArrowRight, BadgePercent, BarChart3, Link2, Share2, ShieldCheck, Sparkles, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
@@ -25,25 +25,64 @@ export function EarnMoneyPage() {
     },
   ];
 
+  const highlights = [
+    {
+      icon: ShieldCheck,
+      title: translate(language, "earnMoneyHighlight1Title"),
+      description: translate(language, "earnMoneyHighlight1Description"),
+    },
+    {
+      icon: BarChart3,
+      title: translate(language, "earnMoneyHighlight2Title"),
+      description: translate(language, "earnMoneyHighlight2Description"),
+    },
+    {
+      icon: Sparkles,
+      title: translate(language, "earnMoneyHighlight3Title"),
+      description: translate(language, "earnMoneyHighlight3Description"),
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <Seo title={translate(language, "earnMoneyTitle")} description={translate(language, "earnMoneyDescription")} path="/earn-money" />
       <section className="surface-card-dark relative overflow-hidden p-6 sm:p-8 md:p-12">
         <div className="absolute -end-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-amber-400/30 to-rose-500/20 blur-3xl" />
-        <span className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-amber-300">
-          <BadgePercent className="h-4 w-4" />
-          {translate(language, "earnMoneyBadge")}
-        </span>
-        <h1 className="mt-6 max-w-3xl font-serif text-2xl font-semibold sm:text-3xl md:text-4xl lg:text-5xl">{translate(language, "earnMoneyTitle")}</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 md:text-base">{translate(language, "earnMoneyDescription")}</p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/affiliate/register" className="primary-button inline-flex items-center gap-2">
-            {translate(language, "earnMoneyCtaRegister")}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link to="/affiliate/login" className="ghost-button inline-flex items-center gap-2 border border-white/15 text-white">
-            {translate(language, "earnMoneyCtaLogin")}
-          </Link>
+        <div className="absolute -bottom-12 start-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] text-amber-300">
+              <BadgePercent className="h-4 w-4" />
+              {translate(language, "earnMoneyBadge")}
+            </span>
+            <h1 className="mt-6 max-w-3xl font-serif text-2xl font-semibold sm:text-3xl md:text-4xl lg:text-5xl">{translate(language, "earnMoneyTitle")}</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 md:text-base">{translate(language, "earnMoneyDescription")}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/affiliate/register" className="primary-button inline-flex items-center gap-2">
+                {translate(language, "earnMoneyCtaRegister")}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link to="/affiliate/login" className="ghost-button inline-flex items-center gap-2 border border-white/15 text-white">
+                {translate(language, "earnMoneyCtaLogin")}
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            {highlights.map((highlight) => (
+              <div key={highlight.title} className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+                <div className="flex items-start gap-4">
+                  <div className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-amber-300">
+                    <highlight.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">{highlight.title}</h2>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">{highlight.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -79,18 +118,39 @@ export function EarnMoneyPage() {
             </li>
           </ul>
         </div>
-        <div className="surface-card-dark p-8">
-          <h2 className="font-serif text-2xl font-semibold">{translate(language, "earnMoneyCtaTitle")}</h2>
-          <p className="mt-4 text-sm leading-7 text-slate-300">{translate(language, "earnMoneyCtaDescription")}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/affiliate/register" className="primary-button inline-flex items-center gap-2">
-              {translate(language, "earnMoneyCtaRegister")}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link to="/affiliate/login" className="ghost-button inline-flex items-center gap-2 border border-white/15 text-white">
-              {translate(language, "earnMoneyCtaLogin")}
-            </Link>
+
+        <div className="surface-card p-8">
+          <h2 className="font-serif text-2xl font-semibold text-slate-950">{translate(language, "earnMoneyWhyTitle")}</h2>
+          <div className="mt-4 space-y-4">
+            {highlights.map((highlight) => (
+              <div key={highlight.title} className="rounded-[1.35rem] border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-white">
+                    <highlight.icon className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-950">{highlight.title}</div>
+                    <p className="mt-1 text-sm leading-7 text-slate-600">{highlight.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
+
+      <section className="surface-card-dark relative overflow-hidden p-8">
+        <div className="absolute inset-y-0 end-0 w-48 bg-gradient-to-l from-amber-400/15 to-transparent" />
+        <h2 className="font-serif text-2xl font-semibold">{translate(language, "earnMoneyCtaTitle")}</h2>
+        <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">{translate(language, "earnMoneyCtaDescription")}</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link to="/affiliate/register" className="primary-button inline-flex items-center gap-2">
+            {translate(language, "earnMoneyCtaRegister")}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link to="/affiliate/login" className="ghost-button inline-flex items-center gap-2 border border-white/15 text-white">
+            {translate(language, "earnMoneyCtaLogin")}
+          </Link>
         </div>
       </section>
     </div>

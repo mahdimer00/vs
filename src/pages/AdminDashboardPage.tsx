@@ -21,6 +21,7 @@ import {
   Store,
   TicketPercent,
   TrendingUp,
+  Truck,
   Users,
   Wallet,
   X,
@@ -72,6 +73,31 @@ const levelIcons: Record<AffiliateLevel, typeof Medal> = {
 };
 
 const affiliateLevelOrder: AffiliateLevel[] = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+const orderStatusOptions: Order["status"][] = [
+  "PENDING_AI_CONFIRMATION",
+  "AWAITING_CALL_CONFIRMATION",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "PICKED_UP",
+  "CANCELLED",
+  "RETURNED",
+  "FAILED",
+];
+
+const orderStatusPriority = new Map<Order["status"], number>([
+  ["AWAITING_CALL_CONFIRMATION", 0],
+  ["PENDING_AI_CONFIRMATION", 1],
+  ["CONFIRMED", 2],
+  ["PROCESSING", 3],
+  ["SHIPPED", 4],
+  ["DELIVERED", 5],
+  ["PICKED_UP", 6],
+  ["FAILED", 7],
+  ["RETURNED", 8],
+  ["CANCELLED", 9],
+]);
 
 type ProductFormState = {
   nameAr: string;
@@ -267,6 +293,7 @@ export function AdminDashboardPage() {
     phone: "",
     orderNumber: "",
   });
+  const [orderActionId, setOrderActionId] = useState<string | null>(null);
   const [subAdminForm, setSubAdminForm] = useState<SubAdminFormState>(defaultSubAdminForm);
   const [subAdminDrafts, setSubAdminDrafts] = useState<Record<string, { permissions: AdminPermission[]; password: string }>>({});
 
@@ -531,8 +558,56 @@ export function AdminDashboardPage() {
   }, [promos]);
 
   const ordersById = useMemo(() => new Map(orders.map((order) => [order._id, order])), [orders]);
+  const orderSummaryCards = useMemo(
+    () => [
+      {
+        key: "all",
+        label: translate(language, "orders"),
+        count: orders.length,
+        icon: BarChart3,
+        tone: "bg-slate-950 text-white",
+      },
+      {
+        key: "AWAITING_CALL_CONFIRMATION",
+        label: translate(language, "status_AWAITING_CALL_CONFIRMATION"),
+        count: orders.filter((order) => order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION").length,
+        icon: Phone,
+        tone: "bg-amber-100 text-amber-700",
+      },
+      {
+        key: "CONFIRMED",
+        label: translate(language, "status_CONFIRMED"),
+        count: orders.filter((order) => order.status === "CONFIRMED").length,
+        icon: Check,
+        tone: "bg-emerald-100 text-emerald-700",
+      },
+      {
+        key: "PROCESSING",
+        label: translate(language, "status_PROCESSING"),
+        count: orders.filter((order) => order.status === "PROCESSING").length,
+        icon: Store,
+        tone: "bg-sky-100 text-sky-700",
+      },
+      {
+        key: "SHIPPED",
+        label: translate(language, "status_SHIPPED"),
+        count: orders.filter((order) => order.status === "SHIPPED").length,
+        icon: Truck,
+        tone: "bg-violet-100 text-violet-700",
+      },
+      {
+        key: "DELIVERED",
+        label: translate(language, "status_DELIVERED"),
+        count: orders.filter((order) => order.status === "DELIVERED" || order.status === "PICKED_UP").length,
+        icon: Shield,
+        tone: "bg-emerald-100 text-emerald-700",
+      },
+    ],
+    [language, orders],
+  );
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    return orders
+      .filter((order) => {
       const wilayaLabel =
         typeof order.customer.wilaya === "string"
           ? order.customer.wilaya
@@ -543,13 +618,24 @@ export function AdminDashboardPage() {
               : order.customer.wilaya.name.en;
 
       return (
-        (orderFilters.status === "all" || order.status === orderFilters.status) &&
+        (orderFilters.status === "all" ||
+          (orderFilters.status === "AWAITING_CALL_CONFIRMATION"
+            ? order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION"
+            : order.status === orderFilters.status)) &&
         (orderFilters.wilaya === "all" || wilayaLabel === orderFilters.wilaya) &&
         (!orderFilters.phone || order.customer.phone.includes(orderFilters.phone)) &&
         (!orderFilters.date || order.createdAt.slice(0, 10) >= orderFilters.date) &&
         (!orderFilters.orderNumber || order.orderNumber.toLowerCase().includes(orderFilters.orderNumber.toLowerCase()))
       );
-    });
+      })
+      .sort((left, right) => {
+        const leftPriority = orderStatusPriority.get(left.status) ?? 99;
+        const rightPriority = orderStatusPriority.get(right.status) ?? 99;
+        if (leftPriority !== rightPriority) {
+          return leftPriority - rightPriority;
+        }
+        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+      });
   }, [language, orderFilters, orders]);
 
   if (loading) {
@@ -1524,16 +1610,61 @@ export function AdminDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
+  const updateOrderStatusAction = async (orderId: string, status: Order["status"]) => {
+    setOrderActionId(orderId);
+    try {
+      await adminService.updateOrderStatus(token, orderId, status);
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setOrderActionId(null);
+    }
+  };
+
+  const deleteOrderAction = async (orderId: string) => {
+    setOrderActionId(orderId);
+    try {
+      await adminService.deleteOrder(token, orderId);
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setOrderActionId(null);
+    }
+  };
+
   const renderOrders = () => (
     <div className="space-y-6">
       <Panel title={translate(language, "adminOrdersTitle")} description={translate(language, "adminOrdersDescription")}>
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          {orderSummaryCards.map((card) => {
+            const Icon = card.icon;
+            const active = orderFilters.status === card.key || (card.key === "all" && orderFilters.status === "all");
+            return (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => setOrderFilters((current) => ({ ...current, status: card.key === "all" ? "all" : card.key }))}
+                className={`rounded-[1.5rem] border px-4 py-4 text-start transition ${active ? "border-slate-950 shadow-lg shadow-slate-200/60" : "border-slate-200 hover:border-slate-300"} ${card.tone}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <Icon className="h-5 w-5" />
+                  <div className="text-2xl font-semibold">{card.count}</div>
+                </div>
+                <div className="mt-3 text-xs font-semibold uppercase tracking-[0.24em] opacity-80">{card.label}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-5">
           <input value={orderFilters.orderNumber} onChange={(event) => setOrderFilters((current) => ({ ...current, orderNumber: event.target.value }))} className="field-input" placeholder="Order #" />
           <select value={orderFilters.status} onChange={(event) => setOrderFilters((current) => ({ ...current, status: event.target.value }))} className="field-select">
             <option value="all">{translate(language, "filterAllStatuses")}</option>
-            {["PENDING_AI_CONFIRMATION", "AWAITING_CALL_CONFIRMATION", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED", "FAILED"].map((status) => (
+            {orderStatusOptions.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {translate(language, `status_${status}` as TranslationKey)}
               </option>
             ))}
           </select>
@@ -1558,7 +1689,7 @@ export function AdminDashboardPage() {
           <input type="date" value={orderFilters.date} onChange={(event) => setOrderFilters((current) => ({ ...current, date: event.target.value }))} className="field-input" />
           <input value={orderFilters.phone} onChange={(event) => setOrderFilters((current) => ({ ...current, phone: event.target.value }))} className="field-input" placeholder={translate(language, "filterPhonePlaceholder")} />
         </div>
-        <div className="mt-4 flex items-center justify-between gap-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <div className="text-sm text-slate-500">{filteredOrders.length} {translate(language, "orders")}</div>
           <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 text-sm">
             <BarChart3 className="h-4 w-4" /> Export CSV
@@ -1567,67 +1698,147 @@ export function AdminDashboardPage() {
       </Panel>
 
       <div className="space-y-4">
-        {filteredOrders.map((order) => (
-          <div key={order._id} className="surface-card p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-3">
-                <div>
-                  <div className="text-sm uppercase tracking-[0.24em] text-slate-400">{order.orderNumber}</div>
-                  <div className="mt-1 text-xl font-semibold text-slate-950">{order.customer.fullName}</div>
-                  <div className="mt-1 text-sm text-slate-500">{order.customer.phone}</div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="muted-card px-4 py-3 text-sm">
-                    <div className="text-slate-500">{translate(language, "wilaya")}</div>
-                    <div className="mt-1 font-semibold text-slate-950">
-                      {typeof order.customer.wilaya === "string"
-                        ? order.customer.wilaya
-                        : language === "ar"
-                          ? order.customer.wilaya.name.ar
-                          : language === "fr"
-                            ? order.customer.wilaya.name.fr
-                            : order.customer.wilaya.name.en}
+        {filteredOrders.map((order) => {
+          const busy = orderActionId === order._id;
+          const phoneFlow = order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION";
+          const quickActions =
+            order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION"
+              ? [
+                  { status: "CONFIRMED" as const, icon: Check },
+                  { status: "PROCESSING" as const, icon: Store },
+                  { status: "CANCELLED" as const, icon: X },
+                ]
+              : order.status === "CONFIRMED"
+                ? [
+                    { status: "PROCESSING" as const, icon: Store },
+                    { status: "CANCELLED" as const, icon: X },
+                  ]
+                : order.status === "PROCESSING"
+                  ? [
+                      { status: "SHIPPED" as const, icon: Truck },
+                      { status: "CANCELLED" as const, icon: X },
+                    ]
+                  : order.status === "SHIPPED"
+                    ? [
+                        { status: "DELIVERED" as const, icon: Shield },
+                        { status: "RETURNED" as const, icon: AlertTriangle },
+                      ]
+                    : [];
+
+          return (
+            <div key={order._id} className={`surface-card border p-6 ${phoneFlow ? "border-amber-300 shadow-lg shadow-amber-100/70" : "border-transparent"}`}>
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex-1 space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="text-sm uppercase tracking-[0.24em] text-slate-400">{order.orderNumber}</div>
+                      <div className="mt-1 text-xl font-semibold text-slate-950">{order.customer.fullName}</div>
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                        <span>{order.customer.phone}</span>
+                        <a href={`tel:${order.customer.phone}`} className="ghost-button gap-2 px-3 py-2 text-xs">
+                          <Phone className="h-3.5 w-3.5" />
+                          {translate(language, "phone")}
+                        </a>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-start gap-2 sm:items-end">
+                      <StatusBadge label={order.status} language={language} />
+                      <div className="text-xs text-slate-400">{formatDate(order.createdAt, language)}</div>
                     </div>
                   </div>
-                  <div className="muted-card px-4 py-3 text-sm">
-                    <div className="text-slate-500">{translate(language, "adminOrderTotal")}</div>
-                    <div className="mt-1 font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
+
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div className="muted-card px-4 py-3 text-sm">
+                      <div className="text-slate-500">{translate(language, "wilaya")}</div>
+                      <div className="mt-1 font-semibold text-slate-950">
+                        {typeof order.customer.wilaya === "string"
+                          ? order.customer.wilaya
+                          : language === "ar"
+                            ? order.customer.wilaya.name.ar
+                            : language === "fr"
+                              ? order.customer.wilaya.name.fr
+                              : order.customer.wilaya.name.en}
+                      </div>
+                    </div>
+                    <div className="muted-card px-4 py-3 text-sm">
+                      <div className="text-slate-500">{translate(language, "deliveryType")}</div>
+                      <div className="mt-1 font-semibold text-slate-950">{order.deliveryType}</div>
+                    </div>
+                    <div className="muted-card px-4 py-3 text-sm">
+                      <div className="text-slate-500">{translate(language, "adminOrderTotal")}</div>
+                      <div className="mt-1 font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
+                    </div>
+                    <div className="muted-card px-4 py-3 text-sm">
+                      <div className="text-slate-500">{translate(language, "adminOrderCreated")}</div>
+                      <div className="mt-1 font-semibold text-slate-950">{formatDate(order.createdAt, language)}</div>
+                    </div>
                   </div>
-                  <div className="muted-card px-4 py-3 text-sm">
-                    <div className="text-slate-500">{translate(language, "adminOrderCreated")}</div>
-                    <div className="mt-1 font-semibold text-slate-950">{formatDate(order.createdAt, language)}</div>
+
+                  <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{translate(language, "address")}</div>
+                    <div>{order.customer.address}</div>
+                    <div className="mt-1">{order.customer.commune}</div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{translate(language, "adminOrderItems")}</div>
+                    <div className="space-y-2">
+                      {order.items.map((item) => (
+                        <div key={`${order._id}-${item.productId}-${item.variantId || item.variantLabel}`} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>{getLocalizedText(item.productName, language)} ({item.variantLabel})</div>
+                          <div className="font-semibold text-slate-900">x{item.quantity}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                  {order.items.map((item) => `${item.productName.en} (${item.variantLabel}) x${item.quantity}`).join(", ")}
+
+                <div className="w-full max-w-xs space-y-3">
+                  <select value={order.status} onChange={(event) => void updateOrderStatusAction(order._id, event.target.value as Order["status"])} disabled={busy} className="field-select">
+                    {orderStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {translate(language, `status_${status}` as TranslationKey)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {quickActions.length ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {quickActions.map((action) => {
+                        const Icon = action.icon;
+                        return (
+                          <button
+                            key={action.status}
+                            type="button"
+                            onClick={() => void updateOrderStatusAction(order._id, action.status)}
+                            disabled={busy}
+                            className="ghost-button gap-2 text-sm"
+                          >
+                            <Icon className="h-4 w-4" />
+                            {translate(language, `status_${action.status}` as TranslationKey)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
+                        void deleteOrderAction(order._id);
+                      }
+                    }}
+                    disabled={busy}
+                    className="w-full text-sm font-semibold text-rose-600"
+                  >
+                    {translate(language, "adminDelete")}
+                  </button>
                 </div>
-              </div>
-              <div className="w-full max-w-xs space-y-3">
-                <StatusBadge label={order.status} language={language} />
-                <select value={order.status} onChange={(event) => void adminService.updateOrderStatus(token, order._id, event.target.value).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="field-select">
-                  {["PENDING_AI_CONFIRMATION", "AWAITING_CALL_CONFIRMATION", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED", "FAILED"].map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => {
-                    if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
-                      void adminService
-                        .deleteOrder(token, order._id)
-                        .then(loadAll)
-                        .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
-                    }
-                  }}
-                  className="w-full text-sm font-semibold text-rose-600"
-                >
-                  {translate(language, "adminDelete")}
-                </button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

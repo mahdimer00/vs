@@ -143,7 +143,7 @@ export function TrackOrderPage() {
             <IconField icon={Phone} className="flex-1">
               <input
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();

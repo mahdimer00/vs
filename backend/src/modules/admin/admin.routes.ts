@@ -92,7 +92,7 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
 
   return res.json({
     totalOrders: orders.length,
-    pendingOrders: orders.filter((order) => order.status === "PENDING_AI_CONFIRMATION").length,
+    pendingOrders: orders.filter((order) => order.status === "PENDING_AI_CONFIRMATION" || order.status === "AWAITING_CALL_CONFIRMATION").length,
     deliveredOrders: orders.filter((order) => deliveredStatuses.has(order.status)).length,
     cancelledOrders: orders.filter((order) => cancelledStatuses.has(order.status)).length,
     revenue: orders.filter((order) => deliveredStatuses.has(order.status)).reduce((sum, order) => sum + order.total, 0),

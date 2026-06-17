@@ -16,10 +16,11 @@ import { pixelInitiateCheckout, pixelLead, pixelPurchase } from "@/utils/pixel";
 import { trackEvent } from "@/utils/tracking";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
+const checkoutDraftKey = "visastore-checkout-draft";
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, affiliateRef, language, rememberPendingOrder, pushToast, updateQuantity, removeFromCart, siteSettings } = useApp();
+  const { cart, affiliateRef, language, rememberConfirmedOrder, rememberPendingOrder, clearCart, pushToast, updateQuantity, removeFromCart, siteSettings } = useApp();
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -35,6 +36,33 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [promoApplying, setPromoApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(checkoutDraftKey);
+      if (!raw) {
+        return;
+      }
+      const draft = JSON.parse(raw) as Partial<{
+        fullName: string;
+        phone: string;
+        wilayaCode: string;
+        commune: string;
+        communeOther: boolean;
+        address: string;
+        deliveryType: DeliveryType;
+      }>;
+      setFullName(draft.fullName || "");
+      setPhone(draft.phone || "");
+      setWilayaCode(draft.wilayaCode || "16");
+      setCommune(draft.commune || "");
+      setCommuneOther(Boolean(draft.communeOther));
+      setAddress(draft.address || "");
+      setDeliveryType(draft.deliveryType || "DESK_PICKUP");
+    } catch {
+      window.localStorage.removeItem(checkoutDraftKey);
+    }
+  }, []);
 
   useEffect(() => {
     void shippingService
@@ -58,6 +86,13 @@ export function CheckoutPage() {
         pushToast(translate(language, "checkoutShippingFeeError"), "error");
       });
   }, [deliveryType, wilayaCode, language, pushToast]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      checkoutDraftKey,
+      JSON.stringify({ fullName, phone, wilayaCode, commune, communeOther, address, deliveryType }),
+    );
+  }, [address, commune, communeOther, deliveryType, fullName, phone, wilayaCode]);
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.variant.price * item.quantity, 0), [cart]);
   const total = Math.max(0, subtotal + shippingFee - discount);
@@ -199,11 +234,11 @@ export function CheckoutPage() {
       pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });
       trackEvent({ eventType: "purchase", orderId: order._id });
 
-      if (!order.confirmationToken) {
-        throw new Error("Missing confirmation token");
-      }
-      rememberPendingOrder({ orderId: order._id, orderNumber: order.orderNumber, confirmationToken: order.confirmationToken });
-      navigate("/checkout/confirm");
+      window.localStorage.removeItem(checkoutDraftKey);
+      rememberPendingOrder(null);
+      rememberConfirmedOrder(order);
+      clearCart();
+      navigate("/order/success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create order";
       setErrorMessage(message);
@@ -219,6 +254,10 @@ export function CheckoutPage() {
       <div>
         <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "checkoutTitle")}</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "checkoutDescription")}</p>
+        <div className="mt-4 flex max-w-3xl items-start gap-3 rounded-[1.5rem] border border-teal-100 bg-teal-50/80 p-4 text-sm text-teal-900">
+          <Phone className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>{translate(language, "orderSuccessDescription")}</div>
+        </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
@@ -245,7 +284,7 @@ export function CheckoutPage() {
                     dir="ltr"
                     inputMode="tel"
                     value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
+                    onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
                     className="field-input field-input-icon"
                     placeholder="0555 12 34 56"
                   />

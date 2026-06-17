@@ -1,4 +1,4 @@
-import { ExternalLink, LogOut, Menu, User, X } from "lucide-react";
+import { BarChart3, ExternalLink, Gift, LayoutDashboard, LogOut, MapPinned, Menu, Package, Settings, Shield, ShoppingCart, Store, TicketPercent, User, Users, Wallet, X } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useApp } from "@/hooks/useApp";
@@ -21,6 +21,23 @@ export function DashboardShell({
   const session = adminSession ?? affiliateSession;
   const storeName = siteSettings?.storeName || "VisaStore";
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const iconByPath: Record<string, typeof LayoutDashboard> = {
+    "/gestion": LayoutDashboard,
+    "/gestion/products": Package,
+    "/gestion/categories": Store,
+    "/gestion/brands": Shield,
+    "/gestion/orders": ShoppingCart,
+    "/gestion/shipping": MapPinned,
+    "/gestion/promo-codes": TicketPercent,
+    "/gestion/affiliates": Users,
+    "/gestion/commissions": Wallet,
+    "/gestion/withdrawals": Wallet,
+    "/gestion/coupon-requests": Gift,
+    "/gestion/settings": Settings,
+    "/gestion/admins": Shield,
+    "/gestion/analytics": BarChart3,
+    "/affiliate": LayoutDashboard,
+  };
 
   const SidebarContent = () => (
     <>
@@ -60,24 +77,32 @@ export function DashboardShell({
 
       <nav className="mt-5 flex flex-col gap-1.5">
         {links.map((link) => (
-          <NavLink
-            key={link.href}
-            to={link.href}
-            end={link.href === "/gestion" || link.href === "/affiliate"}
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center justify-between gap-2 rounded-[1.2rem] px-4 py-3 text-sm font-medium transition ${
-                isActive ? "bg-white text-slate-950" : "text-slate-200 hover:bg-white/10"
-              }`
-            }
-          >
-            {link.label}
-            {link.badge ? (
-              <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">
-                {link.badge > 99 ? "99+" : link.badge}
-              </span>
-            ) : null}
-          </NavLink>
+          (() => {
+            const Icon = iconByPath[link.href] || LayoutDashboard;
+            return (
+              <NavLink
+                key={link.href}
+                to={link.href}
+                end={link.href === "/gestion" || link.href === "/affiliate"}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center justify-between gap-2 rounded-[1.2rem] px-4 py-3 text-sm font-medium transition ${
+                    isActive ? "bg-white text-slate-950" : "text-slate-200 hover:bg-white/10"
+                  }`
+                }
+              >
+                <span className="flex items-center gap-3">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{link.label}</span>
+                </span>
+                {link.badge ? (
+                  <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">
+                    {link.badge > 99 ? "99+" : link.badge}
+                  </span>
+                ) : null}
+              </NavLink>
+            );
+          })()
         ))}
       </nav>
 

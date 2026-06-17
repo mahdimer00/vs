@@ -178,6 +178,7 @@ export interface Order {
   affiliate?: string | Affiliate | null;
   status: OrderStatus;
   aiConfirmed: boolean;
+  stockReserved?: boolean;
   createdAt: string;
   confirmationToken?: string;
 }

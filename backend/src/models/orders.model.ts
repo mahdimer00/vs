@@ -50,9 +50,10 @@ const orderSchema = new Schema(
         "RETURNED",
         "FAILED",
       ],
-      default: "PENDING_AI_CONFIRMATION",
+      default: "AWAITING_CALL_CONFIRMATION",
     },
     aiConfirmed: { type: Boolean, default: false },
+    stockReserved: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

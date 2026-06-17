@@ -15,6 +15,24 @@ import { sendCapiEvent } from "../../utils/capi.js";
 
 const router = Router();
 
+const ORDER_STATUS_VALUES = [
+  "PENDING_AI_CONFIRMATION",
+  "AWAITING_CALL_CONFIRMATION",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "PICKED_UP",
+  "CANCELLED",
+  "RETURNED",
+  "FAILED",
+] as const;
+
+const LEGACY_PENDING_STATUS = "PENDING_AI_CONFIRMATION";
+const PHONE_CONFIRMATION_STATUS = "AWAITING_CALL_CONFIRMATION";
+const STOCK_RESERVED_STATUSES = new Set(["CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "PICKED_UP"]);
+const RESTOCKABLE_STATUSES = new Set(["CANCELLED", "RETURNED", "FAILED"]);
+
 const createOrderSchema = z.object({
   customer: z.object({
     fullName: z.string().min(2),
@@ -35,7 +53,6 @@ const createOrderSchema = z.object({
   deliveryType: z.enum(["HOME_DELIVERY", "DESK_PICKUP"]),
   promoCode: z.string().optional(),
   affiliateRef: z.string().optional(),
-  // CAPI deduplication fields — not stored in DB
   capiEventId: z.string().max(64).optional(),
   fbp: z.string().max(256).optional(),
   fbc: z.string().max(256).optional(),
@@ -59,8 +76,41 @@ function hasValidConfirmationToken(order: { confirmationTokenHash: string }, tok
   return crypto.timingSafeEqual(Buffer.from(order.confirmationTokenHash, "hex"), Buffer.from(providedHash, "hex"));
 }
 
+function hasReservedStock(order: { stockReserved?: boolean; aiConfirmed?: boolean }) {
+  return Boolean(order.stockReserved || order.aiConfirmed);
+}
+
 function maskPhone(phone: string) {
   return phone.length >= 4 ? `${phone.slice(0, 2)}******${phone.slice(-2)}` : phone;
+}
+
+async function loadOrderResponse(orderId: string) {
+  return OrderModel.findById(orderId)
+    .select("-confirmationTokenHash")
+    .populate("customer.wilaya")
+    .populate("affiliate", "-passwordHash")
+    .lean();
+}
+
+async function reserveStockForOrder(order: {
+  items: Array<{ variantId: string; quantity: number; productName: { en: string } }>;
+}) {
+  for (const item of order.items) {
+    const variant = await ProductVariantModel.findById(item.variantId);
+    if (!variant || variant.stock < item.quantity) {
+      throw new AppError(`Stock changed for ${item.productName.en}`, 400);
+    }
+  }
+
+  for (const item of order.items) {
+    await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -item.quantity } });
+  }
+}
+
+async function releaseStockForOrder(order: { items: Array<{ variantId: string; quantity: number }> }) {
+  for (const item of order.items) {
+    await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+  }
 }
 
 function serializeTrackedOrder(order: any) {
@@ -88,6 +138,7 @@ function serializeTrackedOrder(order: any) {
     promoCode: order.promoCode,
     status: order.status,
     aiConfirmed: order.aiConfirmed,
+    stockReserved: order.stockReserved,
     createdAt: order.createdAt,
   };
 }
@@ -142,8 +193,9 @@ router.post(
       paymentMethod: "COD",
       promoCode: input.promoCode?.toUpperCase(),
       affiliate: affiliate?._id,
-      status: "PENDING_AI_CONFIRMATION",
+      status: PHONE_CONFIRMATION_STATUS,
       aiConfirmed: false,
+      stockReserved: false,
     });
 
     if (promoDocumentId) {
@@ -155,31 +207,32 @@ router.post(
       });
     }
 
-    const populatedOrder = await OrderModel.findById(order._id)
-      .select("-confirmationTokenHash")
-      .populate("customer.wilaya")
-      .populate("affiliate", "-passwordHash")
-      .lean();
+    const populatedOrder = await loadOrderResponse(String(order._id));
+    if (!populatedOrder) {
+      throw new AppError("Unable to load created order", 500);
+    }
     const customer = populatedOrder?.customer;
-
     const wilayaName =
       customer && typeof customer.wilaya !== "string" && "name" in customer.wilaya
         ? (customer.wilaya as { name: { en: string } }).name.en
         : "";
     const itemsList = order.items.map((item) => `- ${item.productName.en} (${item.variantLabel}) x${item.quantity}`).join("\n");
+
     void sendTelegramMessage(
-      `🛒 <b>New order received</b>\n` +
-        `Order: ${order.orderNumber}\n` +
-        `Customer: ${customer?.fullName}\n` +
-        `Phone: ${customer?.phone}\n` +
-        `Wilaya: ${wilayaName}, ${customer?.commune}\n` +
-        `Delivery: ${order.deliveryType}\n` +
-        `Items:\n${itemsList}\n` +
+      [
+        `🛒 <b>New order received</b>`,
+        `Order: ${order.orderNumber}`,
+        `Customer: ${customer?.fullName}`,
+        `Phone: ${customer?.phone}`,
+        `Wilaya: ${wilayaName}, ${customer?.commune}`,
+        `Delivery: ${order.deliveryType}`,
+        `Items:\n${itemsList}`,
         `Total: ${order.total} DZD`,
+        `Status: Awaiting phone confirmation`,
+        `Action: Call customer before processing`,
+      ].join("\n"),
     );
 
-    // Server-side Meta Conversions API — fires alongside the browser Pixel for better signal quality.
-    // capiEventId deduplicates with the browser-side Pixel event so Meta only counts it once.
     const nameParts = input.customer.fullName.trim().split(/\s+/);
     const capiBase = {
       phone: input.customer.phone,
@@ -228,42 +281,21 @@ router.post(
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    if (order.status === "AWAITING_CALL_CONFIRMATION" && order.aiConfirmed) {
-      return res.json(
-        await OrderModel.findById(order._id)
-          .select("-confirmationTokenHash")
-          .populate("customer.wilaya")
-          .populate("affiliate", "-passwordHash")
-          .lean(),
-      );
+    if (order.status === PHONE_CONFIRMATION_STATUS && hasReservedStock(order)) {
+      return res.json(await loadOrderResponse(String(order._id)));
     }
 
-    if (order.status !== "PENDING_AI_CONFIRMATION") {
+    if (order.status !== LEGACY_PENDING_STATUS) {
       throw new AppError("Order is not awaiting AI confirmation", 400);
     }
 
-    for (const item of order.items) {
-      const variant = await ProductVariantModel.findById(item.variantId);
-      if (!variant || variant.stock < item.quantity) {
-        throw new AppError(`Stock changed for ${item.productName.en}`, 400);
-      }
-    }
-
-    for (const item of order.items) {
-      await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -item.quantity } });
-    }
-
+    await reserveStockForOrder(order);
     order.aiConfirmed = true;
-    order.status = "AWAITING_CALL_CONFIRMATION";
+    order.stockReserved = true;
+    order.status = PHONE_CONFIRMATION_STATUS;
     await order.save();
 
-    return res.json(
-      await OrderModel.findById(order._id)
-        .select("-confirmationTokenHash")
-        .populate("customer.wilaya")
-        .populate("affiliate", "-passwordHash")
-        .lean(),
-    );
+    return res.json(await loadOrderResponse(String(order._id)));
   }),
 );
 
@@ -282,8 +314,7 @@ router.post(
     if (!hasValidConfirmationToken(order, input.confirmationToken)) {
       return res.status(403).json({ message: "Forbidden" });
     }
-
-    if (order.status !== "PENDING_AI_CONFIRMATION") {
+    if (order.status !== LEGACY_PENDING_STATUS) {
       throw new AppError("Order is no longer awaiting AI confirmation", 400);
     }
 
@@ -315,7 +346,7 @@ ${itemsList}
 🚚 رسوم التوصيل: ${numberFormatter.format(order.shippingFee)} دج
 
 إذا كانت هذه المعلومات صحيحة، اكتب "نعم" لتأكيد الطلب.
-وإذا أردت تعديل أي تفاصيل (الاسم، الهاتف، العنوان، الكمية...)، أخبرنا بذلك وسنساعدك فوراً.`,
+وإذا أردت تعديل أي تفاصيل، أخبرنا بذلك وسنساعدك فوراً.`,
     });
   }),
 );
@@ -324,9 +355,11 @@ router.get(
   "/orders/track-by-phone/:phone",
   orderTrackRateLimitMiddleware,
   asyncHandler(async (req, res) => {
-    const input = z.object({
-      phone: z.string().regex(/^(05|06|07)\d{8}$/),
-    }).parse(req.params);
+    const input = z
+      .object({
+        phone: z.string().regex(/^(05|06|07)\d{8}$/),
+      })
+      .parse(req.params);
 
     const orders = await OrderModel.find({ "customer.phone": input.phone })
       .sort({ createdAt: -1 })
@@ -354,51 +387,36 @@ router.get(
   }),
 );
 
-const RESTOCKABLE_STATUSES = ["CANCELLED", "RETURNED", "FAILED"];
-
 router.patch(
   "/admin/orders/:id/status",
   authMiddleware,
   permissionMiddleware("orders"),
   asyncHandler(async (req, res) => {
-    const input = z.object({
-      status: z.enum([
-        "PENDING_AI_CONFIRMATION",
-        "AWAITING_CALL_CONFIRMATION",
-        "CONFIRMED",
-        "PROCESSING",
-        "SHIPPED",
-        "DELIVERED",
-        "PICKED_UP",
-        "CANCELLED",
-        "RETURNED",
-        "FAILED",
-      ]),
-    }).parse(req.body);
+    const input = z
+      .object({
+        status: z.enum(ORDER_STATUS_VALUES),
+      })
+      .parse(req.body);
 
     const existing = await OrderModel.findById(req.params.id);
     if (!existing) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const wasRestockable = RESTOCKABLE_STATUSES.includes(existing.status);
-    const willBeRestockable = RESTOCKABLE_STATUSES.includes(input.status);
+    const wasReserved = hasReservedStock(existing);
+    const willBeReserved = STOCK_RESERVED_STATUSES.has(input.status);
 
-    if (existing.aiConfirmed && willBeRestockable && !wasRestockable) {
-      for (const item of existing.items) {
-        await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-      }
-    } else if (existing.aiConfirmed && !willBeRestockable && wasRestockable) {
-      for (const item of existing.items) {
-        await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -item.quantity } });
-      }
+    if (!wasReserved && willBeReserved) {
+      await reserveStockForOrder(existing);
+    } else if (wasReserved && !willBeReserved) {
+      await releaseStockForOrder(existing);
     }
 
-    const order = await OrderModel.findByIdAndUpdate(req.params.id, { status: input.status }, { new: true })
-      .select("-confirmationTokenHash")
-      .populate("customer.wilaya")
-      .populate("affiliate", "-passwordHash");
+    existing.status = input.status;
+    existing.stockReserved = willBeReserved;
+    await existing.save();
 
+    const order = await loadOrderResponse(String(req.params.id));
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -418,10 +436,8 @@ router.delete(
       return res.status(404).json({ message: "Order not found" });
     }
 
-    if (existing.aiConfirmed && !RESTOCKABLE_STATUSES.includes(existing.status)) {
-      for (const item of existing.items) {
-        await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-      }
+    if (hasReservedStock(existing) && !RESTOCKABLE_STATUSES.has(existing.status)) {
+      await releaseStockForOrder(existing);
     }
 
     await OrderModel.findByIdAndDelete(req.params.id);
