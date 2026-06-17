@@ -4,10 +4,10 @@ import { OrderModel } from "../models/orders.model.js";
 import { sendTelegramMessage } from "./telegram.js";
 
 const LEVEL_CAPS: Record<string, number> = {
-  BRONZE: 200,
-  SILVER: 350,
-  GOLD: 500,
-  PLATINUM: 700,
+  BRONZE: 500,
+  SILVER: 700,
+  GOLD: 900,
+  PLATINUM: 1200,
 };
 
 async function calculateOrderCommissionAmount(

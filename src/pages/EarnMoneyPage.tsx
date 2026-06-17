@@ -8,7 +8,7 @@ const levelTiers = [
   {
     label: "Bronze",
     percent: "3%",
-    maxCap: "200",
+    maxCap: "500",
     color: "from-amber-700 to-amber-500",
     bg: "bg-amber-50",
     border: "border-amber-200",
@@ -18,7 +18,7 @@ const levelTiers = [
   {
     label: "Silver",
     percent: "5%",
-    maxCap: "350",
+    maxCap: "700",
     color: "from-slate-500 to-slate-400",
     bg: "bg-slate-50",
     border: "border-slate-200",
@@ -28,7 +28,7 @@ const levelTiers = [
   {
     label: "Gold",
     percent: "7%",
-    maxCap: "500",
+    maxCap: "900",
     color: "from-yellow-500 to-amber-400",
     bg: "bg-yellow-50",
     border: "border-yellow-200",
@@ -38,7 +38,7 @@ const levelTiers = [
   {
     label: "Platinum",
     percent: "10%",
-    maxCap: "700",
+    maxCap: "1200",
     color: "from-teal-600 to-emerald-500",
     bg: "bg-teal-50",
     border: "border-teal-200",
@@ -100,7 +100,7 @@ export function EarnMoneyPage() {
             <div className="mt-8 grid grid-cols-3 gap-4">
               {[
                 { value: "3–10%", label: commLabel },
-                { value: "700", label: isAr ? "أقصى ربح (دج)" : isFr ? "Gain max (DA)" : "Max (DZD)" },
+                { value: "1200", label: isAr ? "أقصى ربح (دج)" : isFr ? "Gain max (DA)" : "Max (DZD)" },
                 { value: "100%", label: isAr ? "مجاني" : isFr ? "Gratuit" : "Free" },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4 text-center backdrop-blur-sm">
