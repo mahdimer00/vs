@@ -57,6 +57,8 @@ interface ZRParcelResponse {
 
 let territoriesMap: Map<string, string> | null = null;
 let ratesCache: ZRTerritory[] | null = null;
+let ratesCacheTime = 0;
+const RATES_CACHE_TTL_MS = 30 * 60 * 1000;
 let territorySearchCache: ZRTerritorySearchItem[] | null = null;
 
 function zrHeaders() {
@@ -140,7 +142,7 @@ async function loadTerritories(): Promise<Map<string, string>> {
 }
 
 export async function getZRTerritories(): Promise<ZRTerritory[]> {
-  if (ratesCache) return ratesCache;
+  if (ratesCache && Date.now() - ratesCacheTime < RATES_CACHE_TTL_MS) return ratesCache;
   if (!isZRConfigured()) return [];
 
   const [rates, territories] = await Promise.all([fetchRates(), fetchTerritories()]);
@@ -161,6 +163,7 @@ export async function getZRTerritories(): Promise<ZRTerritory[]> {
       .map((item) => [item.id, item]),
   );
 
+  ratesCacheTime = Date.now();
   ratesCache = territories
     .filter((item) => item.level === "commune" && item.delivery?.canSend)
     .map((item) => {
@@ -290,6 +293,44 @@ export async function getZRParcel(parcelId: string): Promise<ZRParcelResponse | 
   }
 }
 
+export async function cancelZRParcel(parcelId: string): Promise<void> {
+  if (!isZRConfigured()) return;
+  try {
+    await fetch(`${ZR_BASE}/parcels/${parcelId}`, {
+      method: "DELETE",
+      headers: zrHeaders(),
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function registerZRWebhook(url: string): Promise<{ id: string; url: string }> {
+  if (!isZRConfigured()) throw new Error("ZR Express not configured");
+  const res = await fetch(`${ZR_BASE}/webhooks/endpoints`, {
+    method: "POST",
+    headers: zrHeaders(),
+    body: JSON.stringify({ url, events: ["parcel.state_changed"] }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`ZR webhook registration failed ${res.status}: ${err}`);
+  }
+  return (await res.json()) as { id: string; url: string };
+}
+
+export async function listZRWebhooks(): Promise<Array<{ id: string; url: string }>> {
+  if (!isZRConfigured()) return [];
+  try {
+    const res = await fetch(`${ZR_BASE}/webhooks/endpoints`, { headers: zrHeaders() });
+    if (!res.ok) return [];
+    const data = (await res.json()) as Array<{ id: string; url: string }> | { items?: Array<{ id: string; url: string }> };
+    return Array.isArray(data) ? data : (data.items ?? []);
+  } catch {
+    return [];
+  }
+}
+
 export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buffer> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
 
@@ -305,8 +346,37 @@ export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buf
   return Buffer.from(arrayBuffer);
 }
 
+export async function getZRParcelHistory(parcelId: string): Promise<Array<{ state: string; stateAr: string; date: string }>> {
+  if (!isZRConfigured()) return [];
+  try {
+    const res = await fetch(`${ZR_BASE}/parcels/${parcelId}/history`, { headers: zrHeaders() });
+    if (!res.ok) return [];
+    const data = (await res.json()) as Array<{ state?: { name?: string; nameArabic?: string }; createdAt?: string; date?: string }>;
+    return data.map((entry) => ({
+      state: entry.state?.name ?? "",
+      stateAr: entry.state?.nameArabic ?? "",
+      date: entry.createdAt ?? entry.date ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function generateZRBulkLabelPdf(trackingNumbers: string[]): Promise<Buffer> {
+  if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
+  const res = await fetch(`${ZR_BASE}/parcels/labels/bulk`, {
+    method: "POST",
+    headers: zrHeaders(),
+    body: JSON.stringify({ trackingNumbers, format: "A6" }),
+  });
+  if (!res.ok) throw new Error(`ZR Express bulk label generation failed: ${res.status}`);
+  const arrayBuffer = await res.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
 export function resetTerritoriesCache(): void {
   territoriesMap = null;
   ratesCache = null;
+  ratesCacheTime = 0;
   territorySearchCache = null;
 }
