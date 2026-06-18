@@ -305,12 +305,14 @@ export async function cancelZRParcel(parcelId: string): Promise<void> {
   }
 }
 
+const ZR_WEBHOOK_EVENTS = ["parcel.state.updated", "parcel.state.situation.created", "parcel.isReturn.updated"];
+
 export async function registerZRWebhook(url: string): Promise<{ id: string; url: string }> {
   if (!isZRConfigured()) throw new Error("ZR Express not configured");
   const res = await fetch(`${ZR_BASE}/webhooks/endpoints`, {
     method: "POST",
     headers: zrHeaders(),
-    body: JSON.stringify({ url, events: ["parcel.state_changed"] }),
+    body: JSON.stringify({ url, filterTypes: ZR_WEBHOOK_EVENTS }),
   });
   if (!res.ok) {
     const err = await res.text();
@@ -324,8 +326,11 @@ export async function listZRWebhooks(): Promise<Array<{ id: string; url: string 
   try {
     const res = await fetch(`${ZR_BASE}/webhooks/endpoints`, { headers: zrHeaders() });
     if (!res.ok) return [];
-    const data = (await res.json()) as Array<{ id: string; url: string }> | { items?: Array<{ id: string; url: string }> };
-    return Array.isArray(data) ? data : (data.items ?? []);
+    const data = (await res.json()) as
+      | Array<{ id: string; url: string }>
+      | { data?: Array<{ id: string; url: string }>; items?: Array<{ id: string; url: string }> };
+    if (Array.isArray(data)) return data;
+    return data.data ?? data.items ?? [];
   } catch {
     return [];
   }

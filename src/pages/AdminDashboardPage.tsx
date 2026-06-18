@@ -1746,7 +1746,9 @@ export function AdminDashboardPage() {
     const colDate = language === "ar" ? "التاريخ" : language === "fr" ? "Date" : "Date";
     const emptyText = language === "ar" ? "لا توجد طلبات" : language === "fr" ? "Aucune commande" : "No orders found";
 
-    const webhookAlreadyRegistered = zrStatus?.webhooks.some((wh) => wh.url === zrStatus.webhookUrl);
+    const webhookAlreadyRegistered = zrStatus?.webhooks.some((wh) =>
+      wh.url === zrStatus.webhookUrl || wh.url?.includes("/webhooks/zrexpress"),
+    );
 
     return (
       <div className="space-y-4">

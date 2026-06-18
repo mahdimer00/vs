@@ -703,10 +703,19 @@ export function CheckoutPage() {
           <section>
             <div className="mb-4 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-teal-600 text-white">2</div>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-lg font-semibold text-slate-950">{translate(language, "checkoutStepDelivery")}</h2>
                 <p className="text-sm text-slate-500">{translate(language, "trustDelivery")}</p>
               </div>
+              {useZrCommunes && (
+                <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                  <svg width="18" height="18" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="40" height="40" rx="8" fill="#0CAF60"/>
+                    <text x="20" y="27" textAnchor="middle" fontFamily="Arial Black,Arial" fontWeight="900" fontSize="18" fill="white">ZR</text>
+                  </svg>
+                  <span className="text-[11px] font-bold text-emerald-700">ZR Express</span>
+                </div>
+              )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <IconField icon={MapPin}>
