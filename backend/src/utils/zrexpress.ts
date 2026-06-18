@@ -1,7 +1,7 @@
+import crypto from "crypto";
 import { env } from "../config/env.js";
 
 const ZR_BASE = "https://api.zrexpress.app/api/v1";
-const ZR_TERRITORY_PAGE_SIZE = 200;
 
 interface ZRRate {
   toTerritoryId: string;
@@ -35,6 +35,7 @@ interface ZRTerritorySearchResponse {
 
 export interface ZRTerritory {
   id: string;
+  wilayaId: string;
   name: string;
   nameAr: string;
   wilayaCode: string;
@@ -55,11 +56,14 @@ interface ZRParcelResponse {
   deliveredAt?: string;
 }
 
-let territoriesMap: Map<string, string> | null = null;
+let territoriesMap: Map<string, ZRTerritory> | null = null;
 let ratesCache: ZRTerritory[] | null = null;
 let ratesCacheTime = 0;
 const RATES_CACHE_TTL_MS = 30 * 60 * 1000;
 let territorySearchCache: ZRTerritorySearchItem[] | null = null;
+
+// phone (international) → ZR customer UUID
+const customerIdCache = new Map<string, string>();
 
 function zrHeaders() {
   return {
@@ -78,8 +82,21 @@ function normalizeTerritory(name: string): string {
     .toLowerCase()
     .trim()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[-_\s]+/g, " ");
+}
+
+// Stable UUID from a seed — used for productId (ZR validates format, not existence)
+function deterministicUUID(seed: string): string {
+  const h = crypto.createHash("sha256").update(seed).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+function toInternationalPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("213")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+213${digits.slice(1)}`;
+  return `+${digits}`;
 }
 
 async function fetchRates(): Promise<ZRRate[]> {
@@ -90,9 +107,7 @@ async function fetchRates(): Promise<ZRRate[]> {
 }
 
 async function fetchTerritories(): Promise<ZRTerritorySearchItem[]> {
-  if (territorySearchCache) {
-    return territorySearchCache;
-  }
+  if (territorySearchCache) return territorySearchCache;
 
   const items: ZRTerritorySearchItem[] = [];
   let pageNumber = 1;
@@ -102,20 +117,11 @@ async function fetchTerritories(): Promise<ZRTerritorySearchItem[]> {
     const res = await fetch(`${ZR_BASE}/territories/search`, {
       method: "POST",
       headers: zrHeaders(),
-      body: JSON.stringify({
-        pageNumber,
-        pageSize: 1000,
-        includeUnavailable: true,
-      }),
+      body: JSON.stringify({ pageNumber, pageSize: 1000, includeUnavailable: true }),
     });
-
-    if (!res.ok) {
-      throw new Error(`ZR territories fetch failed: ${res.status}`);
-    }
-
+    if (!res.ok) throw new Error(`ZR territories fetch failed: ${res.status}`);
     const json = (await res.json()) as ZRTerritorySearchResponse;
     items.push(...(json.items ?? []));
-
     hasNext = Boolean(json.hasNext);
     pageNumber += 1;
   }
@@ -124,16 +130,16 @@ async function fetchTerritories(): Promise<ZRTerritorySearchItem[]> {
   return items;
 }
 
-async function loadTerritories(): Promise<Map<string, string>> {
+async function loadTerritories(): Promise<Map<string, ZRTerritory>> {
   if (territoriesMap) return territoriesMap;
 
   const territories = await getZRTerritories();
-  const map = new Map<string, string>();
+  const map = new Map<string, ZRTerritory>();
 
   for (const territory of territories) {
-    map.set(normalizeTerritory(territory.name), territory.id);
+    map.set(normalizeTerritory(territory.name), territory);
     if (territory.nameAr) {
-      map.set(normalizeTerritory(territory.nameAr), territory.id);
+      map.set(normalizeTerritory(territory.nameAr), territory);
     }
   }
 
@@ -174,6 +180,7 @@ export async function getZRTerritories(): Promise<ZRTerritory[]> {
 
       return {
         id: item.id,
+        wilayaId: item.parentId ?? "",
         name: item.name,
         nameAr: item.nameArabic ?? "",
         wilayaCode: wilaya?.code ? String(wilaya.code).padStart(2, "0") : "",
@@ -192,40 +199,68 @@ export async function getZRTerritories(): Promise<ZRTerritory[]> {
   return ratesCache;
 }
 
-async function lookupTerritoryId(commune: string): Promise<string | null> {
+async function lookupTerritory(commune: string): Promise<ZRTerritory | null> {
   try {
     const map = await loadTerritories();
     const normalized = normalizeTerritory(commune);
 
-    if (map.has(normalized)) {
-      return map.get(normalized) ?? null;
-    }
+    if (map.has(normalized)) return map.get(normalized) ?? null;
 
-    for (const [key, id] of map) {
-      if (key.includes(normalized) || normalized.includes(key)) {
-        return id;
-      }
+    for (const [key, territory] of map) {
+      if (key.includes(normalized) || normalized.includes(key)) return territory;
     }
-
     return null;
   } catch {
     return null;
   }
 }
 
-function toInternationalPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("213")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+213${digits.slice(1)}`;
-  return `+${digits}`;
+async function lookupTerritoryById(communeId: string): Promise<ZRTerritory | null> {
+  try {
+    const territories = await getZRTerritories();
+    return territories.find((t) => t.id === communeId) ?? null;
+  } catch {
+    return null;
+  }
 }
 
+// ZR customer API: POST /customers/individual with { name, phone: { number1 } }
+// Returns a customer UUID that must go inside customer.customerId in the parcel body.
+async function getOrCreateZRCustomer(fullName: string, intlPhone: string): Promise<string> {
+  if (customerIdCache.has(intlPhone)) return customerIdCache.get(intlPhone)!;
+
+  const res = await fetch(`${ZR_BASE}/customers/individual`, {
+    method: "POST",
+    headers: zrHeaders(),
+    body: JSON.stringify({ name: fullName, phone: { number1: intlPhone } }),
+  });
+
+  if (res.ok) {
+    const data = (await res.json()) as { id: string };
+    customerIdCache.set(intlPhone, data.id);
+    return data.id;
+  }
+
+  // 409 Conflict = customer already exists — try to extract ID from error body
+  if (res.status === 409) {
+    const err = (await res.json()) as { id?: string; customerId?: string };
+    const id = err.id ?? err.customerId;
+    if (id) {
+      customerIdCache.set(intlPhone, id);
+      return id;
+    }
+  }
+
+  const errText = await res.text().catch(() => String(res.status));
+  throw new Error(`ZR customer creation failed ${res.status}: ${errText}`);
+}
 
 export async function createZRParcel(order: {
   orderNumber: string;
   total: number;
   deliveryType: "HOME_DELIVERY" | "DESK_PICKUP";
   zrTerritoryId?: string | null;
+  zrWilayaId?: string | null;
   customer: {
     fullName: string;
     phone: string;
@@ -236,21 +271,39 @@ export async function createZRParcel(order: {
 }): Promise<{ parcelId: string; trackingNumber: string }> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
 
-  const territoryId = order.zrTerritoryId ?? await lookupTerritoryId(order.customer.commune);
-  if (!territoryId) {
-    throw new Error(`ZR territory not found for commune: ${order.customer.commune}`);
+  // Resolve commune + wilaya territory IDs
+  let communeId = order.zrTerritoryId ?? null;
+  let wilayaId = order.zrWilayaId ?? null;
+
+  if (!wilayaId) {
+    // Look up the wilaya from the commune UUID or commune name
+    const territory = communeId
+      ? await lookupTerritoryById(communeId)
+      : await lookupTerritory(order.customer.commune);
+    if (!territory) throw new Error(`ZR territory not found for commune: ${order.customer.commune}`);
+    communeId = communeId ?? territory.id;
+    wilayaId = territory.wilayaId;
+  }
+
+  if (!communeId || !wilayaId) {
+    throw new Error(`ZR territory IDs incomplete for commune: ${order.customer.commune}`);
   }
 
   const intlPhone = toInternationalPhone(order.customer.phone);
+  const customerId = await getOrCreateZRCustomer(order.customer.fullName, intlPhone);
 
-  const orderedProducts = order.items.map((item) => ({
-    productName: item.productName.en,
-    productSku: item.variantLabel ?? item.productName.en,
-    unitPrice: item.unitPrice,
-    quantity: item.quantity,
-    weight: 0.5,
-    stockType: "local",
-  }));
+  const orderedProducts = order.items.map((item) => {
+    const sku = item.variantLabel ?? item.productName.en;
+    return {
+      productId: deterministicUUID(`zr-product:${sku}`),
+      productName: item.productName.en,
+      productSku: sku,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      weight: 0.5,
+      stockType: "local",
+    };
+  });
 
   const description = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
 
@@ -260,12 +313,14 @@ export async function createZRParcel(order: {
     deliveryType: order.deliveryType === "HOME_DELIVERY" ? "home" : "pickup-point",
     description,
     customer: {
+      customerId,                                          // must be INSIDE customer object
       name: order.customer.fullName,
       phone: { number1: intlPhone },
     },
     deliveryAddress: {
       street: order.customer.address || order.customer.commune,
-      districtTerritoryId: territoryId,
+      cityTerritoryId: wilayaId,                          // wilaya
+      districtTerritoryId: communeId,                     // commune
     },
     weight: { weight: 0.5 },
     orderedProducts,
@@ -308,10 +363,7 @@ export async function getZRParcel(parcelId: string): Promise<ZRParcelResponse | 
 export async function cancelZRParcel(parcelId: string): Promise<void> {
   if (!isZRConfigured()) return;
   try {
-    await fetch(`${ZR_BASE}/parcels/${parcelId}`, {
-      method: "DELETE",
-      headers: zrHeaders(),
-    });
+    await fetch(`${ZR_BASE}/parcels/${parcelId}`, { method: "DELETE", headers: zrHeaders() });
   } catch {
     // best-effort
   }
@@ -350,15 +402,12 @@ export async function listZRWebhooks(): Promise<Array<{ id: string; url: string 
 
 export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buffer> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
-
   const res = await fetch(`${ZR_BASE}/parcels/labels/individual/pdf`, {
     method: "POST",
     headers: zrHeaders(),
     body: JSON.stringify({ trackingNumbers, format: "A6" }),
   });
-
   if (!res.ok) throw new Error(`ZR Express label generation failed: ${res.status}`);
-
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
