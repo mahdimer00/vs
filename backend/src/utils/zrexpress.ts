@@ -404,54 +404,28 @@ export async function listZRWebhooks(): Promise<Array<{ id: string; url: string 
   }
 }
 
+// ZR returns: { parcelLabelFiles: [{ trackingNumber, fileUrl }], failedTrackingNumbers: [] }
+async function fetchZRLabelFiles(trackingNumbers: string[]): Promise<Array<{ trackingNumber: string; fileUrl: string }>> {
+  const res = await fetch(`${ZR_BASE}/parcels/labels/individual/pdf`, {
+    method: "POST",
+    headers: zrHeaders(),
+    body: JSON.stringify({ trackingNumbers, format: "A6" }),
+  });
+  if (!res.ok) throw new Error(`ZR label request failed: ${res.status}`);
+  const json = (await res.json()) as { parcelLabelFiles?: Array<{ trackingNumber: string; fileUrl: string }> };
+  return json.parcelLabelFiles ?? [];
+}
+
 export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buffer> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
 
-  // Try several ZR endpoint patterns — ZR may return PDF bytes or a JSON {url} redirect
-  const endpoints = [
-    { path: "/parcels/labels/individual/pdf", body: { trackingNumbers, format: "A6" } },
-    { path: "/parcels/stickers/pdf", body: { trackingNumbers, format: "A6" } },
-    { path: "/parcels/print", body: { trackingNumbers } },
-  ];
+  const files = await fetchZRLabelFiles(trackingNumbers);
+  if (files.length === 0) throw new Error("ZR Express returned no label files for these tracking numbers");
 
-  let lastErr = "";
-  for (const ep of endpoints) {
-    const res = await fetch(`${ZR_BASE}${ep.path}`, {
-      method: "POST",
-      headers: zrHeaders(),
-      body: JSON.stringify(ep.body),
-    });
-
-    if (!res.ok) {
-      lastErr = `${ep.path} → ${res.status}`;
-      continue;
-    }
-
-    const contentType = res.headers.get("content-type") ?? "";
-
-    // ZR may return JSON { url: "https://..." } instead of PDF bytes directly
-    if (contentType.includes("application/json") || contentType.includes("text/")) {
-      const json = (await res.json()) as { url?: string; pdfUrl?: string; downloadUrl?: string; link?: string };
-      const pdfUrl = json.url ?? json.pdfUrl ?? json.downloadUrl ?? json.link;
-      if (!pdfUrl) {
-        lastErr = `${ep.path} → JSON with no URL: ${JSON.stringify(json)}`;
-        continue;
-      }
-      const pdfRes = await fetch(pdfUrl);
-      if (!pdfRes.ok) throw new Error(`ZR label URL fetch failed: ${pdfRes.status}`);
-      return Buffer.from(await pdfRes.arrayBuffer());
-    }
-
-    // Direct binary PDF
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 4) {
-      lastErr = `${ep.path} → empty response (${buf.length} bytes)`;
-      continue;
-    }
-    return buf;
-  }
-
-  throw new Error(`ZR Express label generation failed: ${lastErr}`);
+  // Download the first label PDF from the signed URL ZR provides
+  const pdfRes = await fetch(files[0].fileUrl);
+  if (!pdfRes.ok) throw new Error(`ZR label download failed: ${pdfRes.status}`);
+  return Buffer.from(await pdfRes.arrayBuffer());
 }
 
 export async function getZRParcelHistory(parcelId: string): Promise<Array<{ state: string; stateAr: string; date: string }>> {
@@ -473,38 +447,19 @@ export async function getZRParcelHistory(parcelId: string): Promise<Array<{ stat
 export async function generateZRBulkLabelPdf(trackingNumbers: string[]): Promise<Buffer> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
 
-  const endpoints = [
-    { path: "/parcels/labels/bulk", body: { trackingNumbers, format: "A6" } },
-    { path: "/parcels/labels/individual/pdf", body: { trackingNumbers, format: "A6" } },
-    { path: "/parcels/stickers/pdf", body: { trackingNumbers, format: "A6" } },
-  ];
+  const files = await fetchZRLabelFiles(trackingNumbers);
+  if (files.length === 0) throw new Error("ZR Express returned no label files");
 
-  let lastErr = "";
-  for (const ep of endpoints) {
-    const res = await fetch(`${ZR_BASE}${ep.path}`, {
-      method: "POST",
-      headers: zrHeaders(),
-      body: JSON.stringify(ep.body),
-    });
+  // Download all individual PDFs and concatenate their raw bytes
+  const buffers = await Promise.all(
+    files.map(async (f) => {
+      const res = await fetch(f.fileUrl);
+      if (!res.ok) throw new Error(`ZR label download failed for ${f.trackingNumber}: ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    }),
+  );
 
-    if (!res.ok) { lastErr = `${ep.path} → ${res.status}`; continue; }
-
-    const contentType = res.headers.get("content-type") ?? "";
-    if (contentType.includes("application/json") || contentType.includes("text/")) {
-      const json = (await res.json()) as { url?: string; pdfUrl?: string; downloadUrl?: string; link?: string };
-      const pdfUrl = json.url ?? json.pdfUrl ?? json.downloadUrl ?? json.link;
-      if (!pdfUrl) { lastErr = `${ep.path} → JSON no URL`; continue; }
-      const pdfRes = await fetch(pdfUrl);
-      if (!pdfRes.ok) throw new Error(`ZR bulk label URL fetch failed: ${pdfRes.status}`);
-      return Buffer.from(await pdfRes.arrayBuffer());
-    }
-
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 4) { lastErr = `${ep.path} → empty (${buf.length}b)`; continue; }
-    return buf;
-  }
-
-  throw new Error(`ZR Express bulk label failed: ${lastErr}`);
+  return Buffer.concat(buffers);
 }
 
 export function resetTerritoriesCache(): void {
