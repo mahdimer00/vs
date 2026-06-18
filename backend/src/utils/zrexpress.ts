@@ -472,14 +472,39 @@ export async function getZRParcelHistory(parcelId: string): Promise<Array<{ stat
 
 export async function generateZRBulkLabelPdf(trackingNumbers: string[]): Promise<Buffer> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
-  const res = await fetch(`${ZR_BASE}/parcels/labels/bulk`, {
-    method: "POST",
-    headers: zrHeaders(),
-    body: JSON.stringify({ trackingNumbers, format: "A6" }),
-  });
-  if (!res.ok) throw new Error(`ZR Express bulk label generation failed: ${res.status}`);
-  const arrayBuffer = await res.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+
+  const endpoints = [
+    { path: "/parcels/labels/bulk", body: { trackingNumbers, format: "A6" } },
+    { path: "/parcels/labels/individual/pdf", body: { trackingNumbers, format: "A6" } },
+    { path: "/parcels/stickers/pdf", body: { trackingNumbers, format: "A6" } },
+  ];
+
+  let lastErr = "";
+  for (const ep of endpoints) {
+    const res = await fetch(`${ZR_BASE}${ep.path}`, {
+      method: "POST",
+      headers: zrHeaders(),
+      body: JSON.stringify(ep.body),
+    });
+
+    if (!res.ok) { lastErr = `${ep.path} → ${res.status}`; continue; }
+
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json") || contentType.includes("text/")) {
+      const json = (await res.json()) as { url?: string; pdfUrl?: string; downloadUrl?: string; link?: string };
+      const pdfUrl = json.url ?? json.pdfUrl ?? json.downloadUrl ?? json.link;
+      if (!pdfUrl) { lastErr = `${ep.path} → JSON no URL`; continue; }
+      const pdfRes = await fetch(pdfUrl);
+      if (!pdfRes.ok) throw new Error(`ZR bulk label URL fetch failed: ${pdfRes.status}`);
+      return Buffer.from(await pdfRes.arrayBuffer());
+    }
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 4) { lastErr = `${ep.path} → empty (${buf.length}b)`; continue; }
+    return buf;
+  }
+
+  throw new Error(`ZR Express bulk label failed: ${lastErr}`);
 }
 
 export function resetTerritoriesCache(): void {
