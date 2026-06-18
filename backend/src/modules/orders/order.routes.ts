@@ -615,32 +615,40 @@ router.post(
   }),
 );
 
-// Public webhook — ZR Express calls this with parcel state updates
+// Public webhook — ZR Express (via Svix) calls this with parcel state updates
 router.post(
   "/webhooks/zrexpress",
   asyncHandler(async (req, res) => {
-    const payload = req.body as {
-      trackingNumber?: string;
-      parcelId?: string;
-      state?: { name?: string; nameArabic?: string };
-    };
+    // Svix wraps the payload: { type, data: { parcel: { trackingNumber, state, isReturn } } }
+    // Fall back to flat format for older integrations
+    const body = req.body as Record<string, unknown>;
+    const eventType = (body.type as string | undefined) ?? "";
+    const data = (body.data as Record<string, unknown> | undefined) ?? body;
+    const parcel = (data.parcel as Record<string, unknown> | undefined) ?? data;
 
-    const trackingNumber = payload.trackingNumber;
+    const trackingNumber = (parcel.trackingNumber as string | undefined) ?? (body.trackingNumber as string | undefined);
     if (!trackingNumber) return res.json({ ok: true });
 
     const order = await OrderModel.findOne({ zrTrackingNumber: trackingNumber });
     if (!order) return res.json({ ok: true });
 
-    const stateName = (payload.state?.name ?? "").toLowerCase();
-
     let newStatus: string | null = null;
-    if (stateName.includes("livr") || stateName.includes("delivered")) newStatus = "DELIVERED";
-    else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) newStatus = "PICKED_UP";
-    else if (stateName.includes("retour") || stateName.includes("return")) newStatus = "RETURNED";
-    else if (stateName.includes("annul") || stateName.includes("cancel")) newStatus = "CANCELLED";
-    else if (stateName.includes("echec") || stateName.includes("failed") || stateName.includes("failed")) newStatus = "FAILED";
-    else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) newStatus = "SHIPPED";
-    else if (stateName.includes("pris en charge") || stateName.includes("accept") || stateName.includes("confirmed")) newStatus = "PROCESSING";
+
+    // parcel.isReturn.updated → mark as returned
+    if (eventType === "parcel.isReturn.updated" && parcel.isReturn) {
+      newStatus = "RETURNED";
+    } else {
+      const stateObj = (parcel.state as Record<string, unknown> | undefined) ?? (body.state as Record<string, unknown> | undefined);
+      const stateName = ((stateObj?.name as string | undefined) ?? "").toLowerCase();
+
+      if (stateName.includes("livr") || stateName.includes("delivered")) newStatus = "DELIVERED";
+      else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) newStatus = "PICKED_UP";
+      else if (stateName.includes("retour") || stateName.includes("return")) newStatus = "RETURNED";
+      else if (stateName.includes("annul") || stateName.includes("cancel")) newStatus = "CANCELLED";
+      else if (stateName.includes("echec") || stateName.includes("failed")) newStatus = "FAILED";
+      else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) newStatus = "SHIPPED";
+      else if (stateName.includes("pris en charge") || stateName.includes("accept") || stateName.includes("confirmed")) newStatus = "PROCESSING";
+    }
 
     if (newStatus && order.status !== newStatus) {
       order.status = newStatus as typeof order.status;
