@@ -54,6 +54,8 @@ const orderSchema = new Schema(
     },
     aiConfirmed: { type: Boolean, default: false },
     stockReserved: { type: Boolean, default: false },
+    zrParcelId: { type: String, default: null },
+    zrTrackingNumber: { type: String, default: null },
   },
   { timestamps: true },
 );

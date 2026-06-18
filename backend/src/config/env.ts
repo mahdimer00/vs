@@ -26,6 +26,9 @@ const schema = z.object({
   FACEBOOK_ACCESS_TOKEN: z.string().optional(),
   // Request signing — must match VITE_API_SECRET in frontend
   API_REQUEST_SECRET: z.string().optional(),
+  // ZR Express shipping integration
+  ZR_EXPRESS_TENANT_ID: z.string().optional(),
+  ZR_EXPRESS_SECRET_KEY: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

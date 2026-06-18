@@ -59,7 +59,13 @@ function buildCanonicalRequest(req: Request, timestamp: string, nonce: string, c
 }
 
 export function signatureMiddleware(req: SignedRequest, res: Response, next: NextFunction) {
-  if (!env.API_REQUEST_SECRET || req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+  if (
+    !env.API_REQUEST_SECRET ||
+    req.method === "GET" ||
+    req.method === "HEAD" ||
+    req.method === "OPTIONS" ||
+    req.path.startsWith("/webhooks/")
+  ) {
     next();
     return;
   }

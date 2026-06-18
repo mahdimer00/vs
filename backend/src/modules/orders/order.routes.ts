@@ -12,6 +12,7 @@ import { syncCommissionForOrder } from "../../utils/commission.js";
 import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCode } from "../../utils/order.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendCapiEvent } from "../../utils/capi.js";
+import { createZRParcel, generateZRLabelPdf, isZRConfigured } from "../../utils/zrexpress.js";
 
 const router = Router();
 
@@ -139,6 +140,7 @@ function serializeTrackedOrder(order: any) {
     status: order.status,
     aiConfirmed: order.aiConfirmed,
     stockReserved: order.stockReserved,
+    zrTrackingNumber: order.zrTrackingNumber ?? null,
     createdAt: order.createdAt,
   };
 }
@@ -414,6 +416,32 @@ router.patch(
 
     existing.status = input.status;
     existing.stockReserved = willBeReserved;
+
+    // Auto-create ZR Express parcel when moving to PROCESSING
+    if (input.status === "PROCESSING" && !existing.zrParcelId && isZRConfigured()) {
+      try {
+        const populated = await OrderModel.findById(req.params.id).populate("customer.wilaya").lean();
+        if (populated?.customer) {
+          const { parcelId, trackingNumber } = await createZRParcel({
+            orderNumber: populated.orderNumber,
+            total: populated.total,
+            deliveryType: populated.deliveryType as "HOME_DELIVERY" | "DESK_PICKUP",
+            customer: {
+              fullName: populated.customer.fullName,
+              phone: populated.customer.phone,
+              commune: populated.customer.commune,
+              address: populated.customer.address,
+            },
+            items: populated.items,
+          });
+          existing.zrParcelId = parcelId;
+          existing.zrTrackingNumber = trackingNumber;
+        }
+      } catch (err) {
+        console.error("[ZR Express] Parcel creation failed:", err);
+      }
+    }
+
     await existing.save();
 
     const order = await loadOrderResponse(String(req.params.id));
@@ -442,6 +470,55 @@ router.delete(
 
     await OrderModel.findByIdAndDelete(req.params.id);
     return res.json({ success: true });
+  }),
+);
+
+router.get(
+  "/admin/orders/:id/label",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const order = await OrderModel.findById(req.params.id).lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrTrackingNumber) return res.status(400).json({ message: "No ZR Express tracking number for this order" });
+
+    const pdf = await generateZRLabelPdf([order.zrTrackingNumber]);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="label-${order.orderNumber}.pdf"`);
+    return res.send(pdf);
+  }),
+);
+
+// Public webhook — ZR Express calls this with parcel state updates
+router.post(
+  "/webhooks/zrexpress",
+  asyncHandler(async (req, res) => {
+    const payload = req.body as {
+      trackingNumber?: string;
+      parcelId?: string;
+      state?: { name?: string };
+    };
+
+    const trackingNumber = payload.trackingNumber;
+    if (!trackingNumber) return res.json({ ok: true });
+
+    const order = await OrderModel.findOne({ zrTrackingNumber: trackingNumber });
+    if (!order) return res.json({ ok: true });
+
+    const stateName = payload.state?.name?.toLowerCase() ?? "";
+
+    let newStatus: string | null = null;
+    if (stateName.includes("livr") || stateName.includes("delivered")) newStatus = "DELIVERED";
+    else if (stateName.includes("retour") || stateName.includes("return")) newStatus = "RETURNED";
+    else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship")) newStatus = "SHIPPED";
+
+    if (newStatus && order.status !== newStatus) {
+      order.status = newStatus as typeof order.status;
+      await order.save();
+      await syncCommissionForOrder(String(order._id), "admin");
+    }
+
+    return res.json({ ok: true });
   }),
 );
 

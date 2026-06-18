@@ -18,6 +18,7 @@ import {
   Package,
   PackageX,
   Phone,
+  Printer,
   Shield,
   Sparkles,
   Store,
@@ -1835,6 +1836,26 @@ export function AdminDashboardPage() {
                                 </span>
                               ))}
                             </div>
+
+                            {/* ZR Express tracking */}
+                            {order.zrTrackingNumber ? (
+                              <div className="mb-3 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+                                  <Truck className="h-3.5 w-3.5" />
+                                  ZR: {order.zrTrackingNumber}
+                                </span>
+                                <a
+                                  href={`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ""}/api/admin/orders/${order._id}/label`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ghost-button gap-1.5 px-3 py-1.5 text-xs"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                  {language === "ar" ? "طباعة الملصق" : language === "fr" ? "Imprimer le bon" : "Print Label"}
+                                </a>
+                              </div>
+                            ) : null}
 
                             {/* Address + delivery type */}
                             {order.customer.address ? (

@@ -179,6 +179,8 @@ export interface Order {
   status: OrderStatus;
   aiConfirmed: boolean;
   stockReserved?: boolean;
+  zrParcelId?: string | null;
+  zrTrackingNumber?: string | null;
   createdAt: string;
   confirmationToken?: string;
 }
