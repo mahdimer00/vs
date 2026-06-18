@@ -616,47 +616,49 @@ router.post(
 );
 
 // Public webhook — ZR Express (via Svix) calls this with parcel state updates
+// Payload format: { eventType, occurredAt, data: { trackingNumber, state: { name }, isReturn } }
 router.post(
   "/webhooks/zrexpress",
   asyncHandler(async (req, res) => {
-    // Svix wraps the payload: { type, data: { parcel: { trackingNumber, state, isReturn } } }
-    // Fall back to flat format for older integrations
     const body = req.body as Record<string, unknown>;
-    const eventType = (body.type as string | undefined) ?? "";
+    const eventType = ((body.eventType ?? body.type) as string | undefined) ?? "";
     const data = (body.data as Record<string, unknown> | undefined) ?? body;
-    const parcel = (data.parcel as Record<string, unknown> | undefined) ?? data;
 
-    const trackingNumber = (parcel.trackingNumber as string | undefined) ?? (body.trackingNumber as string | undefined);
+    const trackingNumber = data.trackingNumber as string | undefined;
     if (!trackingNumber) return res.json({ ok: true });
 
     const order = await OrderModel.findOne({ zrTrackingNumber: trackingNumber });
     if (!order) return res.json({ ok: true });
 
+    const stateObj = data.state as Record<string, unknown> | undefined;
+    const stateName = ((stateObj?.name as string | undefined) ?? "").toLowerCase();
+    const isReturn = Boolean(data.isReturn);
+
     let newStatus: string | null = null;
 
-    // parcel.isReturn.updated → mark as returned
-    if (eventType === "parcel.isReturn.updated" && parcel.isReturn) {
+    if (eventType === "parcel.isReturn.updated" && isReturn) {
       newStatus = "RETURNED";
-    } else {
-      const stateObj = (parcel.state as Record<string, unknown> | undefined) ?? (body.state as Record<string, unknown> | undefined);
-      const stateName = ((stateObj?.name as string | undefined) ?? "").toLowerCase();
-
-      if (stateName.includes("livr") || stateName.includes("delivered")) newStatus = "DELIVERED";
-      else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) newStatus = "PICKED_UP";
-      else if (stateName.includes("retour") || stateName.includes("return")) newStatus = "RETURNED";
-      else if (stateName.includes("annul") || stateName.includes("cancel")) newStatus = "CANCELLED";
-      else if (stateName.includes("echec") || stateName.includes("failed")) newStatus = "FAILED";
-      else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) newStatus = "SHIPPED";
-      else if (stateName.includes("pris en charge") || stateName.includes("accept") || stateName.includes("confirmed")) newStatus = "PROCESSING";
+    } else if (stateName.includes("livr") || stateName.includes("delivered")) {
+      newStatus = "DELIVERED";
+    } else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) {
+      newStatus = "PICKED_UP";
+    } else if (stateName.includes("retour") || stateName.includes("return")) {
+      newStatus = "RETURNED";
+    } else if (stateName.includes("annul") || stateName.includes("cancel")) {
+      newStatus = "CANCELLED";
+    } else if (stateName.includes("echec") || stateName.includes("failed")) {
+      newStatus = "FAILED";
+    } else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) {
+      newStatus = "SHIPPED";
+    } else if (stateName.includes("pris en charge") || stateName.includes("accept") || stateName.includes("confirmed")) {
+      newStatus = "PROCESSING";
     }
 
     if (newStatus && order.status !== newStatus) {
       order.status = newStatus as typeof order.status;
       const wasReserved = hasReservedStock(order);
       const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus as (typeof ORDER_STATUS_VALUES)[number]);
-      if (wasReserved && !willBeReserved) {
-        await releaseStockForOrder(order);
-      }
+      if (wasReserved && !willBeReserved) await releaseStockForOrder(order);
       order.stockReserved = willBeReserved;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");

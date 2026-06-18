@@ -432,7 +432,9 @@ export function AdminDashboardPage() {
   // Load ZR status when navigating to orders tab
   useEffect(() => {
     if (token && tab === "orders") {
-      adminService.getZRStatus(token).then(setZrStatus).catch(() => setZrStatus(null));
+      adminService.getZRStatus(token)
+        .then(setZrStatus)
+        .catch(() => setZrStatus({ configured: false, webhookUrl: "", webhooks: [] }));
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1752,31 +1754,68 @@ export function AdminDashboardPage() {
 
     return (
       <div className="space-y-4">
-        {/* ZR Express Status Panel */}
-        {zrStatus ? (
-          <div className={`rounded-2xl border px-5 py-4 ${zrStatus.configured ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${zrStatus.configured ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                  <Truck className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className={`font-semibold ${zrStatus.configured ? "text-emerald-800" : "text-amber-800"}`}>
-                    ZR Express {zrStatus.configured ? (language === "ar" ? "متصل ✓" : language === "fr" ? "Connecté ✓" : "Connected ✓") : (language === "ar" ? "غير مُهيأ" : language === "fr" ? "Non configuré" : "Not configured")}
-                  </div>
-                  {zrStatus.configured ? (
-                    <div className="mt-0.5 text-xs text-emerald-700">
-                      Webhook: <span className="font-mono">{zrStatus.webhookUrl}</span>
-                      {webhookAlreadyRegistered ? " ✓" : (language === "ar" ? " — غير مسجّل" : " — not registered yet")}
-                    </div>
-                  ) : (
-                    <div className="mt-0.5 text-xs text-amber-700">
-                      {language === "ar" ? "أضف ZR_EXPRESS_TENANT_ID و ZR_EXPRESS_SECRET_KEY في ملف .env" : "Add ZR_EXPRESS_TENANT_ID and ZR_EXPRESS_SECRET_KEY to your .env file"}
-                    </div>
-                  )}
-                </div>
+        {/* ZR Express Status Panel — always visible */}
+        <div className={`rounded-2xl border px-5 py-4 ${
+          zrStatus === null
+            ? "border-slate-200 bg-slate-50 animate-pulse"
+            : zrStatus.configured
+              ? "border-emerald-200 bg-emerald-50"
+              : "border-rose-200 bg-rose-50"
+        }`}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {/* ZR logo mark */}
+              <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-sm font-black ${
+                zrStatus === null ? "bg-slate-200 text-slate-400" : zrStatus.configured ? "bg-emerald-600 text-white" : "bg-rose-100 text-rose-600"
+              }`}>
+                ZR
               </div>
-              {zrStatus.configured && !webhookAlreadyRegistered ? (
+              <div>
+                <div className={`text-base font-bold ${
+                  zrStatus === null ? "text-slate-400" : zrStatus.configured ? "text-emerald-800" : "text-rose-700"
+                }`}>
+                  {zrStatus === null
+                    ? (language === "ar" ? "جارٍ التحقق من ZR Express..." : "Checking ZR Express...")
+                    : zrStatus.configured
+                      ? (language === "ar" ? "ZR Express — متصل ✓" : language === "fr" ? "ZR Express — Connecté ✓" : "ZR Express — Connected ✓")
+                      : (language === "ar" ? "ZR Express — غير مُفعّل" : "ZR Express — Not configured")}
+                </div>
+                {zrStatus?.configured && (
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-emerald-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {language === "ar" ? "الـ API تعمل" : "API active"}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Webhook
+                    </span>
+                    <span className="font-mono opacity-70">{zrStatus.webhookUrl}</span>
+                  </div>
+                )}
+                {zrStatus && !zrStatus.configured && (
+                  <div className="mt-0.5 text-xs text-rose-600">
+                    {language === "ar" ? "أضف ZR_EXPRESS_TENANT_ID و ZR_EXPRESS_SECRET_KEY في ملف .env على الخادم" : "Add ZR_EXPRESS_TENANT_ID and ZR_EXPRESS_SECRET_KEY to server .env"}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Refresh status */}
+              <button
+                type="button"
+                onClick={() => {
+                  setZrStatus(null);
+                  adminService.getZRStatus(token).then(setZrStatus).catch(() => setZrStatus({ configured: false, webhookUrl: "", webhooks: [] }));
+                }}
+                className="ghost-button gap-1.5 px-3 py-2 text-xs"
+                title={language === "ar" ? "تحديث" : "Refresh"}
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                {language === "ar" ? "تحديث" : "Refresh"}
+              </button>
+              {/* Register webhook if not found via API (may be registered via ZR panel) */}
+              {zrStatus?.configured && !webhookAlreadyRegistered && (
                 <button
                   type="button"
                   disabled={zrWebhookRegistering}
@@ -1793,16 +1832,14 @@ export function AdminDashboardPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                 >
                   <Package className="h-4 w-4" />
-                  {zrWebhookRegistering ? (language === "ar" ? "جارٍ التسجيل..." : "Registering...") : (language === "ar" ? "تسجيل Webhook تلقائياً" : language === "fr" ? "Enregistrer le Webhook" : "Register Webhook")}
+                  {zrWebhookRegistering
+                    ? (language === "ar" ? "جارٍ..." : "Registering...")
+                    : (language === "ar" ? "ربط Webhook" : language === "fr" ? "Enregistrer" : "Register Webhook")}
                 </button>
-              ) : webhookAlreadyRegistered ? (
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  {language === "ar" ? "Webhook نشط" : "Webhook active"}
-                </span>
-              ) : null}
+              )}
             </div>
           </div>
-        ) : null}
+        </div>
 
         {/* Status summary tiles */}
         <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
