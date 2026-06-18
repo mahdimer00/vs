@@ -272,6 +272,14 @@ export function AdminDashboardPage() {
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [zrStatus, setZrStatus] = useState<{ configured: boolean; webhookUrl: string; webhooks: Array<{ id: string; url: string }> } | null>(null);
+  const [zrWebhookRegistering, setZrWebhookRegistering] = useState(false);
+  const [zrHistory, setZrHistory] = useState<Record<string, Array<{ state: string; stateAr: string; date: string }>>>({});
+  const [zrHistoryLoading, setZrHistoryLoading] = useState<string | null>(null);
+  const [zrSyncingId, setZrSyncingId] = useState<string | null>(null);
+  const [telegramLabelId, setTelegramLabelId] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [bulkLabelPrinting, setBulkLabelPrinting] = useState(false);
   const [showAddProductForm, setShowAddProductForm] = useState(false);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
@@ -418,6 +426,13 @@ export function AdminDashboardPage() {
   useEffect(() => {
     if (token && tab === "analytics") {
       void loadAnalytics(analyticsPeriod, analyticsFrom || undefined, analyticsTo || undefined);
+    }
+  }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load ZR status when navigating to orders tab
+  useEffect(() => {
+    if (token && tab === "orders") {
+      adminService.getZRStatus(token).then(setZrStatus).catch(() => setZrStatus(null));
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1648,6 +1663,80 @@ export function AdminDashboardPage() {
     }
   };
 
+  const createZRParcelAction = async (orderId: string) => {
+    setOrderActionId(orderId);
+    try {
+      const result = await adminService.createZRParcel(token, orderId);
+      pushToast(`ZR parcel created: ${result.trackingNumber}`, "success");
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setOrderActionId(null);
+    }
+  };
+
+  const syncZRStatusAction = async (orderId: string) => {
+    setZrSyncingId(orderId);
+    try {
+      const result = await adminService.syncZRParcelStatus(token, orderId);
+      pushToast(`ZR: ${result.zrState} → ${result.orderStatus}`, "success");
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setZrSyncingId(null);
+    }
+  };
+
+  const loadZRHistory = async (orderId: string) => {
+    if (zrHistory[orderId]) {
+      setZrHistory((prev) => { const next = { ...prev }; delete next[orderId]; return next; });
+      return;
+    }
+    setZrHistoryLoading(orderId);
+    try {
+      const history = await adminService.getZRParcelHistory(token, orderId);
+      setZrHistory((prev) => ({ ...prev, [orderId]: history }));
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setZrHistoryLoading(null);
+    }
+  };
+
+  const printBulkLabels = async () => {
+    const ids = [...selectedOrderIds];
+    if (ids.length === 0) return;
+    setBulkLabelPrinting(true);
+    try {
+      const blob = await adminService.printBulkZRLabels(token, ids);
+      const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as unknown as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zr-labels-bulk.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setSelectedOrderIds(new Set());
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setBulkLabelPrinting(false);
+    }
+  };
+
+  const sendLabelToTelegramAction = async (orderId: string) => {
+    setTelegramLabelId(orderId);
+    try {
+      await adminService.sendLabelToTelegram(token, orderId);
+      pushToast(language === "ar" ? "تم إرسال الوصل إلى Telegram ✓" : language === "fr" ? "Bon envoyé sur Telegram ✓" : "Waybill sent to Telegram ✓", "success");
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setTelegramLabelId(null);
+    }
+  };
+
   const renderOrders = () => {
     const colOrder = language === "ar" ? "الطلب" : language === "fr" ? "Commande" : "Order";
     const colCustomer = language === "ar" ? "العميل" : language === "fr" ? "Client" : "Customer";
@@ -1657,8 +1746,62 @@ export function AdminDashboardPage() {
     const colDate = language === "ar" ? "التاريخ" : language === "fr" ? "Date" : "Date";
     const emptyText = language === "ar" ? "لا توجد طلبات" : language === "fr" ? "Aucune commande" : "No orders found";
 
+    const webhookAlreadyRegistered = zrStatus?.webhooks.some((wh) => wh.url === zrStatus.webhookUrl);
+
     return (
       <div className="space-y-4">
+        {/* ZR Express Status Panel */}
+        {zrStatus ? (
+          <div className={`rounded-2xl border px-5 py-4 ${zrStatus.configured ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${zrStatus.configured ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                  <Truck className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className={`font-semibold ${zrStatus.configured ? "text-emerald-800" : "text-amber-800"}`}>
+                    ZR Express {zrStatus.configured ? (language === "ar" ? "متصل ✓" : language === "fr" ? "Connecté ✓" : "Connected ✓") : (language === "ar" ? "غير مُهيأ" : language === "fr" ? "Non configuré" : "Not configured")}
+                  </div>
+                  {zrStatus.configured ? (
+                    <div className="mt-0.5 text-xs text-emerald-700">
+                      Webhook: <span className="font-mono">{zrStatus.webhookUrl}</span>
+                      {webhookAlreadyRegistered ? " ✓" : (language === "ar" ? " — غير مسجّل" : " — not registered yet")}
+                    </div>
+                  ) : (
+                    <div className="mt-0.5 text-xs text-amber-700">
+                      {language === "ar" ? "أضف ZR_EXPRESS_TENANT_ID و ZR_EXPRESS_SECRET_KEY في ملف .env" : "Add ZR_EXPRESS_TENANT_ID and ZR_EXPRESS_SECRET_KEY to your .env file"}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {zrStatus.configured && !webhookAlreadyRegistered ? (
+                <button
+                  type="button"
+                  disabled={zrWebhookRegistering}
+                  onClick={() => {
+                    setZrWebhookRegistering(true);
+                    adminService.registerZRWebhook(token, zrStatus.webhookUrl)
+                      .then(() => {
+                        pushToast(language === "ar" ? "تم تسجيل الـ Webhook بنجاح" : "Webhook registered successfully", "success");
+                        return adminService.getZRStatus(token).then(setZrStatus);
+                      })
+                      .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : "Webhook registration failed", "error"))
+                      .finally(() => setZrWebhookRegistering(false));
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  <Package className="h-4 w-4" />
+                  {zrWebhookRegistering ? (language === "ar" ? "جارٍ التسجيل..." : "Registering...") : (language === "ar" ? "تسجيل Webhook تلقائياً" : language === "fr" ? "Enregistrer le Webhook" : "Register Webhook")}
+                </button>
+              ) : webhookAlreadyRegistered ? (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  {language === "ar" ? "Webhook نشط" : "Webhook active"}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         {/* Status summary tiles */}
         <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
           {orderSummaryCards.map((card) => {
@@ -1724,11 +1867,24 @@ export function AdminDashboardPage() {
               className="field-input min-w-[130px] flex-1 py-2 text-sm"
               placeholder={translate(language, "filterPhonePlaceholder")}
             />
-            <div className="ms-auto flex shrink-0 items-center gap-2">
+            <div className="ms-auto flex shrink-0 flex-wrap items-center gap-2">
               <span className="text-sm text-slate-400">{filteredOrders.length} {translate(language, "orders")}</span>
               <button type="button" onClick={exportOrdersCSV} className="ghost-button gap-1.5 px-3 py-2 text-sm">
                 <BarChart3 className="h-4 w-4" /> CSV
               </button>
+              {selectedOrderIds.size > 0 && (
+                <button
+                  type="button"
+                  disabled={bulkLabelPrinting}
+                  onClick={() => void printBulkLabels()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+                >
+                  <Printer className="h-4 w-4" />
+                  {bulkLabelPrinting
+                    ? (language === "ar" ? "جارٍ التحميل..." : language === "fr" ? "Chargement..." : "Downloading...")
+                    : `${language === "ar" ? "طباعة" : language === "fr" ? "Imprimer" : "Print"} ${selectedOrderIds.size} ${language === "ar" ? "وصل" : language === "fr" ? "bons" : "labels"}`}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1742,6 +1898,18 @@ export function AdminDashboardPage() {
               <thead>
                 <tr>
                   <th className="w-6 ps-5" />
+                  <th className="w-8 ps-1">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 cursor-pointer rounded"
+                      checked={filteredOrders.filter((o) => o.zrTrackingNumber).every((o) => selectedOrderIds.has(o._id)) && filteredOrders.some((o) => o.zrTrackingNumber)}
+                      onChange={(e) => {
+                        const withTracking = filteredOrders.filter((o) => o.zrTrackingNumber).map((o) => o._id);
+                        setSelectedOrderIds(e.target.checked ? new Set(withTracking) : new Set());
+                      }}
+                      title={language === "ar" ? "تحديد كل الطلبات بوصل" : "Select all with tracking"}
+                    />
+                  </th>
                   <th>{colOrder}</th>
                   <th>{colCustomer}</th>
                   <th>{colPhone}</th>
@@ -1795,6 +1963,25 @@ export function AdminDashboardPage() {
                             }`}
                           />
                         </td>
+                        <td className="ps-1 py-3.5">
+                          {order.zrTrackingNumber ? (
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 cursor-pointer rounded"
+                              checked={selectedOrderIds.has(order._id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrderIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(order._id);
+                                  else next.delete(order._id);
+                                  return next;
+                                });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : null}
+                        </td>
                         <td className="py-3.5 font-mono text-xs font-semibold text-slate-600">{order.orderNumber}</td>
                         <td className="py-3.5">
                           <div className="text-sm font-semibold leading-tight text-slate-950">{order.customer.fullName}</div>
@@ -1821,7 +2008,7 @@ export function AdminDashboardPage() {
 
                       {isExpanded && (
                         <tr className={urgent ? "bg-amber-50/30" : "bg-slate-50/60"}>
-                          <td />
+                          <td colSpan={2} />
                           <td colSpan={7} className="pb-5 pe-5 pt-1">
                             {/* Products */}
                             <div className="mb-3 flex flex-wrap gap-2">
@@ -1839,21 +2026,102 @@ export function AdminDashboardPage() {
 
                             {/* ZR Express tracking */}
                             {order.zrTrackingNumber ? (
-                              <div className="mb-3 flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-                                  <Truck className="h-3.5 w-3.5" />
-                                  ZR: {order.zrTrackingNumber}
-                                </span>
-                                <a
-                                  href={`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ""}/api/admin/orders/${order._id}/label`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="ghost-button gap-1.5 px-3 py-1.5 text-xs"
+                              <div className="mb-3 space-y-2">
+                                {/* Tracking badge + action buttons */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+                                    <Truck className="h-3.5 w-3.5" />
+                                    ZR: {order.zrTrackingNumber}
+                                  </span>
+
+                                  {/* Print label */}
+                                  <a
+                                    href={`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ""}/api/admin/orders/${order._id}/label`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="ghost-button gap-1.5 px-3 py-1.5 text-xs"
+                                  >
+                                    <Printer className="h-3.5 w-3.5" />
+                                    {language === "ar" ? "طباعة الوصل" : language === "fr" ? "Imprimer le bon" : "Print Waybill"}
+                                  </a>
+
+                                  {/* Send to Telegram */}
+                                  <button
+                                    type="button"
+                                    disabled={telegramLabelId === order._id}
+                                    onClick={(e) => { e.stopPropagation(); void sendLabelToTelegramAction(order._id); }}
+                                    className="ghost-button gap-1.5 px-3 py-1.5 text-xs"
+                                    title="Send waybill to Telegram"
+                                  >
+                                    {telegramLabelId === order._id ? (
+                                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                                    ) : (
+                                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+                                    )}
+                                    {language === "ar" ? "إرسال إلى Telegram" : language === "fr" ? "Envoyer Telegram" : "Send to Telegram"}
+                                  </button>
+
+                                  {/* Sync from ZR */}
+                                  <button
+                                    type="button"
+                                    disabled={zrSyncingId === order._id}
+                                    onClick={(e) => { e.stopPropagation(); void syncZRStatusAction(order._id); }}
+                                    className="ghost-button gap-1.5 px-3 py-1.5 text-xs"
+                                    title="Refresh status from ZR"
+                                  >
+                                    <svg className={`h-3.5 w-3.5 ${zrSyncingId === order._id ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                                    {language === "ar" ? "تحديث الحالة" : language === "fr" ? "Actualiser" : "Sync Status"}
+                                  </button>
+
+                                  {/* Toggle history */}
+                                  <button
+                                    type="button"
+                                    disabled={zrHistoryLoading === order._id}
+                                    onClick={(e) => { e.stopPropagation(); void loadZRHistory(order._id); }}
+                                    className={`ghost-button gap-1.5 px-3 py-1.5 text-xs ${zrHistory[order._id] ? "font-semibold text-slate-950" : ""}`}
+                                  >
+                                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    {zrHistoryLoading === order._id
+                                      ? (language === "ar" ? "جارٍ التحميل..." : "Loading...")
+                                      : zrHistory[order._id]
+                                        ? (language === "ar" ? "إخفاء السجل" : language === "fr" ? "Masquer l'historique" : "Hide History")
+                                        : (language === "ar" ? "سجل التتبع" : language === "fr" ? "Historique" : "Track History")}
+                                  </button>
+                                </div>
+
+                                {/* ZR history timeline */}
+                                {zrHistory[order._id] && (
+                                  <div className="ms-1 border-s-2 border-emerald-100 ps-4 space-y-2">
+                                    {zrHistory[order._id].length === 0 ? (
+                                      <p className="text-xs text-slate-400">{language === "ar" ? "لا يوجد سجل بعد" : "No history yet"}</p>
+                                    ) : (
+                                      zrHistory[order._id].map((entry, idx) => (
+                                        <div key={idx} className="flex items-start gap-2">
+                                          <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                                          <div>
+                                            <div className="text-[11px] font-semibold text-slate-800">
+                                              {language === "ar" ? entry.stateAr || entry.state : entry.state}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400">{entry.date ? new Date(entry.date).toLocaleString(language === "ar" ? "ar-DZ" : language === "fr" ? "fr-DZ" : "en-DZ") : ""}</div>
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : zrStatus?.configured && order.status === "PROCESSING" ? (
+                              <div className="mb-3">
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={(e) => { e.stopPropagation(); void createZRParcelAction(order._id); }}
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
                                 >
-                                  <Printer className="h-3.5 w-3.5" />
-                                  {language === "ar" ? "طباعة الملصق" : language === "fr" ? "Imprimer le bon" : "Print Label"}
-                                </a>
+                                  <Package className="h-3.5 w-3.5" />
+                                  {language === "ar" ? "إنشاء شحنة ZR" : language === "fr" ? "Créer colis ZR" : "Create ZR parcel"}
+                                </button>
                               </div>
                             ) : null}
 

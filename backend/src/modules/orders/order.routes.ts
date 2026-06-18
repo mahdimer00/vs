@@ -12,7 +12,8 @@ import { syncCommissionForOrder } from "../../utils/commission.js";
 import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCode } from "../../utils/order.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendCapiEvent } from "../../utils/capi.js";
-import { createZRParcel, generateZRLabelPdf, getZRTerritories, isZRConfigured } from "../../utils/zrexpress.js";
+import { env } from "../../config/env.js";
+import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook } from "../../utils/zrexpress.js";
 import { isWhatsAppConfigured, verifyVerificationToken } from "../../utils/otp.js";
 
 const router = Router();
@@ -68,7 +69,9 @@ function isOtpEnforced(): boolean {
 }
 
 function createOrderNumber() {
-  return `VS-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const code = Array.from({ length: 6 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join("");
+  return `VS-${code}`;
 }
 
 function createConfirmationToken() {
@@ -445,6 +448,12 @@ router.patch(
     existing.status = input.status;
     existing.stockReserved = willBeReserved;
 
+    // Cancel ZR Express parcel when order is cancelled / returned / failed
+    const ZR_CANCEL_STATUSES = new Set(["CANCELLED", "RETURNED", "FAILED"]);
+    if (ZR_CANCEL_STATUSES.has(input.status) && existing.zrParcelId) {
+      void cancelZRParcel(existing.zrParcelId);
+    }
+
     // Auto-create ZR Express parcel when moving to PROCESSING
     if (input.status === "PROCESSING" && !existing.zrParcelId && isZRConfigured()) {
       try {
@@ -518,6 +527,94 @@ router.get(
   }),
 );
 
+// Admin: send ZR waybill label to Telegram
+router.post(
+  "/admin/orders/:id/label-telegram",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const order = await OrderModel.findById(req.params.id).lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrTrackingNumber) return res.status(400).json({ message: "No ZR Express tracking number for this order" });
+
+    const { sendTelegramDocument } = await import("../../utils/telegram.js");
+    const pdf = await generateZRLabelPdf([order.zrTrackingNumber]);
+    const filename = `waybill-${order.orderNumber}.pdf`;
+    const caption = `📦 Waybill — ${order.orderNumber}\n🔍 Tracking: ${order.zrTrackingNumber}\n👤 ${order.customer?.fullName ?? ""} · ${order.customer?.phone ?? ""}`;
+    await sendTelegramDocument(pdf, filename, caption);
+    return res.json({ success: true });
+  }),
+);
+
+// Admin: get ZR parcel tracking history
+router.get(
+  "/admin/orders/:id/zr-history",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const order = await OrderModel.findById(req.params.id).lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrParcelId) return res.status(400).json({ message: "No ZR parcel for this order" });
+    const history = await getZRParcelHistory(order.zrParcelId);
+    return res.json(history);
+  }),
+);
+
+// Admin: refresh ZR parcel status from ZR API and sync to order
+router.post(
+  "/admin/orders/:id/zr-sync",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const order = await OrderModel.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrParcelId) return res.status(400).json({ message: "No ZR parcel for this order" });
+
+    const parcel = await getZRParcel(order.zrParcelId);
+    if (!parcel) return res.status(502).json({ message: "Could not reach ZR Express" });
+
+    const stateName = (parcel.state?.name ?? "").toLowerCase();
+    let newStatus: (typeof ORDER_STATUS_VALUES)[number] | null = null;
+    if (stateName.includes("livr") || stateName.includes("delivered")) newStatus = "DELIVERED";
+    else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) newStatus = "PICKED_UP";
+    else if (stateName.includes("retour") || stateName.includes("return")) newStatus = "RETURNED";
+    else if (stateName.includes("annul") || stateName.includes("cancel")) newStatus = "CANCELLED";
+    else if (stateName.includes("echec") || stateName.includes("failed")) newStatus = "FAILED";
+    else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) newStatus = "SHIPPED";
+    else if (stateName.includes("pris en charge") || stateName.includes("accept")) newStatus = "PROCESSING";
+
+    if (newStatus && order.status !== newStatus) {
+      const wasReserved = hasReservedStock(order);
+      const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus);
+      if (wasReserved && !willBeReserved) await releaseStockForOrder(order);
+      order.status = newStatus;
+      order.stockReserved = willBeReserved;
+      await order.save();
+      await syncCommissionForOrder(String(order._id), "admin");
+    }
+
+    return res.json({ zrState: parcel.state?.name ?? "", orderStatus: order.status });
+  }),
+);
+
+// Admin: bulk print ZR labels for filtered orders (up to 50)
+router.post(
+  "/admin/zr/bulk-labels",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const { orderIds } = z.object({ orderIds: z.array(z.string()).min(1).max(50) }).parse(req.body);
+    const orders = await OrderModel.find({ _id: { $in: orderIds }, zrTrackingNumber: { $ne: null } }).lean();
+    const trackingNumbers = orders.map((o) => o.zrTrackingNumber).filter((tn): tn is string => Boolean(tn));
+    if (trackingNumbers.length === 0) return res.status(400).json({ message: "No ZR tracking numbers found" });
+
+    const pdf = await generateZRBulkLabelPdf(trackingNumbers);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="zr-labels-bulk.pdf"`);
+    return res.send(pdf);
+  }),
+);
+
 // Public webhook — ZR Express calls this with parcel state updates
 router.post(
   "/webhooks/zrexpress",
@@ -525,7 +622,7 @@ router.post(
     const payload = req.body as {
       trackingNumber?: string;
       parcelId?: string;
-      state?: { name?: string };
+      state?: { name?: string; nameArabic?: string };
     };
 
     const trackingNumber = payload.trackingNumber;
@@ -534,20 +631,87 @@ router.post(
     const order = await OrderModel.findOne({ zrTrackingNumber: trackingNumber });
     if (!order) return res.json({ ok: true });
 
-    const stateName = payload.state?.name?.toLowerCase() ?? "";
+    const stateName = (payload.state?.name ?? "").toLowerCase();
 
     let newStatus: string | null = null;
     if (stateName.includes("livr") || stateName.includes("delivered")) newStatus = "DELIVERED";
+    else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) newStatus = "PICKED_UP";
     else if (stateName.includes("retour") || stateName.includes("return")) newStatus = "RETURNED";
-    else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship")) newStatus = "SHIPPED";
+    else if (stateName.includes("annul") || stateName.includes("cancel")) newStatus = "CANCELLED";
+    else if (stateName.includes("echec") || stateName.includes("failed") || stateName.includes("failed")) newStatus = "FAILED";
+    else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) newStatus = "SHIPPED";
+    else if (stateName.includes("pris en charge") || stateName.includes("accept") || stateName.includes("confirmed")) newStatus = "PROCESSING";
 
     if (newStatus && order.status !== newStatus) {
       order.status = newStatus as typeof order.status;
+      const wasReserved = hasReservedStock(order);
+      const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus as (typeof ORDER_STATUS_VALUES)[number]);
+      if (wasReserved && !willBeReserved) {
+        await releaseStockForOrder(order);
+      }
+      order.stockReserved = willBeReserved;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
     }
 
     return res.json({ ok: true });
+  }),
+);
+
+// Admin: manually create ZR parcel (retry when auto-create failed)
+router.post(
+  "/admin/orders/:id/zr-parcel",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const order = await OrderModel.findById(req.params.id).populate("customer.wilaya").lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (order.zrParcelId) return res.status(409).json({ message: "ZR parcel already exists for this order" });
+    if (!isZRConfigured()) return res.status(400).json({ message: "ZR Express credentials not configured" });
+
+    if (!order.customer) throw new AppError("Order has no customer data", 400);
+
+    const { parcelId, trackingNumber } = await createZRParcel({
+      orderNumber: order.orderNumber,
+      total: order.total,
+      deliveryType: order.deliveryType as "HOME_DELIVERY" | "DESK_PICKUP",
+      zrTerritoryId: order.zrTerritoryId as string | undefined,
+      customer: {
+        fullName: order.customer.fullName,
+        phone: order.customer.phone,
+        commune: order.customer.commune,
+        address: order.customer.address,
+      },
+      items: order.items,
+    });
+
+    await OrderModel.findByIdAndUpdate(req.params.id, { zrParcelId: parcelId, zrTrackingNumber: trackingNumber });
+    return res.json({ parcelId, trackingNumber });
+  }),
+);
+
+// Admin: get ZR Express connection status + registered webhook list
+router.get(
+  "/admin/zr/status",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (_req, res) => {
+    const configured = isZRConfigured();
+    const webhooks = await listZRWebhooks();
+    const webhookUrl = `${env.BACKEND_URL}/api/webhooks/zrexpress`;
+    return res.json({ configured, webhookUrl, webhooks });
+  }),
+);
+
+// Admin: register webhook URL with ZR Express
+router.post(
+  "/admin/zr/webhook",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const { url } = z.object({ url: z.string().url() }).parse(req.body);
+    const result = await registerZRWebhook(url);
+    return res.json(result);
   }),
 );
 

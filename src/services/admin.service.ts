@@ -18,6 +18,27 @@ export const adminService = {
   deleteOrder(token: string, orderId: string) {
     return apiRequest<{ success: boolean }>(`/api/admin/orders/${orderId}`, { method: "DELETE", token });
   },
+  getZRStatus(token: string) {
+    return apiRequest<{ configured: boolean; webhookUrl: string; webhooks: Array<{ id: string; url: string }> }>("/api/admin/zr/status", { token });
+  },
+  createZRParcel(token: string, orderId: string) {
+    return apiRequest<{ parcelId: string; trackingNumber: string }>(`/api/admin/orders/${orderId}/zr-parcel`, { method: "POST", token });
+  },
+  registerZRWebhook(token: string, url: string) {
+    return apiRequest<{ id: string; url: string }>("/api/admin/zr/webhook", { method: "POST", token, body: JSON.stringify({ url }) });
+  },
+  getZRParcelHistory(token: string, orderId: string) {
+    return apiRequest<Array<{ state: string; stateAr: string; date: string }>>(`/api/admin/orders/${orderId}/zr-history`, { token });
+  },
+  syncZRParcelStatus(token: string, orderId: string) {
+    return apiRequest<{ zrState: string; orderStatus: string }>(`/api/admin/orders/${orderId}/zr-sync`, { method: "POST", token });
+  },
+  printBulkZRLabels(token: string, orderIds: string[]) {
+    return apiRequest<Blob>("/api/admin/zr/bulk-labels", { method: "POST", token, body: JSON.stringify({ orderIds }) });
+  },
+  sendLabelToTelegram(token: string, orderId: string) {
+    return apiRequest<{ success: boolean }>(`/api/admin/orders/${orderId}/label-telegram`, { method: "POST", token });
+  },
   uploadImage(token: string, file: File) {
     return apiUpload<{ url: string; filename: string }>("/api/admin/uploads", file, token);
   },
