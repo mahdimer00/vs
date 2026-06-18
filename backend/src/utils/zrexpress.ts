@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { env } from "../config/env.js";
 
 const ZR_BASE = "https://api.zrexpress.app/api/v1";
@@ -221,20 +220,6 @@ function toInternationalPhone(phone: string): string {
   return `+${digits}`;
 }
 
-// Stable UUID derived from a seed string — ZR requires customerId/productId fields
-// but has no public endpoint to create them, so we derive consistent IDs locally.
-function deterministicUUID(seed: string): string {
-  const h = crypto.createHash("sha256").update(seed).digest("hex");
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
-}
-
-function customerUUID(intlPhone: string): string {
-  return deterministicUUID(`zr-customer:${intlPhone}`);
-}
-
-function productUUID(sku: string): string {
-  return deterministicUUID(`zr-product:${sku}`);
-}
 
 export async function createZRParcel(order: {
   orderNumber: string;
@@ -257,20 +242,15 @@ export async function createZRParcel(order: {
   }
 
   const intlPhone = toInternationalPhone(order.customer.phone);
-  const customerId = customerUUID(intlPhone);
 
-  const orderedProducts = order.items.map((item) => {
-    const sku = item.variantLabel ?? item.productName.en;
-    return {
-      productId: productUUID(sku),
-      productName: item.productName.en,
-      productSku: sku,
-      unitPrice: item.unitPrice,
-      quantity: item.quantity,
-      weight: 0.5,
-      stockType: "local",
-    };
-  });
+  const orderedProducts = order.items.map((item) => ({
+    productName: item.productName.en,
+    productSku: item.variantLabel ?? item.productName.en,
+    unitPrice: item.unitPrice,
+    quantity: item.quantity,
+    weight: 0.5,
+    stockType: "local",
+  }));
 
   const description = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
 
@@ -279,7 +259,6 @@ export async function createZRParcel(order: {
     amount: order.total,
     deliveryType: order.deliveryType === "HOME_DELIVERY" ? "home" : "pickup-point",
     description,
-    customerId,
     customer: {
       name: order.customer.fullName,
       phone: { number1: intlPhone },
