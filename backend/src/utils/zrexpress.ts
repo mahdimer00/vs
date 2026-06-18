@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { env } from "../config/env.js";
 
 const ZR_BASE = "https://api.zrexpress.app/api/v1";
@@ -213,11 +214,6 @@ async function lookupTerritoryId(commune: string): Promise<string | null> {
   }
 }
 
-// In-memory cache: phone → ZR customerId
-const customerIdCache = new Map<string, string>();
-// In-memory cache: sku → ZR productId
-const productIdCache = new Map<string, string>();
-
 function toInternationalPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("213")) return `+${digits}`;
@@ -225,66 +221,19 @@ function toInternationalPhone(phone: string): string {
   return `+${digits}`;
 }
 
-async function getOrCreateZRCustomer(fullName: string, phone: string): Promise<string> {
-  const intlPhone = toInternationalPhone(phone);
-  if (customerIdCache.has(intlPhone)) return customerIdCache.get(intlPhone)!;
-
-  // Search existing
-  const searchRes = await fetch(`${ZR_BASE}/customers?phoneNumber=${encodeURIComponent(intlPhone)}&pageSize=1`, { headers: zrHeaders() });
-  if (searchRes.ok) {
-    const data = (await searchRes.json()) as { data?: Array<{ id: string }>; items?: Array<{ id: string }> } | Array<{ id: string }>;
-    const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
-    if (items.length > 0 && items[0].id) {
-      customerIdCache.set(intlPhone, items[0].id);
-      return items[0].id;
-    }
-  }
-
-  // Create new
-  const createRes = await fetch(`${ZR_BASE}/customers`, {
-    method: "POST",
-    headers: zrHeaders(),
-    body: JSON.stringify({ name: fullName, phone: { number1: intlPhone } }),
-  });
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`ZR customer creation failed ${createRes.status}: ${err}`);
-  }
-  const created = (await createRes.json()) as { id: string };
-  customerIdCache.set(intlPhone, created.id);
-  return created.id;
+// Stable UUID derived from a seed string — ZR requires customerId/productId fields
+// but has no public endpoint to create them, so we derive consistent IDs locally.
+function deterministicUUID(seed: string): string {
+  const h = crypto.createHash("sha256").update(seed).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h[16], 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-async function getOrCreateZRProduct(name: string, sku: string, price: number): Promise<string> {
-  const key = sku || name;
-  if (productIdCache.has(key)) return productIdCache.get(key)!;
+function customerUUID(intlPhone: string): string {
+  return deterministicUUID(`zr-customer:${intlPhone}`);
+}
 
-  // Search existing by sku
-  if (sku) {
-    const searchRes = await fetch(`${ZR_BASE}/products?sku=${encodeURIComponent(sku)}&pageSize=1`, { headers: zrHeaders() });
-    if (searchRes.ok) {
-      const data = (await searchRes.json()) as { data?: Array<{ id: string }>; items?: Array<{ id: string }> } | Array<{ id: string }>;
-      const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
-      if (items.length > 0 && items[0].id) {
-        productIdCache.set(key, items[0].id);
-        return items[0].id;
-      }
-    }
-  }
-
-  // Create new
-  const createRes = await fetch(`${ZR_BASE}/products`, {
-    method: "POST",
-    headers: zrHeaders(),
-    body: JSON.stringify({ name, sku: sku || name, basePrice: price, localStock: 999 }),
-  });
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`ZR product creation failed ${createRes.status}: ${err}`);
-  }
-  const created = (await createRes.json()) as { id: string };
-  productIdCache.set(key, created.id);
-  return created.id;
+function productUUID(sku: string): string {
+  return deterministicUUID(`zr-product:${sku}`);
 }
 
 export async function createZRParcel(order: {
@@ -307,25 +256,21 @@ export async function createZRParcel(order: {
     throw new Error(`ZR territory not found for commune: ${order.customer.commune}`);
   }
 
-  // 1. Get/create customer in ZR
-  const customerId = await getOrCreateZRCustomer(order.customer.fullName, order.customer.phone);
+  const intlPhone = toInternationalPhone(order.customer.phone);
+  const customerId = customerUUID(intlPhone);
 
-  // 2. Get/create products in ZR
-  const orderedProducts = await Promise.all(
-    order.items.map(async (item) => {
-      const sku = item.variantLabel ?? item.productName.en;
-      const productId = await getOrCreateZRProduct(item.productName.en, sku, item.unitPrice);
-      return {
-        productId,
-        productName: item.productName.en,
-        productSku: sku,
-        unitPrice: item.unitPrice,
-        quantity: item.quantity,
-        weight: 0.5,
-        stockType: "local",
-      };
-    }),
-  );
+  const orderedProducts = order.items.map((item) => {
+    const sku = item.variantLabel ?? item.productName.en;
+    return {
+      productId: productUUID(sku),
+      productName: item.productName.en,
+      productSku: sku,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      weight: 0.5,
+      stockType: "local",
+    };
+  });
 
   const description = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
 
@@ -337,7 +282,7 @@ export async function createZRParcel(order: {
     customerId,
     customer: {
       name: order.customer.fullName,
-      phone: { number1: toInternationalPhone(order.customer.phone) },
+      phone: { number1: intlPhone },
     },
     deliveryAddress: {
       street: order.customer.address || order.customer.commune,
