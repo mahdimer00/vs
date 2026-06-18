@@ -4,8 +4,12 @@ export interface ZRTerritory {
   id: string;
   name: string;
   nameAr: string;
+  wilayaCode: string;
+  wilayaName: string;
+  wilayaNameAr: string;
   homePrice: number;
   pickupPrice: number;
+  hasPricing: boolean;
 }
 
 let cachedTerritories: ZRTerritory[] | null = null;

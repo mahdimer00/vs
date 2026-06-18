@@ -18,10 +18,13 @@ export async function resolveShippingFee(wilayaCode: string, deliveryType: Deliv
       throw new AppError("ZR territory not found", 400);
     }
 
-    return {
-      wilaya,
-      fee: deliveryType === "HOME_DELIVERY" ? territory.homePrice : territory.pickupPrice,
-    };
+    const territoryFee = deliveryType === "HOME_DELIVERY" ? territory.homePrice : territory.pickupPrice;
+    if (territoryFee > 0) {
+      return {
+        wilaya,
+        fee: territoryFee,
+      };
+    }
   }
 
   return {

@@ -13,9 +13,11 @@ interface ZRRate {
 
 interface ZRTerritorySearchItem {
   id: string;
+  code?: number;
   name: string;
   nameArabic?: string;
   level: string;
+  parentId?: string | null;
   delivery?: {
     canSend?: boolean;
     hasHomeDelivery?: boolean;
@@ -35,8 +37,12 @@ export interface ZRTerritory {
   id: string;
   name: string;
   nameAr: string;
+  wilayaCode: string;
+  wilayaName: string;
+  wilayaNameAr: string;
   homePrice: number;
   pickupPrice: number;
+  hasPricing: boolean;
 }
 
 interface ZRParcelResponse {
@@ -51,7 +57,7 @@ interface ZRParcelResponse {
 
 let territoriesMap: Map<string, string> | null = null;
 let ratesCache: ZRTerritory[] | null = null;
-let sendableTerritoryIds: Set<string> | null = null;
+let territorySearchCache: ZRTerritorySearchItem[] | null = null;
 
 function zrHeaders() {
   return {
@@ -81,12 +87,12 @@ async function fetchRates(): Promise<ZRRate[]> {
   return Array.isArray(json) ? json : (json.rates ?? []);
 }
 
-async function fetchSendableTerritoryIds(): Promise<Set<string>> {
-  if (sendableTerritoryIds) {
-    return sendableTerritoryIds;
+async function fetchTerritories(): Promise<ZRTerritorySearchItem[]> {
+  if (territorySearchCache) {
+    return territorySearchCache;
   }
 
-  const ids = new Set<string>();
+  const items: ZRTerritorySearchItem[] = [];
   let pageNumber = 1;
   let hasNext = true;
 
@@ -96,7 +102,8 @@ async function fetchSendableTerritoryIds(): Promise<Set<string>> {
       headers: zrHeaders(),
       body: JSON.stringify({
         pageNumber,
-        pageSize: ZR_TERRITORY_PAGE_SIZE,
+        pageSize: 1000,
+        includeUnavailable: true,
       }),
     });
 
@@ -105,36 +112,26 @@ async function fetchSendableTerritoryIds(): Promise<Set<string>> {
     }
 
     const json = (await res.json()) as ZRTerritorySearchResponse;
-    const items = json.items ?? [];
-
-    for (const item of items) {
-      if (item.level === "commune" && item.delivery?.canSend) {
-        ids.add(item.id);
-      }
-    }
+    items.push(...(json.items ?? []));
 
     hasNext = Boolean(json.hasNext);
     pageNumber += 1;
   }
 
-  sendableTerritoryIds = ids;
-  return ids;
+  territorySearchCache = items;
+  return items;
 }
 
 async function loadTerritories(): Promise<Map<string, string>> {
   if (territoriesMap) return territoriesMap;
 
-  const [rates, sendableIds] = await Promise.all([fetchRates(), fetchSendableTerritoryIds()]);
+  const territories = await getZRTerritories();
   const map = new Map<string, string>();
 
-  for (const rate of rates) {
-    if (rate.toTerritoryLevel !== "commune" || !rate.toTerritoryId || !sendableIds.has(rate.toTerritoryId)) {
-      continue;
-    }
-
-    map.set(normalizeTerritory(rate.toTerritoryName), rate.toTerritoryId);
-    if (rate.toTerritoryNameArabic) {
-      map.set(normalizeTerritory(rate.toTerritoryNameArabic), rate.toTerritoryId);
+  for (const territory of territories) {
+    map.set(normalizeTerritory(territory.name), territory.id);
+    if (territory.nameAr) {
+      map.set(normalizeTerritory(territory.nameAr), territory.id);
     }
   }
 
@@ -146,18 +143,48 @@ export async function getZRTerritories(): Promise<ZRTerritory[]> {
   if (ratesCache) return ratesCache;
   if (!isZRConfigured()) return [];
 
-  const [rates, sendableIds] = await Promise.all([fetchRates(), fetchSendableTerritoryIds()]);
+  const [rates, territories] = await Promise.all([fetchRates(), fetchTerritories()]);
+  const rateByTerritoryId = new Map(
+    rates
+      .filter((rate) => rate.toTerritoryLevel === "commune" && rate.toTerritoryId)
+      .map((rate) => [
+        rate.toTerritoryId,
+        {
+          homePrice: rate.deliveryPrices.find((price) => price.deliveryType === "home")?.price ?? 0,
+          pickupPrice: rate.deliveryPrices.find((price) => price.deliveryType === "pickup-point")?.price ?? 0,
+        },
+      ]),
+  );
+  const wilayasById = new Map(
+    territories
+      .filter((item) => item.level === "wilaya")
+      .map((item) => [item.id, item]),
+  );
 
-  ratesCache = rates
-    .filter((rate) => rate.toTerritoryLevel === "commune" && sendableIds.has(rate.toTerritoryId))
-    .map((rate) => ({
-      id: rate.toTerritoryId,
-      name: rate.toTerritoryName,
-      nameAr: rate.toTerritoryNameArabic ?? "",
-      homePrice: rate.deliveryPrices.find((price) => price.deliveryType === "home")?.price ?? 0,
-      pickupPrice: rate.deliveryPrices.find((price) => price.deliveryType === "pickup-point")?.price ?? 0,
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  ratesCache = territories
+    .filter((item) => item.level === "commune" && item.delivery?.canSend)
+    .map((item) => {
+      const rate = rateByTerritoryId.get(item.id);
+      const wilaya = item.parentId ? wilayasById.get(item.parentId) : undefined;
+      const homePrice = rate?.homePrice ?? 0;
+      const pickupPrice = rate?.pickupPrice ?? 0;
+
+      return {
+        id: item.id,
+        name: item.name,
+        nameAr: item.nameArabic ?? "",
+        wilayaCode: wilaya?.code ? String(wilaya.code).padStart(2, "0") : "",
+        wilayaName: wilaya?.name ?? "",
+        wilayaNameAr: wilaya?.nameArabic ?? "",
+        homePrice,
+        pickupPrice,
+        hasPricing: homePrice > 0 || pickupPrice > 0,
+      };
+    })
+    .sort((a, b) => {
+      const wilayaCompare = a.wilayaCode.localeCompare(b.wilayaCode);
+      return wilayaCompare !== 0 ? wilayaCompare : a.name.localeCompare(b.name);
+    });
 
   return ratesCache;
 }
@@ -281,5 +308,5 @@ export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buf
 export function resetTerritoriesCache(): void {
   territoriesMap = null;
   ratesCache = null;
-  sendableTerritoryIds = null;
+  territorySearchCache = null;
 }

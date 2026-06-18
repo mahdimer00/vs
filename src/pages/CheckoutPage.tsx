@@ -1,4 +1,4 @@
-import { BadgeCheck, Building2, Check, CheckCircle2, Home, Lock, MapPin, MapPinned, Phone, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, CheckCircle2, Clock3, Home, Lock, MapPin, MapPinned, MessageCircle, Phone, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -54,6 +54,7 @@ export function CheckoutPage() {
   const [verifiedPhone, setVerifiedPhone] = useState("");
   const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [otpNotice, setOtpNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -96,11 +97,10 @@ export function CheckoutPage() {
   }, [language, pushToast]);
 
   useEffect(() => {
-    // Skip manual shipping calculation when ZR territory is selected (ZR provides the fee)
-    if (!wilayaCode || selectedZrTerritory) return;
+    if (!wilayaCode) return;
 
     void shippingService
-      .calculateShipping({ wilayaCode, deliveryType })
+      .calculateShipping({ wilayaCode, deliveryType, zrTerritoryId: selectedZrTerritory?.id })
       .then((response) => {
         setShippingFee(response.fee);
       })
@@ -127,13 +127,6 @@ export function CheckoutPage() {
     zrShippingService.getTerritories().then(setZrTerritories).catch(() => setZrTerritories([]));
   }, []);
 
-  // When ZR territory is selected, update shipping fee from ZR rates
-  useEffect(() => {
-    if (!selectedZrTerritory || zrTerritories.length === 0) return;
-    const fee = deliveryType === "HOME_DELIVERY" ? selectedZrTerritory.homePrice : selectedZrTerritory.pickupPrice;
-    if (fee > 0) setShippingFee(fee);
-  }, [selectedZrTerritory, deliveryType, zrTerritories.length]);
-
   // Reset OTP if phone changes
   useEffect(() => {
     if (verifiedPhone && phone !== verifiedPhone) {
@@ -141,10 +134,28 @@ export function CheckoutPage() {
       setVerifiedPhone("");
       setOtpSent(false);
       setOtpCode("");
+      setOtpNotice(null);
       setOtpSecondsLeft(0);
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
     }
   }, [phone, verifiedPhone]);
+
+  useEffect(() => {
+    if (!commune.trim() || selectedZrTerritory || zrTerritories.length === 0) {
+      return;
+    }
+
+    const normalizedCommune = commune.trim().toLowerCase();
+    const match = zrTerritories.find((territory) =>
+      territory.wilayaCode === wilayaCode &&
+      (territory.name.toLowerCase() === normalizedCommune || territory.nameAr === commune.trim())
+    );
+
+    if (match) {
+      setSelectedZrTerritory(match);
+      setCommuneOther(false);
+    }
+  }, [commune, selectedZrTerritory, wilayaCode, zrTerritories]);
 
   useEffect(() => {
     return () => {
@@ -156,11 +167,25 @@ export function CheckoutPage() {
   const phoneIsValid = phonePattern.test(phone.trim());
   const isPhoneVerified = Boolean(phoneVerificationToken && verifiedPhone === phone);
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const selectedWilayaZrTerritories = useMemo(
+    () => zrTerritories.filter((territory) => territory.wilayaCode === wilayaCode),
+    [wilayaCode, zrTerritories],
+  );
+  const selectedZrFee = selectedZrTerritory
+    ? deliveryType === "HOME_DELIVERY"
+      ? selectedZrTerritory.homePrice
+      : selectedZrTerritory.pickupPrice
+    : 0;
+  const otpTimerLabel = `${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, "0")}`;
+  const otpNoticeClassName = otpNotice?.tone === "success"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-rose-200 bg-rose-50 text-rose-700";
 
   const sendOtp = async () => {
     if (!phoneIsValid || otpSending) return;
     setOtpModalOpen(true);
     setOtpSending(true);
+    setOtpNotice(null);
     try {
       const result = await otpService.sendOtp(phone.trim(), "whatsapp");
       setOtpSent(true);
@@ -174,8 +199,21 @@ export function CheckoutPage() {
           return s - 1;
         });
       }, 1000);
+      setOtpNotice({
+        tone: "success",
+        text: language === "ar"
+          ? "تم إرسال رمز التحقق عبر واتساب."
+          : language === "fr"
+            ? "Le code WhatsApp a ete envoye."
+            : "The WhatsApp verification code was sent.",
+      });
       pushToast(language === "ar" ? "تم إرسال رمز التحقق" : language === "fr" ? "Code envoyé" : "Code sent", "success");
     } catch (err) {
+      setOtpSent(false);
+      setOtpNotice({
+        tone: "error",
+        text: err instanceof Error ? err.message : translate(language, "adminActionError"),
+      });
       pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
     } finally {
       setOtpSending(false);
@@ -185,6 +223,7 @@ export function CheckoutPage() {
   const verifyOtp = async () => {
     if (otpCode.length !== 6 || otpVerifying) return;
     setOtpVerifying(true);
+    setOtpNotice(null);
     try {
       const result = await otpService.verifyOtp(phone.trim(), otpCode);
       setPhoneVerificationToken(result.verificationToken);
@@ -192,8 +231,20 @@ export function CheckoutPage() {
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
       setOtpSecondsLeft(0);
       setOtpModalOpen(false);
+      setOtpNotice({
+        tone: "success",
+        text: language === "ar"
+          ? "تم التحقق من رقم الهاتف بنجاح."
+          : language === "fr"
+            ? "Le numero a ete verifie."
+            : "The phone number was verified.",
+      });
       pushToast(language === "ar" ? "تم التحقق من رقم الهاتف ✓" : language === "fr" ? "Numéro vérifié ✓" : "Phone verified ✓", "success");
     } catch (err) {
+      setOtpNotice({
+        tone: "error",
+        text: err instanceof Error ? err.message : translate(language, "adminActionError"),
+      });
       pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
     } finally {
       setOtpVerifying(false);
@@ -204,12 +255,12 @@ export function CheckoutPage() {
   const total = Math.max(0, subtotal + shippingFee - discount);
   const selectedWilaya = wilayas.find((wilaya) => wilaya.code === wilayaCode);
 
-  const useZrCommunes = zrTerritories.length > 0;
+  const useZrCommunes = selectedWilayaZrTerritories.length > 0;
   const filteredZrTerritories = useMemo(() => {
     if (!useZrCommunes || communeSearch.trim().length < 2) return [];
     const q = communeSearch.trim().toLowerCase();
     return zrTerritories.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.nameAr.includes(communeSearch.trim()),
+      (territory) => territory.name.toLowerCase().includes(q) || territory.nameAr.includes(communeSearch.trim()),
     ).slice(0, 8);
   }, [zrTerritories, communeSearch, useZrCommunes]);
 
@@ -449,7 +500,110 @@ export function CheckoutPage() {
               </div>
             </div>
             <p className="mt-2 ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
-            {otpRequired && phoneIsValid && !isPhoneVerified ? (
+            {otpRequired && phoneIsValid ? (
+              <div className={`mt-4 overflow-hidden rounded-[1.75rem] border bg-white shadow-sm ${isPhoneVerified ? "border-emerald-200" : "border-emerald-100"}`}>
+                <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5 ${isPhoneVerified ? "bg-emerald-50" : "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white"}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`grid h-11 w-11 place-items-center rounded-2xl ${isPhoneVerified ? "bg-emerald-100 text-emerald-700" : "bg-white/15 text-white"}`}>
+                      {isPhoneVerified ? <CheckCircle2 className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+                    </div>
+                    <div>
+                      <div className={`text-sm font-semibold ${isPhoneVerified ? "text-emerald-800" : "text-white"}`}>
+                        {language === "ar" ? "التحقق عبر واتساب" : language === "fr" ? "Verification WhatsApp" : "WhatsApp verification"}
+                      </div>
+                      <div className={`text-xs ${isPhoneVerified ? "text-emerald-700/80" : "text-white/80"}`}>
+                        {isPhoneVerified
+                          ? (language === "ar" ? "رقم الهاتف مؤكد وجاهز لإتمام الطلب." : language === "fr" ? "Numero confirme et pret pour la commande." : "Your number is verified and ready for checkout.")
+                          : (language === "ar" ? "أرسل الرمز وأكد رقمك قبل إرسال الطلب." : language === "fr" ? "Envoyez le code puis confirmez votre numero." : "Send the code and verify your number before placing the order.")}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`rounded-full px-3 py-1 text-xs font-semibold ${isPhoneVerified ? "bg-emerald-100 text-emerald-700" : "bg-white/15 text-white"}`} dir="ltr">
+                    {phone}
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm text-slate-600">
+                      {language === "ar"
+                        ? "سيرسل الرمز إلى نفس الرقم عبر واتساب. احتفظ بالنافذة مفتوحة حتى ينتهي التحقق."
+                        : language === "fr"
+                          ? "Le code sera envoye sur ce numero WhatsApp. Gardez la fenetre ouverte jusqu'a la verification."
+                          : "The code will be sent to this WhatsApp number. Keep the window open until verification is complete."}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOtpModalOpen(true)}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${isPhoneVerified ? "border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {language === "ar" ? "فتح نافذة التحقق" : language === "fr" ? "Ouvrir la fenetre OTP" : "Open OTP popup"}
+                    </button>
+                  </div>
+
+                  {otpNotice ? (
+                    <div className={`rounded-2xl border px-4 py-3 text-sm font-medium ${otpNoticeClassName}`}>
+                      {otpNotice.text}
+                    </div>
+                  ) : null}
+
+                  {isPhoneVerified ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      <CheckCircle2 className="h-5 w-5 shrink-0" />
+                      <span>{language === "ar" ? "تم تأكيد رقم الهاتف ويمكنك الآن إكمال الطلب." : language === "fr" ? "Le numero est confirme. Vous pouvez terminer la commande." : "Your phone number is verified. You can complete the order now."}</span>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
+                          <span>{language === "ar" ? "رمز من 6 أرقام" : language === "fr" ? "Code a 6 chiffres" : "6-digit code"}</span>
+                          {otpSent && otpSecondsLeft > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
+                              <Clock3 className="h-3.5 w-3.5" />
+                              {otpTimerLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={otpCode}
+                          onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="_ _ _ _ _ _"
+                          className="field-input w-full border-none bg-transparent px-0 text-center font-mono text-xl tracking-[0.45em] shadow-none focus:ring-0"
+                          dir="ltr"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void sendOtp()}
+                        disabled={otpSending}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(22,163,74,0.24)] transition hover:from-emerald-500 hover:to-green-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : otpSent && otpSecondsLeft === 0 ? <RefreshCw className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                        {otpSending
+                          ? (language === "ar" ? "جارٍ الإرسال..." : language === "fr" ? "Envoi..." : "Sending...")
+                          : otpSent && otpSecondsLeft === 0
+                            ? (language === "ar" ? "إعادة الإرسال" : language === "fr" ? "Renvoyer" : "Resend")
+                            : (language === "ar" ? "إرسال الرمز" : language === "fr" ? "Envoyer le code" : "Send code")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void verifyOtp()}
+                        disabled={otpCode.length !== 6 || otpVerifying}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        {language === "ar" ? "تأكيد الرمز" : language === "fr" ? "Verifier" : "Verify code"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+            {false && otpRequired && phoneIsValid && !isPhoneVerified ? (
               <button
                 type="button"
                 onClick={() => setOtpModalOpen(true)}
@@ -461,7 +615,7 @@ export function CheckoutPage() {
             ) : null}
 
             {/* OTP Phone Verification Panel */}
-            {otpRequired && phoneIsValid && (
+            {false && otpRequired && phoneIsValid && (
               <div className={`mt-4 rounded-2xl border p-4 transition-all ${isPhoneVerified ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
                 {isPhoneVerified ? (
                   <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
@@ -549,7 +703,16 @@ export function CheckoutPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <IconField icon={MapPin}>
-                <select value={wilayaCode} onChange={(event) => setWilayaCode(event.target.value)} className="field-select field-input-icon">
+                <select
+                  value={wilayaCode}
+                  onChange={(event) => {
+                    setWilayaCode(event.target.value);
+                    setCommune("");
+                    setCommuneOther(false);
+                    setSelectedZrTerritory(null);
+                  }}
+                  className="field-select field-input-icon"
+                >
                   {wilayas.map((wilaya) => (
                     <option key={wilaya._id} value={wilaya.code}>
                       {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
@@ -558,6 +721,79 @@ export function CheckoutPage() {
                 </select>
               </IconField>
               {useZrCommunes ? (
+                <div className="space-y-3">
+                  <IconField icon={MapPinned}>
+                    <select
+                      value={communeOther ? "__other__" : selectedZrTerritory?.id ?? ""}
+                      onChange={(event) => {
+                        const { value } = event.target;
+                        if (value === "__other__") {
+                          setCommuneOther(true);
+                          setSelectedZrTerritory(null);
+                          setCommune("");
+                          return;
+                        }
+
+                        const territory = selectedWilayaZrTerritories.find((entry) => entry.id === value) ?? null;
+                        setCommuneOther(false);
+                        setSelectedZrTerritory(territory);
+                        setCommune(territory?.name ?? "");
+                      }}
+                      className="field-select field-input-icon"
+                    >
+                      <option value="">{language === "ar" ? "اختر البلدية" : language === "fr" ? "Choisir la commune" : "Choose your commune"}</option>
+                      {selectedWilayaZrTerritories.map((territory) => (
+                        <option key={territory.id} value={territory.id}>
+                          {territory.name}
+                          {territory.nameAr ? ` · ${territory.nameAr}` : ""}
+                          {territory.hasPricing
+                            ? ` · ${deliveryType === "HOME_DELIVERY" ? territory.homePrice : territory.pickupPrice} ${language === "ar" ? "دج" : "DA"}`
+                            : ""}
+                        </option>
+                      ))}
+                      <option value="__other__">{translate(language, "communeOther")}</option>
+                    </select>
+                  </IconField>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                      {language === "ar" ? `ZR مربوط: ${selectedWilayaZrTerritories.length} بلدية` : language === "fr" ? `ZR connecte: ${selectedWilayaZrTerritories.length} communes` : `ZR linked: ${selectedWilayaZrTerritories.length} communes`}
+                    </span>
+                    {selectedZrTerritory ? (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                        {selectedZrFee > 0
+                          ? `${language === "ar" ? "سعر الشحن" : language === "fr" ? "Frais" : "Shipping"}: ${formatCurrency(selectedZrFee, language)}`
+                          : `${language === "ar" ? "سيطبق السعر النهائي تلقائياً" : language === "fr" ? "Tarif applique automatiquement" : "Final rate is applied automatically"}`}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {communeOther ? (
+                    <div className="flex flex-col gap-2">
+                      <IconField icon={MapPinned}>
+                        <input
+                          required
+                          value={commune}
+                          onChange={(event) => setCommune(event.target.value)}
+                          className="field-input field-input-icon"
+                          placeholder={translate(language, "commune")}
+                        />
+                      </IconField>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommuneOther(false);
+                          setCommune("");
+                        }}
+                        className="self-start text-xs font-semibold text-teal-700 underline"
+                      >
+                        {language === "ar" ? "الرجوع إلى قائمة ZR" : language === "fr" ? "Revenir a la liste ZR" : "Back to ZR list"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {false && useZrCommunes ? (
                 // ZR Express territory-based commune autocomplete
                 <div className="relative">
                   <IconField icon={MapPinned}>
@@ -782,6 +1018,109 @@ export function CheckoutPage() {
         </div>
       </div>
       {otpModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 px-4 py-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)]">
+            <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-5 py-5 text-white sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    WhatsApp OTP
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold">
+                      {language === "ar" ? "تأكيد رقم الهاتف" : language === "fr" ? "Confirmer le numero" : "Confirm your phone number"}
+                    </h2>
+                    <p className="mt-1 text-sm text-white/80">
+                      {language === "ar"
+                        ? "أرسل رمز التحقق عبر واتساب ثم أدخله هنا لإكمال الطلب."
+                        : language === "fr"
+                          ? "Envoyez le code WhatsApp puis saisissez-le ici pour terminer la commande."
+                          : "Send the WhatsApp code, then enter it here to finish checkout."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOtpModalOpen(false)}
+                  className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+                  aria-label="Close verification modal"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-5 sm:p-6">
+              <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                      {language === "ar" ? "الرقم المستهدف" : language === "fr" ? "Numero cible" : "Target number"}
+                    </div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900" dir="ltr">{phone}</div>
+                  </div>
+                  {otpSent && otpSecondsLeft > 0 ? (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-emerald-700">
+                      <Clock3 className="h-4 w-4" />
+                      {otpTimerLabel}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {otpNotice ? (
+                <div className={`rounded-2xl border px-4 py-3 text-sm font-medium ${otpNoticeClassName}`}>
+                  {otpNotice.text}
+                </div>
+              ) : null}
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => void sendOtp()}
+                  disabled={otpSending}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(22,163,74,0.25)] transition hover:from-emerald-500 hover:to-green-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : otpSent && otpSecondsLeft === 0 ? <RefreshCw className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                  {otpSending
+                    ? (language === "ar" ? "جارٍ الإرسال..." : language === "fr" ? "Envoi..." : "Sending...")
+                    : otpSent && otpSecondsLeft === 0
+                      ? (language === "ar" ? "إعادة إرسال الرمز" : language === "fr" ? "Renvoyer le code" : "Resend code")
+                      : (language === "ar" ? "إرسال رمز واتساب" : language === "fr" ? "Envoyer le code WhatsApp" : "Send WhatsApp code")}
+                </button>
+
+                <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {language === "ar" ? "أدخل الرمز" : language === "fr" ? "Saisir le code" : "Enter the code"}
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="_ _ _ _ _ _"
+                    className="field-input w-full border-none bg-transparent px-0 text-center font-mono text-2xl tracking-[0.5em] shadow-none focus:ring-0"
+                    dir="ltr"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void verifyOtp()}
+                  disabled={otpCode.length !== 6 || otpVerifying}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {language === "ar" ? "تأكيد الرمز" : language === "fr" ? "Verifier le code" : "Verify code"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {false && otpModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-4 py-4 sm:items-center">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">

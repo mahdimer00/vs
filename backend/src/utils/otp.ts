@@ -49,6 +49,34 @@ export function otpTtlSeconds(): number {
   return OTP_TTL_SECONDS;
 }
 
+function getBaileysBaseUrls(): string[] {
+  const configured = (env.BAILEYS_API_URL ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const candidates = new Set<string>();
+
+  for (const rawUrl of configured) {
+    try {
+      const parsed = new URL(rawUrl);
+      candidates.add(parsed.toString().replace(/\/$/, ""));
+
+      if (parsed.hostname === "host.docker.internal" || parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+        for (const host of ["172.17.0.1", "172.18.0.1"]) {
+          const fallback = new URL(parsed.toString());
+          fallback.hostname = host;
+          candidates.add(fallback.toString().replace(/\/$/, ""));
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return [...candidates];
+}
+
 // Send OTP via WhatsApp (self-hosted Baileys API)
 export async function sendWhatsAppOtp(phone: string, code: string): Promise<void> {
   if (!env.BAILEYS_API_URL) {
@@ -65,23 +93,34 @@ export async function sendWhatsAppOtp(phone: string, code: string): Promise<void
 
   // Normalize Algerian number to international format.
   const normalized = phone.startsWith("0") ? `213${phone.slice(1)}` : phone;
-  const baseUrl = env.BAILEYS_API_URL.replace(/\/$/, "");
-
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (env.BAILEYS_API_KEY) {
     headers["X-Api-Key"] = env.BAILEYS_API_KEY;
   }
 
-  const res = await fetch(`${baseUrl}/send`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ phone: normalized, message }),
-  });
+  const errors: string[] = [];
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`WhatsApp OTP send failed (${res.status}): ${err}`);
+  for (const baseUrl of getBaileysBaseUrls()) {
+    try {
+      const res = await fetch(`${baseUrl}/send`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone: normalized, message }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (res.ok) {
+        return;
+      }
+
+      const err = await res.text();
+      errors.push(`${baseUrl} -> ${res.status}: ${err}`);
+    } catch (error) {
+      errors.push(`${baseUrl} -> ${error instanceof Error ? error.message : "request failed"}`);
+    }
   }
+
+  throw new Error(`WhatsApp OTP send failed: ${errors.join(" | ")}`);
 }
 
 export function isWhatsAppConfigured(): boolean {
