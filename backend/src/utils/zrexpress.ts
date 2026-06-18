@@ -213,6 +213,80 @@ async function lookupTerritoryId(commune: string): Promise<string | null> {
   }
 }
 
+// In-memory cache: phone → ZR customerId
+const customerIdCache = new Map<string, string>();
+// In-memory cache: sku → ZR productId
+const productIdCache = new Map<string, string>();
+
+function toInternationalPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("213")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+213${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
+async function getOrCreateZRCustomer(fullName: string, phone: string): Promise<string> {
+  const intlPhone = toInternationalPhone(phone);
+  if (customerIdCache.has(intlPhone)) return customerIdCache.get(intlPhone)!;
+
+  // Search existing
+  const searchRes = await fetch(`${ZR_BASE}/customers?phoneNumber=${encodeURIComponent(intlPhone)}&pageSize=1`, { headers: zrHeaders() });
+  if (searchRes.ok) {
+    const data = (await searchRes.json()) as { data?: Array<{ id: string }>; items?: Array<{ id: string }> } | Array<{ id: string }>;
+    const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
+    if (items.length > 0 && items[0].id) {
+      customerIdCache.set(intlPhone, items[0].id);
+      return items[0].id;
+    }
+  }
+
+  // Create new
+  const createRes = await fetch(`${ZR_BASE}/customers`, {
+    method: "POST",
+    headers: zrHeaders(),
+    body: JSON.stringify({ name: fullName, phone: { number1: intlPhone } }),
+  });
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    throw new Error(`ZR customer creation failed ${createRes.status}: ${err}`);
+  }
+  const created = (await createRes.json()) as { id: string };
+  customerIdCache.set(intlPhone, created.id);
+  return created.id;
+}
+
+async function getOrCreateZRProduct(name: string, sku: string, price: number): Promise<string> {
+  const key = sku || name;
+  if (productIdCache.has(key)) return productIdCache.get(key)!;
+
+  // Search existing by sku
+  if (sku) {
+    const searchRes = await fetch(`${ZR_BASE}/products?sku=${encodeURIComponent(sku)}&pageSize=1`, { headers: zrHeaders() });
+    if (searchRes.ok) {
+      const data = (await searchRes.json()) as { data?: Array<{ id: string }>; items?: Array<{ id: string }> } | Array<{ id: string }>;
+      const items = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
+      if (items.length > 0 && items[0].id) {
+        productIdCache.set(key, items[0].id);
+        return items[0].id;
+      }
+    }
+  }
+
+  // Create new
+  const createRes = await fetch(`${ZR_BASE}/products`, {
+    method: "POST",
+    headers: zrHeaders(),
+    body: JSON.stringify({ name, sku: sku || name, basePrice: price, localStock: 999 }),
+  });
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    throw new Error(`ZR product creation failed ${createRes.status}: ${err}`);
+  }
+  const created = (await createRes.json()) as { id: string };
+  productIdCache.set(key, created.id);
+  return created.id;
+}
+
 export async function createZRParcel(order: {
   orderNumber: string;
   total: number;
@@ -233,6 +307,26 @@ export async function createZRParcel(order: {
     throw new Error(`ZR territory not found for commune: ${order.customer.commune}`);
   }
 
+  // 1. Get/create customer in ZR
+  const customerId = await getOrCreateZRCustomer(order.customer.fullName, order.customer.phone);
+
+  // 2. Get/create products in ZR
+  const orderedProducts = await Promise.all(
+    order.items.map(async (item) => {
+      const sku = item.variantLabel ?? item.productName.en;
+      const productId = await getOrCreateZRProduct(item.productName.en, sku, item.unitPrice);
+      return {
+        productId,
+        productName: item.productName.en,
+        productSku: sku,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        weight: 0.5,
+        stockType: "local",
+      };
+    }),
+  );
+
   const description = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
 
   const body: Record<string, unknown> = {
@@ -240,23 +334,17 @@ export async function createZRParcel(order: {
     amount: order.total,
     deliveryType: order.deliveryType === "HOME_DELIVERY" ? "home" : "pickup-point",
     description,
+    customerId,
     customer: {
       name: order.customer.fullName,
-      phone: { number1: order.customer.phone },
+      phone: { number1: toInternationalPhone(order.customer.phone) },
     },
     deliveryAddress: {
-      street: order.customer.address,
-      cityTerritoryId: territoryId,
+      street: order.customer.address || order.customer.commune,
+      districtTerritoryId: territoryId,
     },
     weight: { weight: 0.5 },
-    orderedProducts: order.items.map((item) => ({
-      productName: item.productName.en,
-      productSku: item.variantLabel ?? "",
-      unitPrice: item.unitPrice,
-      quantity: item.quantity,
-      weight: 0.5,
-      stockType: "local",
-    })),
+    orderedProducts,
   };
 
   const createRes = await fetch(`${ZR_BASE}/parcels`, {
