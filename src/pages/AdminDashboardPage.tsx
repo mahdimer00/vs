@@ -2150,7 +2150,7 @@ export function AdminDashboardPage() {
                                   </div>
                                 )}
                               </div>
-                            ) : zrStatus?.configured && order.status === "PROCESSING" ? (
+                            ) : zrStatus?.configured && (order.status === "CONFIRMED" || order.status === "PROCESSING") ? (
                               <div className="mb-3">
                                 <button
                                   type="button"
