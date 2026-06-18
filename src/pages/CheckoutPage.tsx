@@ -449,6 +449,16 @@ export function CheckoutPage() {
               </div>
             </div>
             <p className="mt-2 ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
+            {otpRequired && phoneIsValid && !isPhoneVerified ? (
+              <button
+                type="button"
+                onClick={() => setOtpModalOpen(true)}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 md:hidden"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {language === "ar" ? "فتح نافذة التحقق عبر WhatsApp" : language === "fr" ? "Ouvrir la verification WhatsApp" : "Open WhatsApp verification"}
+              </button>
+            ) : null}
 
             {/* OTP Phone Verification Panel */}
             {otpRequired && phoneIsValid && (
@@ -771,6 +781,78 @@ export function CheckoutPage() {
           </div>
         </div>
       </div>
+      {otpModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-4 py-4 sm:items-center">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">
+                  {language === "ar" ? "التحقق من رقم الهاتف" : language === "fr" ? "Verification du numero" : "Phone verification"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {language === "ar" ? "سنرسل رمز التحقق عبر WhatsApp لهذا الرقم." : language === "fr" ? "Le code sera envoye sur WhatsApp pour ce numero." : "We will send the verification code to this WhatsApp number."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOtpModalOpen(false)}
+                className="grid h-10 w-10 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close verification modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-blue-800">
+                <Phone className="h-4 w-4" />
+                <span dir="ltr">{phone}</span>
+              </div>
+              <div className="mt-4 space-y-3">
+                {!otpSent || otpSecondsLeft === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void sendOtp()}
+                    disabled={otpSending}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    <Send className="h-4 w-4" />
+                    {otpSending ? "Sending..." : "Send verification code"}
+                  </button>
+                ) : null}
+                {otpSent ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs text-blue-700">
+                      <span>{language === "ar" ? "تم إرسال الرمز عبر WhatsApp" : language === "fr" ? "Code envoye via WhatsApp" : "Code sent via WhatsApp"}</span>
+                      {otpSecondsLeft > 0 ? (
+                        <span>{Math.floor(otpSecondsLeft / 60)}:{String(otpSecondsLeft % 60).padStart(2, "0")}</span>
+                      ) : null}
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="_ _ _ _ _ _"
+                      className="field-input w-full text-center font-mono text-lg tracking-widest"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void verifyOtp()}
+                      disabled={otpCode.length !== 6 || otpVerifying}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {language === "ar" ? "تحقق" : language === "fr" ? "Verifier" : "Verify"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
