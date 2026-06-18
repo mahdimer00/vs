@@ -844,7 +844,7 @@ export function CheckoutPage() {
                     </ul>
                   )}
                 </div>
-              ) : selectedWilaya?.communes?.length && !communeOther ? (
+              ) : !useZrCommunes && selectedWilaya?.communes?.length && !communeOther ? (
                 <IconField icon={MapPinned}>
                   <select
                     value={commune}
@@ -867,7 +867,7 @@ export function CheckoutPage() {
                     <option value="__other__">{translate(language, "communeOther")}</option>
                   </select>
                 </IconField>
-              ) : (
+              ) : !useZrCommunes ? (
                 <div className="flex flex-col gap-2">
                   <IconField icon={MapPinned}>
                     <input required value={commune} onChange={(event) => setCommune(event.target.value)} className="field-input field-input-icon" placeholder={translate(language, "commune")} />
@@ -885,7 +885,7 @@ export function CheckoutPage() {
                     </button>
                   ) : null}
                 </div>
-              )}
+              ) : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
