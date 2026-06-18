@@ -23,6 +23,7 @@ const orderSchema = new Schema(
     customer: {
       fullName: { type: String, required: true },
       phone: { type: String, required: true },
+      phone2: { type: String, default: null },
       wilaya: { type: Schema.Types.ObjectId, ref: "Wilaya", required: true },
       commune: { type: String, required: true },
       address: { type: String, required: true },

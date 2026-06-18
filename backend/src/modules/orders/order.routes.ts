@@ -40,6 +40,7 @@ const createOrderSchema = z.object({
   customer: z.object({
     fullName: z.string().min(2),
     phone: z.string().regex(/^(05|06|07)\d{8}$/),
+    phone2: z.string().regex(/^(05|06|07)\d{8}$/).optional(),
     wilayaCode: z.string(),
     commune: z.string().min(2),
     address: z.string().min(5),
@@ -203,6 +204,7 @@ router.post(
       customer: {
         fullName: input.customer.fullName,
         phone: input.customer.phone,
+        phone2: input.customer.phone2 ?? null,
         wilaya: wilaya._id,
         commune: input.customer.commune,
         address: input.customer.address,
@@ -404,6 +406,21 @@ router.get(
   }),
 );
 
+// Public: get live ZR tracking timeline for a specific order number
+router.get(
+  "/orders/:orderNumber/zr-tracking",
+  orderTrackRateLimitMiddleware,
+  asyncHandler(async (req, res) => {
+    const { orderNumber } = req.params;
+    const order = await OrderModel.findOne({ orderNumber }).lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrParcelId) return res.json({ tracking: [], trackingNumber: null });
+
+    const history = await getZRParcelHistory(order.zrParcelId);
+    return res.json({ tracking: history, trackingNumber: order.zrTrackingNumber ?? null });
+  }),
+);
+
 router.get(
   "/admin/orders",
   authMiddleware,
@@ -467,6 +484,7 @@ router.patch(
             customer: {
               fullName: populated.customer.fullName,
               phone: populated.customer.phone,
+              phone2: populated.customer.phone2 as string | undefined,
               commune: populated.customer.commune,
               address: populated.customer.address,
             },
@@ -689,6 +707,7 @@ router.post(
       customer: {
         fullName: order.customer.fullName,
         phone: order.customer.phone,
+        phone2: order.customer.phone2 as string | undefined,
         commune: order.customer.commune,
         address: order.customer.address,
       },

@@ -163,6 +163,7 @@ export interface Order {
   customer: {
     fullName: string;
     phone: string;
+    phone2?: string | null;
     wilaya: Wilaya | string;
     commune: string;
     address: string;

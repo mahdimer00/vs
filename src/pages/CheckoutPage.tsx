@@ -27,6 +27,7 @@ export function CheckoutPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phone2, setPhone2] = useState("");
   const [wilayaCode, setWilayaCode] = useState("16");
   const [commune, setCommune] = useState("");
   const [communeOther, setCommuneOther] = useState(false);
@@ -378,6 +379,7 @@ export function CheckoutPage() {
         customer: {
           fullName,
           phone,
+          phone2: phone2 && /^(05|06|07)\d{8}$/.test(phone2) ? phone2 : undefined,
           wilayaCode,
           commune,
           address,
@@ -491,6 +493,21 @@ export function CheckoutPage() {
                   />
                 </IconField>
                 <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <IconField icon={Phone}>
+                  <input
+                    dir="ltr"
+                    inputMode="tel"
+                    value={phone2}
+                    onChange={(event) => setPhone2(event.target.value.replace(/\D/g, "").slice(0, 10))}
+                    className="field-input field-input-icon"
+                    placeholder={language === "ar" ? "رقم بديل (اختياري)" : language === "fr" ? "Numéro alternatif (optionnel)" : "Alternate phone (optional)"}
+                  />
+                </IconField>
+                <p className="ps-1 text-xs text-slate-400">
+                  {language === "ar" ? "رقم ثاني للتواصل إذا كان الأول مغلقاً (اختياري)" : language === "fr" ? "Numéro alternatif si le premier est injoignable (optionnel)" : "Backup number if primary is unreachable (optional)"}
+                </p>
               </div>
             </div>
             <p className="mt-2 ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>

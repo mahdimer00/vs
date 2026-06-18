@@ -1,4 +1,19 @@
 import { apiRequest, apiUpload } from "@/services/apiClient";
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+
+async function fetchBlob(path: string, token: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = "Request failed";
+    try { msg = (JSON.parse(text) as { message?: string }).message ?? msg; } catch { /* noop */ }
+    throw new Error(msg);
+  }
+  return res.blob();
+}
 import type { AdminNotifications, AdminPermission, Affiliate, AnalyticsSummary, Banner, Brand, Category, Commission, CouponRequest, DashboardStats, Order, Product, PromoCode, SubAdmin, WebsiteSetting, Wilaya, WithdrawalRequest } from "@/types";
 
 export const adminService = {
@@ -38,6 +53,9 @@ export const adminService = {
   },
   sendLabelToTelegram(token: string, orderId: string) {
     return apiRequest<{ success: boolean }>(`/api/admin/orders/${orderId}/label-telegram`, { method: "POST", token });
+  },
+  downloadLabel(token: string, orderId: string) {
+    return fetchBlob(`/api/admin/orders/${orderId}/label`, token);
   },
   uploadImage(token: string, file: File) {
     return apiUpload<{ url: string; filename: string }>("/api/admin/uploads", file, token);

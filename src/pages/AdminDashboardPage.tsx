@@ -278,8 +278,16 @@ export function AdminDashboardPage() {
   const [zrHistoryLoading, setZrHistoryLoading] = useState<string | null>(null);
   const [zrSyncingId, setZrSyncingId] = useState<string | null>(null);
   const [telegramLabelId, setTelegramLabelId] = useState<string | null>(null);
+  const [printLabelId, setPrintLabelId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkLabelPrinting, setBulkLabelPrinting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    tone?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  } | null>(null);
   const [showAddProductForm, setShowAddProductForm] = useState(false);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
@@ -1653,6 +1661,21 @@ export function AdminDashboardPage() {
     }
   };
 
+  const confirmUpdateStatus = (orderId: string, status: Order["status"], orderNumber: string) => {
+    const statusLabel = translate(language, `status_${status}` as TranslationKey);
+    setConfirmModal({
+      title: language === "ar" ? "تغيير حالة الطلب" : language === "fr" ? "Changer le statut" : "Change Order Status",
+      message: language === "ar"
+        ? `هل تريد تغيير حالة الطلب ${orderNumber} إلى "${statusLabel}"؟`
+        : language === "fr"
+          ? `Changer le statut de la commande ${orderNumber} en "${statusLabel}" ?`
+          : `Change order ${orderNumber} status to "${statusLabel}"?`,
+      confirmLabel: language === "ar" ? "تأكيد" : language === "fr" ? "Confirmer" : "Confirm",
+      tone: ["CANCELLED", "RETURNED", "FAILED"].includes(status) ? "danger" : "info",
+      onConfirm: () => void updateOrderStatusAction(orderId, status),
+    });
+  };
+
   const deleteOrderAction = async (orderId: string) => {
     setOrderActionId(orderId);
     try {
@@ -1663,6 +1686,20 @@ export function AdminDashboardPage() {
     } finally {
       setOrderActionId(null);
     }
+  };
+
+  const confirmDeleteOrder = (orderId: string, orderNumber: string) => {
+    setConfirmModal({
+      title: language === "ar" ? "حذف الطلب" : language === "fr" ? "Supprimer la commande" : "Delete Order",
+      message: language === "ar"
+        ? `هل أنت متأكد من حذف الطلب ${orderNumber}؟ لا يمكن التراجع عن هذا الإجراء.`
+        : language === "fr"
+          ? `Supprimer définitivement la commande ${orderNumber} ? Cette action est irréversible.`
+          : `Permanently delete order ${orderNumber}? This cannot be undone.`,
+      confirmLabel: language === "ar" ? "حذف" : language === "fr" ? "Supprimer" : "Delete",
+      tone: "danger",
+      onConfirm: () => void deleteOrderAction(orderId),
+    });
   };
 
   const createZRParcelAction = async (orderId: string) => {
@@ -1676,6 +1713,20 @@ export function AdminDashboardPage() {
     } finally {
       setOrderActionId(null);
     }
+  };
+
+  const confirmCreateZRParcel = (orderId: string, orderNumber: string) => {
+    setConfirmModal({
+      title: language === "ar" ? "إنشاء شحنة ZR Express" : language === "fr" ? "Créer un colis ZR" : "Create ZR Express Parcel",
+      message: language === "ar"
+        ? `هل تريد إنشاء شحنة ZR Express للطلب ${orderNumber}؟`
+        : language === "fr"
+          ? `Créer un colis ZR Express pour la commande ${orderNumber} ?`
+          : `Create a ZR Express parcel for order ${orderNumber}?`,
+      confirmLabel: language === "ar" ? "إنشاء" : language === "fr" ? "Créer" : "Create",
+      tone: "info",
+      onConfirm: () => void createZRParcelAction(orderId),
+    });
   };
 
   const syncZRStatusAction = async (orderId: string) => {
@@ -1736,6 +1787,23 @@ export function AdminDashboardPage() {
       pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
     } finally {
       setTelegramLabelId(null);
+    }
+  };
+
+  const printLabelAction = async (orderId: string, trackingNumber: string) => {
+    setPrintLabelId(orderId);
+    try {
+      const blob = await adminService.downloadLabel(token, orderId);
+      const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob as unknown as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `waybill-${trackingNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setPrintLabelId(null);
     }
   };
 
@@ -2074,16 +2142,17 @@ export function AdminDashboardPage() {
                                   </span>
 
                                   {/* Print label */}
-                                  <a
-                                    href={`${(import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ""}/api/admin/orders/${order._id}/label`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
+                                  <button
+                                    type="button"
+                                    disabled={printLabelId === order._id}
+                                    onClick={(e) => { e.stopPropagation(); void printLabelAction(order._id, order.zrTrackingNumber ?? order.orderNumber); }}
                                     className="ghost-button gap-1.5 px-3 py-1.5 text-xs"
                                   >
-                                    <Printer className="h-3.5 w-3.5" />
+                                    {printLabelId === order._id
+                                      ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                                      : <Printer className="h-3.5 w-3.5" />}
                                     {language === "ar" ? "طباعة الوصل" : language === "fr" ? "Imprimer le bon" : "Print Waybill"}
-                                  </a>
+                                  </button>
 
                                   {/* Send to Telegram */}
                                   <button
@@ -2155,7 +2224,7 @@ export function AdminDashboardPage() {
                                 <button
                                   type="button"
                                   disabled={busy}
-                                  onClick={(e) => { e.stopPropagation(); void createZRParcelAction(order._id); }}
+                                  onClick={(e) => { e.stopPropagation(); confirmCreateZRParcel(order._id, order.orderNumber); }}
                                   className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
                                 >
                                   <Package className="h-3.5 w-3.5" />
@@ -2179,7 +2248,7 @@ export function AdminDashboardPage() {
                             <div className="flex flex-wrap items-center gap-2">
                               <select
                                 value={order.status}
-                                onChange={(e) => void updateOrderStatusAction(order._id, e.target.value as Order["status"])}
+                                onChange={(e) => { e.stopPropagation(); confirmUpdateStatus(order._id, e.target.value as Order["status"], order.orderNumber); }}
                                 disabled={busy}
                                 className="field-select max-w-[200px] py-2 text-sm"
                                 onClick={(e) => e.stopPropagation()}
@@ -2194,7 +2263,7 @@ export function AdminDashboardPage() {
                                   <button
                                     key={action.status}
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); void updateOrderStatusAction(order._id, action.status); }}
+                                    onClick={(e) => { e.stopPropagation(); confirmUpdateStatus(order._id, action.status, order.orderNumber); }}
                                     disabled={busy}
                                     className="ghost-button gap-1.5 px-4 py-2 text-sm"
                                   >
@@ -2205,12 +2274,7 @@ export function AdminDashboardPage() {
                               })}
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(translate(language, "adminConfirmDeleteOrder"))) {
-                                    void deleteOrderAction(order._id);
-                                  }
-                                }}
+                                onClick={(e) => { e.stopPropagation(); confirmDeleteOrder(order._id, order.orderNumber); }}
                                 disabled={busy}
                                 className="ms-auto rounded-full px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
                               >
@@ -3362,6 +3426,65 @@ export function AdminDashboardPage() {
         </div>
       </section>
       {currentView}
+
+      {/* Confirmation modal */}
+      {confirmModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`rounded-t-3xl px-6 py-5 ${
+              confirmModal.tone === "danger"
+                ? "bg-rose-50 border-b border-rose-100"
+                : confirmModal.tone === "warning"
+                  ? "bg-amber-50 border-b border-amber-100"
+                  : "bg-slate-50 border-b border-slate-100"
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
+                  confirmModal.tone === "danger"
+                    ? "bg-rose-100 text-rose-600"
+                    : confirmModal.tone === "warning"
+                      ? "bg-amber-100 text-amber-600"
+                      : "bg-slate-100 text-slate-600"
+                }`}>
+                  {confirmModal.tone === "danger"
+                    ? <AlertTriangle className="h-5 w-5" />
+                    : <Check className="h-5 w-5" />}
+                </div>
+                <h2 className="text-lg font-semibold text-slate-950">{confirmModal.title}</h2>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm leading-6 text-slate-600">{confirmModal.message}</p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="ghost-button px-5 py-2.5 text-sm"
+              >
+                {language === "ar" ? "إلغاء" : language === "fr" ? "Annuler" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }}
+                className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold text-white transition ${
+                  confirmModal.tone === "danger"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-slate-900 hover:bg-slate-700"
+                }`}
+              >
+                {confirmModal.confirmLabel ?? (language === "ar" ? "تأكيد" : language === "fr" ? "Confirmer" : "Confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardShell>
   );
 }

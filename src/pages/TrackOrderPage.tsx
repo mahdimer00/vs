@@ -1,5 +1,5 @@
-import { ArrowLeft, Phone, Search, Truck } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, CheckCircle2, Clock, Package, Phone, Search, Truck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
 import { Seo } from "@/components/Seo";
@@ -10,6 +10,12 @@ import type { Order } from "@/types";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
+interface ZREvent {
+  state: string;
+  stateAr: string;
+  date: string;
+}
+
 export function TrackOrderPage() {
   const { language } = useApp();
   const [phone, setPhone] = useState("");
@@ -17,6 +23,27 @@ export function TrackOrderPage() {
   const [phoneResults, setPhoneResults] = useState<Order[] | null>(null);
   const [error, setError] = useState("");
   const [searching, setSearching] = useState(false);
+  const [zrTracking, setZrTracking] = useState<ZREvent[] | null>(null);
+  const [zrTrackingNumber, setZrTrackingNumber] = useState<string | null>(null);
+  const [zrLoading, setZrLoading] = useState(false);
+
+  useEffect(() => {
+    if (!order) {
+      setZrTracking(null);
+      setZrTrackingNumber(null);
+      return;
+    }
+    setZrLoading(true);
+    orderService.getZRTracking(order.orderNumber)
+      .then((data) => {
+        setZrTracking(data.tracking);
+        setZrTrackingNumber(data.trackingNumber);
+      })
+      .catch(() => {
+        setZrTracking([]);
+      })
+      .finally(() => setZrLoading(false));
+  }, [order]);
 
   const reset = () => {
     setOrder(null);
@@ -110,6 +137,56 @@ export function TrackOrderPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ZR Express live tracking timeline */}
+      <div className="surface-card p-6">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-600">
+            <Truck className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {language === "ar" ? "تتبع الشحنة" : language === "fr" ? "Suivi de livraison" : "Delivery Tracking"}
+            </h2>
+            {zrTrackingNumber ? (
+              <div className="text-sm text-slate-500" dir="ltr">{zrTrackingNumber}</div>
+            ) : null}
+          </div>
+        </div>
+
+        {zrLoading ? (
+          <div className="mt-6 flex items-center gap-2 text-sm text-slate-400">
+            <Clock className="h-4 w-4 animate-spin" />
+            {language === "ar" ? "جاري التحميل..." : language === "fr" ? "Chargement..." : "Loading..."}
+          </div>
+        ) : zrTracking && zrTracking.length > 0 ? (
+          <ol className="relative mt-6 border-s border-slate-200 ps-6 space-y-6">
+            {zrTracking.map((event, idx) => (
+              <li key={idx} className="relative">
+                <span className="absolute -start-[1.1rem] flex h-[1.35rem] w-[1.35rem] items-center justify-center">
+                  {idx === 0 ? (
+                    <CheckCircle2 className="h-5 w-5 text-teal-600" />
+                  ) : (
+                    <Package className="h-4 w-4 text-slate-400" />
+                  )}
+                </span>
+                <div className={`rounded-2xl border p-4 ${idx === 0 ? "border-teal-200 bg-teal-50/60" : "border-slate-100 bg-slate-50/60"}`}>
+                  <div className={`font-semibold ${idx === 0 ? "text-teal-800" : "text-slate-700"}`}>
+                    {language === "ar" ? event.stateAr || event.state : event.state}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    {event.date ? formatDate(event.date, language) : ""}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : zrTracking !== null ? (
+          <div className="mt-6 text-sm text-slate-400">
+            {language === "ar" ? "لا توجد تحديثات للشحنة بعد" : language === "fr" ? "Aucune mise à jour de livraison pour l'instant" : "No delivery updates yet"}
+          </div>
+        ) : null}
       </div>
     </div>
   );

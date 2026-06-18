@@ -6,6 +6,7 @@ export const orderService = {
     customer: {
       fullName: string;
       phone: string;
+      phone2?: string;
       wilayaCode: string;
       commune: string;
       address: string;
@@ -41,5 +42,10 @@ export const orderService = {
   },
   trackOrdersByPhone(phone: string) {
     return apiRequest<Order[]>(`/api/orders/track-by-phone/${phone}`);
+  },
+  getZRTracking(orderNumber: string) {
+    return apiRequest<{ tracking: Array<{ state: string; stateAr: string; date: string }>; trackingNumber: string | null }>(
+      `/api/orders/${orderNumber}/zr-tracking`,
+    );
   },
 };

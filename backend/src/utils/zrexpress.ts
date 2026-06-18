@@ -264,6 +264,7 @@ export async function createZRParcel(order: {
   customer: {
     fullName: string;
     phone: string;
+    phone2?: string | null;
     commune: string;
     address: string;
   };
@@ -305,7 +306,10 @@ export async function createZRParcel(order: {
     };
   });
 
-  const description = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
+  const productsDesc = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
+  const description = `${productsDesc} | قابل للكسر`;
+
+  const phone2 = order.customer.phone2 ? toInternationalPhone(order.customer.phone2) : undefined;
 
   const body: Record<string, unknown> = {
     externalId: order.orderNumber,
@@ -315,7 +319,7 @@ export async function createZRParcel(order: {
     customer: {
       customerId,                                          // must be INSIDE customer object
       name: order.customer.fullName,
-      phone: { number1: intlPhone },
+      phone: phone2 ? { number1: intlPhone, number2: phone2 } : { number1: intlPhone },
     },
     deliveryAddress: {
       street: order.customer.address || order.customer.commune,
