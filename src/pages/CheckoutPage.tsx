@@ -24,7 +24,8 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, affiliateRef, language, rememberConfirmedOrder, rememberPendingOrder, clearCart, pushToast, updateQuantity, removeFromCart, siteSettings } = useApp();
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [wilayaCode, setWilayaCode] = useState("16");
   const [commune, setCommune] = useState("");
@@ -52,6 +53,7 @@ export function CheckoutPage() {
   const [phoneVerificationToken, setPhoneVerificationToken] = useState<string | null>(null);
   const [verifiedPhone, setVerifiedPhone] = useState("");
   const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
   const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -62,6 +64,8 @@ export function CheckoutPage() {
       }
       const draft = JSON.parse(raw) as Partial<{
         fullName: string;
+        firstName: string;
+        lastName: string;
         phone: string;
         wilayaCode: string;
         commune: string;
@@ -69,7 +73,10 @@ export function CheckoutPage() {
         address: string;
         deliveryType: DeliveryType;
       }>;
-      setFullName(draft.fullName || "");
+      const draftFirstName = draft.firstName || draft.fullName?.trim().split(/\s+/).slice(0, -1).join(" ") || draft.fullName || "";
+      const draftLastName = draft.lastName || draft.fullName?.trim().split(/\s+/).slice(-1).join(" ") || "";
+      setFirstName(draftFirstName);
+      setLastName(draftLastName);
       setPhone(draft.phone || "");
       setWilayaCode(draft.wilayaCode || "16");
       setCommune(draft.commune || "");
@@ -106,9 +113,9 @@ export function CheckoutPage() {
   useEffect(() => {
     window.localStorage.setItem(
       checkoutDraftKey,
-      JSON.stringify({ fullName, phone, wilayaCode, commune, communeOther, address, deliveryType }),
+      JSON.stringify({ firstName, lastName, fullName: [firstName, lastName].filter(Boolean).join(" ").trim(), phone, wilayaCode, commune, communeOther, address, deliveryType }),
     );
-  }, [address, commune, communeOther, deliveryType, fullName, phone, wilayaCode]);
+  }, [address, commune, communeOther, deliveryType, firstName, lastName, phone, wilayaCode]);
 
   // Load available OTP channels once
   useEffect(() => {
@@ -139,12 +146,20 @@ export function CheckoutPage() {
     }
   }, [phone, verifiedPhone]);
 
+  useEffect(() => {
+    return () => {
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+    };
+  }, []);
+
   const otpRequired = Boolean(otpChannels?.whatsapp);
   const phoneIsValid = phonePattern.test(phone.trim());
   const isPhoneVerified = Boolean(phoneVerificationToken && verifiedPhone === phone);
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
 
   const sendOtp = async () => {
     if (!phoneIsValid || otpSending) return;
+    setOtpModalOpen(true);
     setOtpSending(true);
     try {
       const result = await otpService.sendOtp(phone.trim(), "whatsapp");
@@ -176,6 +191,7 @@ export function CheckoutPage() {
       setVerifiedPhone(phone.trim());
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
       setOtpSecondsLeft(0);
+      setOtpModalOpen(false);
       pushToast(language === "ar" ? "تم التحقق من رقم الهاتف ✓" : language === "fr" ? "Numéro vérifié ✓" : "Phone verified ✓", "success");
     } catch (err) {
       pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
@@ -216,7 +232,7 @@ export function CheckoutPage() {
   }
 
   const validate = () => {
-    if (!fullName.trim()) {
+    if (!firstName.trim() || !lastName.trim()) {
       return translate(language, "checkoutValidationFullName");
     }
     if (!phonePattern.test(phone.trim())) {
@@ -394,12 +410,28 @@ export function CheckoutPage() {
                 <p className="text-sm text-slate-500">{translate(language, "checkoutSecureNote")}</p>
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-1.5">
                 <IconField icon={UserRound}>
-                  <input required value={fullName} onChange={(event) => setFullName(event.target.value)} className="field-input field-input-icon" placeholder={translate(language, "fullName")} />
+                  <input
+                    required
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
+                    className="field-input field-input-icon"
+                    placeholder={language === "ar" ? "الاسم" : language === "fr" ? "Prenom" : "First name"}
+                  />
                 </IconField>
-                <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
+              </div>
+              <div className="space-y-1.5">
+                <IconField icon={UserRound}>
+                  <input
+                    required
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    className="field-input field-input-icon"
+                    placeholder={language === "ar" ? "اللقب" : language === "fr" ? "Nom" : "Last name"}
+                  />
+                </IconField>
               </div>
               <div className="space-y-1.5">
                 <IconField icon={Phone}>
@@ -416,6 +448,7 @@ export function CheckoutPage() {
                 <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
               </div>
             </div>
+            <p className="mt-2 ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
 
             {/* OTP Phone Verification Panel */}
             {otpRequired && phoneIsValid && (

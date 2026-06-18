@@ -4,11 +4,24 @@ import { ProductModel, ProductVariantModel } from "../models/catalog.model.js";
 import { WilayaModel } from "../models/shipping.model.js";
 import type { DeliveryType } from "../types/index.js";
 import { AppError } from "./app-error.js";
+import { getZRTerritories } from "./zrexpress.js";
 
-export async function resolveShippingFee(wilayaCode: string, deliveryType: DeliveryType) {
+export async function resolveShippingFee(wilayaCode: string, deliveryType: DeliveryType, zrTerritoryId?: string | null) {
   const wilaya = await WilayaModel.findOne({ code: wilayaCode, isActive: true });
   if (!wilaya) {
     throw new AppError("Wilaya not found", 404);
+  }
+
+  if (zrTerritoryId) {
+    const territory = (await getZRTerritories()).find((item) => item.id === zrTerritoryId);
+    if (!territory) {
+      throw new AppError("ZR territory not found", 400);
+    }
+
+    return {
+      wilaya,
+      fee: deliveryType === "HOME_DELIVERY" ? territory.homePrice : territory.pickupPrice,
+    };
   }
 
   return {

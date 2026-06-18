@@ -170,7 +170,7 @@ router.post(
 
     const confirmationToken = createConfirmationToken();
     const { items, subtotal, categoryIds } = await buildOrderItems(input.items);
-    const { wilaya, fee } = await resolveShippingFee(input.customer.wilayaCode, input.deliveryType);
+    const { wilaya, fee } = await resolveShippingFee(input.customer.wilayaCode, input.deliveryType, input.zrTerritoryId);
 
     let discount = 0;
     let promoAffiliateId: string | undefined;

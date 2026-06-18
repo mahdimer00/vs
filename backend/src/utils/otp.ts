@@ -55,15 +55,24 @@ export async function sendWhatsAppOtp(phone: string, code: string): Promise<void
     throw new Error("WhatsApp (Baileys) is not configured");
   }
 
-  const message = `*VisaDZ* 🛒\nرمز التحقق الخاص بك: *${code}*\nصالح لمدة 5 دقائق. لا تشاركه مع أحد.`;
+  const message = [
+    "*VisaDZ*",
+    `Your verification code: *${code}*`,
+    "Valid for 5 minutes.",
+    "Do not share this code with anyone.",
+    "رمز التحقق الخاص بك صالح لمدة 5 دقائق. لا تشاركه مع أي شخص."
+  ].join("\n");
 
-  // Normalize Algerian number to international format
+  // Normalize Algerian number to international format.
   const normalized = phone.startsWith("0") ? `213${phone.slice(1)}` : phone;
+  const baseUrl = env.BAILEYS_API_URL.replace(/\/$/, "");
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (env.BAILEYS_API_KEY) headers["X-Api-Key"] = env.BAILEYS_API_KEY;
+  if (env.BAILEYS_API_KEY) {
+    headers["X-Api-Key"] = env.BAILEYS_API_KEY;
+  }
 
-  const res = await fetch(`${env.BAILEYS_API_URL}/send-message`, {
+  const res = await fetch(`${baseUrl}/send`, {
     method: "POST",
     headers,
     body: JSON.stringify({ phone: normalized, message }),

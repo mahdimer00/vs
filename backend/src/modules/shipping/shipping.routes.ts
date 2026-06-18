@@ -11,8 +11,12 @@ const router = Router();
 router.get("/shipping/wilayas", asyncHandler(async (_req, res) => res.json(await WilayaModel.find({ isActive: true }).sort({ code: 1 }).lean())));
 
 router.post("/shipping/calculate", asyncHandler(async (req, res) => {
-  const input = z.object({ wilayaCode: z.string(), deliveryType: z.enum(["HOME_DELIVERY", "DESK_PICKUP"]) }).parse(req.body);
-  const { fee } = await resolveShippingFee(input.wilayaCode, input.deliveryType);
+  const input = z.object({
+    wilayaCode: z.string(),
+    deliveryType: z.enum(["HOME_DELIVERY", "DESK_PICKUP"]),
+    zrTerritoryId: z.string().uuid().optional(),
+  }).parse(req.body);
+  const { fee } = await resolveShippingFee(input.wilayaCode, input.deliveryType, input.zrTerritoryId);
   return res.json({ fee });
 }));
 
