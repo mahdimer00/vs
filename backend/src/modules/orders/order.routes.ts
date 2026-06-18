@@ -12,7 +12,8 @@ import { syncCommissionForOrder } from "../../utils/commission.js";
 import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCode } from "../../utils/order.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendCapiEvent } from "../../utils/capi.js";
-import { createZRParcel, generateZRLabelPdf, isZRConfigured } from "../../utils/zrexpress.js";
+import { createZRParcel, generateZRLabelPdf, getZRTerritories, isZRConfigured } from "../../utils/zrexpress.js";
+import { isWhatsAppConfigured, verifyVerificationToken } from "../../utils/otp.js";
 
 const router = Router();
 
@@ -58,7 +59,13 @@ const createOrderSchema = z.object({
   fbp: z.string().max(256).optional(),
   fbc: z.string().max(256).optional(),
   clientUserAgent: z.string().max(512).optional(),
+  phoneVerificationToken: z.string().optional(),
+  zrTerritoryId: z.string().uuid().optional(),
 });
+
+function isOtpEnforced(): boolean {
+  return isWhatsAppConfigured();
+}
 
 function createOrderNumber() {
   return `VS-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -150,6 +157,17 @@ router.post(
   orderCreateRateLimitMiddleware,
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
+
+    // Verify phone OTP token when OTP is enforced
+    if (isOtpEnforced()) {
+      if (!input.phoneVerificationToken) {
+        throw new AppError("يجب التحقق من رقم هاتفك أولاً", 400);
+      }
+      if (!verifyVerificationToken(input.phoneVerificationToken, input.customer.phone)) {
+        throw new AppError("رمز التحقق منتهي الصلاحية أو غير صحيح. أعد التحقق.", 400);
+      }
+    }
+
     const confirmationToken = createConfirmationToken();
     const { items, subtotal, categoryIds } = await buildOrderItems(input.items);
     const { wilaya, fee } = await resolveShippingFee(input.customer.wilayaCode, input.deliveryType);
@@ -198,6 +216,7 @@ router.post(
       status: PHONE_CONFIRMATION_STATUS,
       aiConfirmed: false,
       stockReserved: false,
+      zrTerritoryId: input.zrTerritoryId ?? null,
     });
 
     if (promoDocumentId) {
@@ -353,6 +372,15 @@ ${itemsList}
   }),
 );
 
+// Public: ZR Express territories with delivery prices (cached, used for checkout commune selector)
+router.get(
+  "/zr-territories",
+  asyncHandler(async (_req, res) => {
+    const territories = await getZRTerritories();
+    return res.json(territories);
+  }),
+);
+
 router.get(
   "/orders/track-by-phone/:phone",
   orderTrackRateLimitMiddleware,
@@ -426,6 +454,7 @@ router.patch(
             orderNumber: populated.orderNumber,
             total: populated.total,
             deliveryType: populated.deliveryType as "HOME_DELIVERY" | "DESK_PICKUP",
+            zrTerritoryId: populated.zrTerritoryId as string | undefined,
             customer: {
               fullName: populated.customer.fullName,
               phone: populated.customer.phone,

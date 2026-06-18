@@ -29,6 +29,11 @@ const schema = z.object({
   // ZR Express shipping integration
   ZR_EXPRESS_TENANT_ID: z.string().optional(),
   ZR_EXPRESS_SECRET_KEY: z.string().optional(),
+  // WhatsApp OTP via self-hosted Baileys API
+  BAILEYS_API_URL: z.string().url().optional(),
+  BAILEYS_API_KEY: z.string().optional(),
+  // OTP signing secret (HMAC for verification tokens)
+  OTP_SECRET: z.string().min(16).default("change-this-otp-secret-32chars"),
 });
 
 export const env = schema.parse(process.env);

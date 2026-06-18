@@ -10,6 +10,14 @@ interface ZRRate {
   deliveryPrices: { deliveryType: string; price: number }[];
 }
 
+export interface ZRTerritory {
+  id: string;
+  name: string;
+  nameAr: string;
+  homePrice: number;
+  pickupPrice: number;
+}
+
 interface ZRParcelResponse {
   id: string;
   trackingNumber?: string;
@@ -22,6 +30,8 @@ interface ZRParcelResponse {
 
 // commune name → ZR territory UUID (populated on first use)
 let territoriesMap: Map<string, string> | null = null;
+// Full rates cache
+let ratesCache: ZRTerritory[] | null = null;
 
 function zrHeaders() {
   return {
@@ -44,14 +54,17 @@ function normalizeTerritory(name: string): string {
     .replace(/[-_\s]+/g, " ");
 }
 
+async function fetchRates(): Promise<ZRRate[]> {
+  const res = await fetch(`${ZR_BASE}/delivery-pricing/rates`, { headers: zrHeaders() });
+  if (!res.ok) throw new Error(`ZR rates fetch failed: ${res.status}`);
+  const json = await res.json() as { rates?: ZRRate[] } | ZRRate[];
+  return Array.isArray(json) ? json : (json.rates ?? []);
+}
+
 async function loadTerritories(): Promise<Map<string, string>> {
   if (territoriesMap) return territoriesMap;
 
-  const res = await fetch(`${ZR_BASE}/delivery-pricing/rates`, { headers: zrHeaders() });
-  if (!res.ok) throw new Error(`ZR territories fetch failed: ${res.status}`);
-
-  const json = await res.json() as { rates?: ZRRate[] } | ZRRate[];
-  const rates: ZRRate[] = Array.isArray(json) ? json : (json.rates ?? []);
+  const rates = await fetchRates();
   const map = new Map<string, string>();
 
   for (const rate of rates) {
@@ -65,6 +78,21 @@ async function loadTerritories(): Promise<Map<string, string>> {
 
   territoriesMap = map;
   return map;
+}
+
+export async function getZRTerritories(): Promise<ZRTerritory[]> {
+  if (ratesCache) return ratesCache;
+  if (!isZRConfigured()) return [];
+
+  const rates = await fetchRates();
+  ratesCache = rates.map((r) => ({
+    id: r.toTerritoryId,
+    name: r.toTerritoryName,
+    nameAr: r.toTerritoryNameArabic ?? "",
+    homePrice: r.deliveryPrices.find((p) => p.deliveryType === "home")?.price ?? 0,
+    pickupPrice: r.deliveryPrices.find((p) => p.deliveryType === "pickup-point")?.price ?? 0,
+  }));
+  return ratesCache;
 }
 
 async function lookupTerritoryId(commune: string): Promise<string | null> {
@@ -89,6 +117,7 @@ export async function createZRParcel(order: {
   orderNumber: string;
   total: number;
   deliveryType: "HOME_DELIVERY" | "DESK_PICKUP";
+  zrTerritoryId?: string | null;
   customer: {
     fullName: string;
     phone: string;
@@ -99,7 +128,8 @@ export async function createZRParcel(order: {
 }): Promise<{ parcelId: string; trackingNumber: string }> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
 
-  const territoryId = await lookupTerritoryId(order.customer.commune);
+  // Use stored territory ID if available; fall back to fuzzy matching
+  const territoryId = order.zrTerritoryId ?? await lookupTerritoryId(order.customer.commune);
   const description = order.items.map((i) => `${i.productName.en} × ${i.quantity}`).join(", ");
 
   const body: Record<string, unknown> = {
@@ -177,4 +207,5 @@ export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buf
 
 export function resetTerritoriesCache(): void {
   territoriesMap = null;
+  ratesCache = null;
 }

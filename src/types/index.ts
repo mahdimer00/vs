@@ -181,6 +181,7 @@ export interface Order {
   stockReserved?: boolean;
   zrParcelId?: string | null;
   zrTrackingNumber?: string | null;
+  zrTerritoryId?: string | null;
   createdAt: string;
   confirmationToken?: string;
 }

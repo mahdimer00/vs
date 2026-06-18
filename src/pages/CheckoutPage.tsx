@@ -1,5 +1,5 @@
-import { BadgeCheck, Building2, Check, Home, Lock, MapPin, MapPinned, Phone, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { BadgeCheck, Building2, Check, CheckCircle2, Home, Lock, MapPin, MapPinned, Phone, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
@@ -7,8 +7,10 @@ import { OrderSummaryCard } from "@/components/OrderSummaryCard";
 import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
+import { otpService } from "@/services/otp.service";
 import { promoService } from "@/services/promo.service";
 import { shippingService } from "@/services/shipping.service";
+import { type ZRTerritory, zrShippingService } from "@/services/shipping.zr.service";
 import type { DeliveryType, Wilaya } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { translate } from "@/utils/i18n";
@@ -36,6 +38,21 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [promoApplying, setPromoApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [zrTerritories, setZrTerritories] = useState<ZRTerritory[]>([]);
+  const [selectedZrTerritory, setSelectedZrTerritory] = useState<ZRTerritory | null>(null);
+  const [communeSearch, setCommuneSearch] = useState("");
+  const [showCommuneSuggestions, setShowCommuneSuggestions] = useState(false);
+
+  // OTP verification state
+  const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean } | null>(null);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [phoneVerificationToken, setPhoneVerificationToken] = useState<string | null>(null);
+  const [verifiedPhone, setVerifiedPhone] = useState("");
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
+  const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     try {
@@ -72,9 +89,8 @@ export function CheckoutPage() {
   }, [language, pushToast]);
 
   useEffect(() => {
-    if (!wilayaCode) {
-      return;
-    }
+    // Skip manual shipping calculation when ZR territory is selected (ZR provides the fee)
+    if (!wilayaCode || selectedZrTerritory) return;
 
     void shippingService
       .calculateShipping({ wilayaCode, deliveryType })
@@ -85,7 +101,7 @@ export function CheckoutPage() {
         setShippingFee(0);
         pushToast(translate(language, "checkoutShippingFeeError"), "error");
       });
-  }, [deliveryType, wilayaCode, language, pushToast]);
+  }, [deliveryType, wilayaCode, selectedZrTerritory, language, pushToast]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -94,9 +110,92 @@ export function CheckoutPage() {
     );
   }, [address, commune, communeOther, deliveryType, fullName, phone, wilayaCode]);
 
+  // Load available OTP channels once
+  useEffect(() => {
+    otpService.getChannels().then(setOtpChannels).catch(() => setOtpChannels({ whatsapp: false }));
+  }, []);
+
+  // Load ZR territories once
+  useEffect(() => {
+    zrShippingService.getTerritories().then(setZrTerritories).catch(() => setZrTerritories([]));
+  }, []);
+
+  // When ZR territory is selected, update shipping fee from ZR rates
+  useEffect(() => {
+    if (!selectedZrTerritory || zrTerritories.length === 0) return;
+    const fee = deliveryType === "HOME_DELIVERY" ? selectedZrTerritory.homePrice : selectedZrTerritory.pickupPrice;
+    if (fee > 0) setShippingFee(fee);
+  }, [selectedZrTerritory, deliveryType, zrTerritories.length]);
+
+  // Reset OTP if phone changes
+  useEffect(() => {
+    if (verifiedPhone && phone !== verifiedPhone) {
+      setPhoneVerificationToken(null);
+      setVerifiedPhone("");
+      setOtpSent(false);
+      setOtpCode("");
+      setOtpSecondsLeft(0);
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+    }
+  }, [phone, verifiedPhone]);
+
+  const otpRequired = Boolean(otpChannels?.whatsapp);
+  const phoneIsValid = phonePattern.test(phone.trim());
+  const isPhoneVerified = Boolean(phoneVerificationToken && verifiedPhone === phone);
+
+  const sendOtp = async () => {
+    if (!phoneIsValid || otpSending) return;
+    setOtpSending(true);
+    try {
+      const result = await otpService.sendOtp(phone.trim(), "whatsapp");
+      setOtpSent(true);
+      setOtpCode("");
+      const ttl = result.expiresIn ?? 300;
+      setOtpSecondsLeft(ttl);
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+      otpTimerRef.current = setInterval(() => {
+        setOtpSecondsLeft((s) => {
+          if (s <= 1) { clearInterval(otpTimerRef.current!); return 0; }
+          return s - 1;
+        });
+      }, 1000);
+      pushToast(language === "ar" ? "تم إرسال رمز التحقق" : language === "fr" ? "Code envoyé" : "Code sent", "success");
+    } catch (err) {
+      pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (otpCode.length !== 6 || otpVerifying) return;
+    setOtpVerifying(true);
+    try {
+      const result = await otpService.verifyOtp(phone.trim(), otpCode);
+      setPhoneVerificationToken(result.verificationToken);
+      setVerifiedPhone(phone.trim());
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
+      setOtpSecondsLeft(0);
+      pushToast(language === "ar" ? "تم التحقق من رقم الهاتف ✓" : language === "fr" ? "Numéro vérifié ✓" : "Phone verified ✓", "success");
+    } catch (err) {
+      pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.variant.price * item.quantity, 0), [cart]);
   const total = Math.max(0, subtotal + shippingFee - discount);
   const selectedWilaya = wilayas.find((wilaya) => wilaya.code === wilayaCode);
+
+  const useZrCommunes = zrTerritories.length > 0;
+  const filteredZrTerritories = useMemo(() => {
+    if (!useZrCommunes || communeSearch.trim().length < 2) return [];
+    const q = communeSearch.trim().toLowerCase();
+    return zrTerritories.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.nameAr.includes(communeSearch.trim()),
+    ).slice(0, 8);
+  }, [zrTerritories, communeSearch, useZrCommunes]);
 
   // Track InitiateCheckout once when the page mounts with items in cart
   useEffect(() => {
@@ -122,6 +221,13 @@ export function CheckoutPage() {
     }
     if (!phonePattern.test(phone.trim())) {
       return translate(language, "checkoutValidationPhone");
+    }
+    if (otpRequired && !isPhoneVerified) {
+      return language === "ar"
+        ? "يجب التحقق من رقم هاتفك عبر WhatsApp أو Telegram أولاً"
+        : language === "fr"
+          ? "Veuillez vérifier votre numéro de téléphone d'abord"
+          : "Please verify your phone number first";
     }
     if (!commune.trim()) {
       return translate(language, "checkoutValidationCommune");
@@ -224,6 +330,8 @@ export function CheckoutPage() {
         promoCode: promoCode || undefined,
         affiliateRef: affiliateRef || undefined,
         capiEventId,
+        phoneVerificationToken: phoneVerificationToken ?? undefined,
+        zrTerritoryId: selectedZrTerritory?.id,
         fbp,
         fbc,
         clientUserAgent: navigator.userAgent,
@@ -308,6 +416,84 @@ export function CheckoutPage() {
                 <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
               </div>
             </div>
+
+            {/* OTP Phone Verification Panel */}
+            {otpRequired && phoneIsValid && (
+              <div className={`mt-4 rounded-2xl border p-4 transition-all ${isPhoneVerified ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
+                {isPhoneVerified ? (
+                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                    {language === "ar" ? "تم التحقق من رقم الهاتف" : language === "fr" ? "Numéro vérifié" : "Phone verified"}
+                    <span className="ms-auto text-xs font-normal text-emerald-600 opacity-70">{phone}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-800">
+                      <ShieldCheck className="h-4 w-4" />
+                      {language === "ar" ? "التحقق من رقم الهاتف" : language === "fr" ? "Vérification du numéro" : "Phone Verification"}
+                    </div>
+
+                    {/* Send OTP button */}
+                    {!otpSent || otpSecondsLeft === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void sendOtp()}
+                        disabled={otpSending}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        <Send className="h-4 w-4" />
+                        {otpSending
+                          ? language === "ar" ? "جاري الإرسال..." : language === "fr" ? "Envoi..." : "Sending..."
+                          : language === "ar" ? "إرسال رمز التحقق" : language === "fr" ? "Envoyer le code" : "Send verification code"}
+                      </button>
+                    ) : null}
+
+                    {/* OTP code input */}
+                    {otpSent && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-blue-700">
+                            {language === "ar" ? "أُرسل الرمز عبر WhatsApp" : language === "fr" ? "Code envoyé via WhatsApp" : "Code sent via WhatsApp"}
+                          </p>
+                          {otpSecondsLeft > 0 && (
+                            <span className="text-[11px] text-blue-500">
+                              {Math.floor(otpSecondsLeft / 60)}:{String(otpSecondsLeft % 60).padStart(2, "0")}
+                            </span>
+                          )}
+                          {otpSecondsLeft === 0 && (
+                            <button type="button" onClick={() => void sendOtp()} disabled={otpSending} className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800">
+                              <RefreshCw className="h-3 w-3" />
+                              {language === "ar" ? "إعادة إرسال" : language === "fr" ? "Renvoyer" : "Resend"}
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={otpCode}
+                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="_ _ _ _ _ _"
+                            className="field-input flex-1 text-center font-mono text-lg tracking-widest"
+                            dir="ltr"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void verifyOtp()}
+                            disabled={otpCode.length !== 6 || otpVerifying}
+                            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                            {language === "ar" ? "تحقق" : language === "fr" ? "Vérifier" : "Verify"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           <section>
@@ -328,7 +514,55 @@ export function CheckoutPage() {
                   ))}
                 </select>
               </IconField>
-              {selectedWilaya?.communes?.length && !communeOther ? (
+              {useZrCommunes ? (
+                // ZR Express territory-based commune autocomplete
+                <div className="relative">
+                  <IconField icon={MapPinned}>
+                    <input
+                      required
+                      value={selectedZrTerritory ? `${selectedZrTerritory.name}${selectedZrTerritory.nameAr ? ` — ${selectedZrTerritory.nameAr}` : ""}` : communeSearch}
+                      onChange={(event) => {
+                        setCommuneSearch(event.target.value);
+                        setSelectedZrTerritory(null);
+                        setCommune("");
+                        setShowCommuneSuggestions(true);
+                      }}
+                      onFocus={() => setShowCommuneSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowCommuneSuggestions(false), 150)}
+                      className="field-input field-input-icon"
+                      placeholder={language === "ar" ? "ابحث عن بلديتك..." : language === "fr" ? "Rechercher votre commune..." : "Search your commune..."}
+                      autoComplete="off"
+                    />
+                  </IconField>
+                  {showCommuneSuggestions && filteredZrTerritories.length > 0 && (
+                    <ul className="absolute z-50 mt-1 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                      {filteredZrTerritories.map((t) => (
+                        <li key={t.id}>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); }}
+                            onClick={() => {
+                              setSelectedZrTerritory(t);
+                              setCommune(t.name);
+                              setCommuneSearch("");
+                              setShowCommuneSuggestions(false);
+                            }}
+                            className="flex w-full items-center justify-between px-4 py-2.5 text-start text-sm hover:bg-teal-50 hover:text-teal-800"
+                          >
+                            <span>
+                              <span className="font-medium">{t.name}</span>
+                              {t.nameAr ? <span className="ms-2 text-xs text-slate-400">{t.nameAr}</span> : null}
+                            </span>
+                            <span className="text-xs font-semibold text-teal-700">
+                              {deliveryType === "HOME_DELIVERY" ? t.homePrice : t.pickupPrice} {language === "ar" ? "دج" : "DA"}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : selectedWilaya?.communes?.length && !communeOther ? (
                 <IconField icon={MapPinned}>
                   <select
                     value={commune}

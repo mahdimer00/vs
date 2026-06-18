@@ -19,6 +19,8 @@ export const orderService = {
     fbp?: string;
     fbc?: string;
     clientUserAgent?: string;
+    phoneVerificationToken?: string;
+    zrTerritoryId?: string;
   }) {
     return apiRequest<Order>("/api/orders", {
       method: "POST",
