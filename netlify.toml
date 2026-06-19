@@ -6,6 +6,73 @@
   NODE_VERSION = "22"
   VITE_META_PIXEL_ID = "1523187746118483"
 
+# Block credential/config scanners — return 404 immediately, no SPA fallback
+[[redirects]]
+  from = "/.env"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.env.*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.git"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.git/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/wp-admin"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/wp-admin/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/wp-login.php"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/phpMyAdmin/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/phpmyadmin/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/config/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.well-known/traffic-advice"
+  to = "/404"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/admin"
   to = "/404"

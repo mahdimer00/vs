@@ -1,5 +1,15 @@
 api.visadz.store {
 	encode gzip
+
+	# Block credential/config scanners immediately — never forward to backend
+	@blocked {
+		path /.env /.env.* /.git /.git/* /wp-admin /wp-admin/* /wp-login.php
+		path /phpMyAdmin/* /phpmyadmin/* /.htaccess /.htpasswd
+		path /config.php /configuration.php /settings.php /database.php
+		path /server-status /server-info /.DS_Store /Thumbs.db
+	}
+	respond @blocked 404
+
 	reverse_proxy backend:4000
 }
 
