@@ -428,17 +428,42 @@ export async function generateZRLabelPdf(trackingNumbers: string[]): Promise<Buf
   return Buffer.from(await pdfRes.arrayBuffer());
 }
 
+const ZR_STATE_AR_MAP: Record<string, string> = {
+  commande_recue: "تم استلام الطلب",
+  pret_a_expedier: "جاهز للشحن",
+  confirme_au_bureau: "مؤكد في المكتب",
+  vers_wilaya: "في الطريق إلى الولاية",
+  en_livraison: "في رحلة التسليم",
+  sortie_en_livraison: "خرج للتسليم",
+  livre: "تم التسليم",
+  ramasse: "تم الاستلام من المكتب",
+  retour: "مُرجَع",
+  retour_expediteur: "مرجوع للمرسل",
+  annule: "ملغي",
+  echec_livraison: "فشل التسليم",
+};
+
 export async function getZRParcelHistory(parcelId: string): Promise<Array<{ state: string; stateAr: string; date: string }>> {
   if (!isZRConfigured()) return [];
   try {
-    const res = await fetch(`${ZR_BASE}/parcels/${parcelId}/history`, { headers: zrHeaders() });
+    const res = await fetch(`${ZR_BASE}/parcels/${parcelId}/state-history`, { headers: zrHeaders() });
     if (!res.ok) return [];
-    const data = (await res.json()) as Array<{ state?: { name?: string; nameArabic?: string }; createdAt?: string; date?: string }>;
-    return data.map((entry) => ({
-      state: entry.state?.name ?? "",
-      stateAr: entry.state?.nameArabic ?? "",
-      date: entry.createdAt ?? entry.date ?? "",
-    }));
+    const data = (await res.json()) as Array<{
+      newState?: { name?: string; nameArabic?: string; description?: string };
+      state?: { name?: string; nameArabic?: string; description?: string };
+      createdAt?: string;
+      date?: string;
+    }>;
+    return data.map((entry) => {
+      const stateObj = entry.newState ?? entry.state;
+      const stateName = stateObj?.name ?? "";
+      const stateAr = ZR_STATE_AR_MAP[stateName] ?? stateObj?.nameArabic ?? stateObj?.description ?? stateName;
+      return {
+        state: stateName,
+        stateAr,
+        date: entry.createdAt ?? entry.date ?? "",
+      };
+    });
   } catch {
     return [];
   }
