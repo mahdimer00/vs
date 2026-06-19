@@ -1,11 +1,10 @@
-import { BadgeCheck, Building2, Check, CheckCircle2, Clock3, Facebook, Home, Lock, MapPin, MapPinned, MessageCircle, Phone, PhoneCall, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, CheckCircle2, Clock3, Home, Lock, MapPin, MapPinned, MessageCircle, Phone, PhoneCall, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
 import { OrderSummaryCard } from "@/components/OrderSummaryCard";
 import { Seo } from "@/components/Seo";
-import { TikTokIcon } from "@/components/TikTokIcon";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
 import { otpService } from "@/services/otp.service";
@@ -515,8 +514,8 @@ export function CheckoutPage() {
               </div>
             </div>
             <p className="mt-2 ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
-            {otpRequired && phoneIsValid && !manualConfirm ? (
-              <div className={`mt-4 overflow-hidden rounded-[1.75rem] border shadow-sm transition-all ${
+            {otpRequired && phoneIsValid ? (
+              <div className={`mt-4 overflow-hidden rounded-[1.75rem] border shadow-sm ${
                 isPhoneVerified ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
               }`}>
                 {isPhoneVerified ? (
@@ -526,102 +525,123 @@ export function CheckoutPage() {
                     </div>
                     <div>
                       <div className="font-semibold text-emerald-800">
-                        {language === "ar" ? "تم التحقق من رقمك بنجاح ✓" : language === "fr" ? "Numéro vérifié ✓" : "Phone number verified ✓"}
+                        {language === "ar" ? "تم التحقق من رقمك ✓" : language === "fr" ? "Numéro vérifié ✓" : "Phone verified ✓"}
                       </div>
                       <div className="mt-0.5 text-sm text-emerald-600" dir="ltr">{phone}</div>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-4 text-white">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
-                        <MessageCircle className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="font-semibold">
-                          {language === "ar" ? "تأكيد رقم الهاتف عبر واتساب" : language === "fr" ? "Vérification WhatsApp" : "WhatsApp Verification"}
-                        </div>
-                        <div className="text-sm text-white/80">
-                          {language === "ar" ? "خطوة ضرورية قبل إتمام الطلب" : language === "fr" ? "Étape requise avant de valider" : "Required step before placing your order"}
-                        </div>
-                      </div>
+                    {/* 2-tab switcher */}
+                    <div className="grid grid-cols-2 border-b border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setManualConfirm(false)}
+                        className={`flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition ${
+                          !manualConfirm
+                            ? "border-b-2 border-emerald-600 bg-emerald-50/60 text-emerald-700"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        {language === "ar" ? "واتساب" : language === "fr" ? "WhatsApp" : "WhatsApp"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setManualConfirm(true)}
+                        className={`flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition ${
+                          manualConfirm
+                            ? "border-b-2 border-blue-600 bg-blue-50/60 text-blue-700"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        <PhoneCall className="h-4 w-4" />
+                        {language === "ar" ? "مكالمة هاتفية" : language === "fr" ? "Appel téléphonique" : "Phone call"}
+                      </button>
                     </div>
 
                     <div className="p-5">
-                      {!otpSent ? (
-                        <div className="space-y-4">
-                          <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                            {language === "ar"
-                              ? "سنرسل رمزاً سرياً من 6 أرقام إلى رقمك عبر تطبيق واتساب:"
-                              : language === "fr"
-                                ? "Nous enverrons un code à 6 chiffres sur WhatsApp au :"
-                                : "We'll send a 6-digit code to your WhatsApp:"}
-                            <span className="ms-1 font-semibold text-slate-900" dir="ltr">{phone}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => void sendOtp()}
-                            disabled={otpSending}
-                            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(22,163,74,0.25)] transition hover:from-green-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            {otpSending
-                              ? (language === "ar" ? "جارٍ الإرسال..." : language === "fr" ? "Envoi en cours..." : "Sending...")
-                              : (language === "ar" ? "أرسل لي رمز واتساب" : language === "fr" ? "Envoyer le code WhatsApp" : "Send me the WhatsApp code")}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-slate-800">
-                              {language === "ar" ? "أدخل الرمز الذي وصلك على واتساب:" : language === "fr" ? "Entrez le code WhatsApp :" : "Enter the code you received on WhatsApp:"}
+                      {!manualConfirm ? (
+                        !otpSent ? (
+                          <div className="space-y-4">
+                            <p className="text-sm text-slate-600">
+                              {language === "ar" ? "سنرسل رمز 6 أرقام إلى واتسابك:" : language === "fr" ? "Code à 6 chiffres envoyé sur WhatsApp au :" : "We'll send a 6-digit code to your WhatsApp:"}
+                              <span className="ms-1 font-semibold text-slate-900" dir="ltr">{phone}</span>
                             </p>
-                            {otpSecondsLeft > 0 ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                <Clock3 className="h-3 w-3" />
-                                {otpTimerLabel}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            value={otpCode}
-                            onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                            placeholder="_ _ _ _ _ _"
-                            className="field-input w-full py-4 text-center font-mono text-2xl tracking-[0.45em]"
-                            dir="ltr"
-                            autoFocus
-                          />
-
-                          <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={() => void verifyOtp()}
-                              disabled={otpCode.length !== 6 || otpVerifying}
-                              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-3.5 text-sm font-semibold text-white transition hover:from-green-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                              onClick={() => void sendOtp()}
+                              disabled={otpSending}
+                              className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(22,163,74,0.2)] transition hover:from-green-500 hover:to-emerald-500 disabled:opacity-60"
                             >
-                              {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                              {language === "ar" ? "تأكيد الرمز" : language === "fr" ? "Confirmer le code" : "Confirm the code"}
+                              {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                              {otpSending
+                                ? (language === "ar" ? "جارٍ الإرسال..." : language === "fr" ? "Envoi..." : "Sending...")
+                                : (language === "ar" ? "أرسل لي رمز واتساب" : language === "fr" ? "Envoyer le code WhatsApp" : "Send WhatsApp code")}
                             </button>
-                            {otpSecondsLeft === 0 ? (
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold text-slate-800">
+                                {language === "ar" ? "أدخل الرمز الذي وصلك:" : language === "fr" ? "Entrez le code reçu :" : "Enter the code you received:"}
+                              </p>
+                              {otpSecondsLeft > 0 ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                  <Clock3 className="h-3 w-3" />
+                                  {otpTimerLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={otpCode}
+                              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                              placeholder="_ _ _ _ _ _"
+                              className="field-input w-full py-4 text-center font-mono text-2xl tracking-[0.45em]"
+                              dir="ltr"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => void sendOtp()}
-                                disabled={otpSending}
-                                className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                                onClick={() => void verifyOtp()}
+                                disabled={otpCode.length !== 6 || otpVerifying}
+                                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-3.5 text-sm font-semibold text-white transition disabled:opacity-60"
                               >
-                                <RefreshCw className="h-4 w-4" />
-                                {language === "ar" ? "إعادة إرسال" : language === "fr" ? "Renvoyer" : "Resend"}
+                                {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                {language === "ar" ? "تأكيد الرمز" : language === "fr" ? "Confirmer" : "Verify"}
                               </button>
-                            ) : null}
+                              {otpSecondsLeft === 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void sendOtp()}
+                                  disabled={otpSending}
+                                  className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                  {language === "ar" ? "إعادة إرسال" : language === "fr" ? "Renvoyer" : "Resend"}
+                                </button>
+                              ) : null}
+                            </div>
                           </div>
+                        )
+                      ) : (
+                        <div className="flex items-start gap-3 rounded-2xl bg-blue-50 px-4 py-3.5">
+                          <PhoneCall className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                          <p className="text-sm text-slate-700">
+                            {language === "ar"
+                              ? <span>سنتصل بك على <span className="font-semibold text-slate-900" dir="ltr">{phone}</span> بعد تقديم طلبك لتأكيد التفاصيل.</span>
+                              : language === "fr"
+                                ? <span>Nous vous appellerons au <span className="font-semibold" dir="ltr">{phone}</span> pour confirmer.</span>
+                                : <span>We'll call you at <span className="font-semibold" dir="ltr">{phone}</span> to confirm your order.</span>}
+                          </p>
                         </div>
                       )}
 
-                      {otpNotice ? (
+                      {otpNotice && !manualConfirm ? (
                         <div className={`mt-3 rounded-xl border px-4 py-3 text-sm font-medium ${otpNoticeClassName}`}>
                           {otpNotice.text}
                         </div>
@@ -629,109 +649,6 @@ export function CheckoutPage() {
                     </div>
                   </>
                 )}
-              </div>
-            ) : null}
-
-            {/* Manual phone-call confirmation — shown when OTP required but customer has no WhatsApp */}
-            {manualConfirm && otpRequired && phoneIsValid ? (
-              <div className="mt-4 overflow-hidden rounded-[1.75rem] border border-blue-200 bg-blue-50 shadow-sm">
-                <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
-                    <PhoneCall className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">
-                      {language === "ar" ? "تأكيد بمكالمة هاتفية" : language === "fr" ? "Confirmation par appel" : "Phone Call Confirmation"}
-                    </div>
-                    <div className="text-sm text-white/80">
-                      {language === "ar" ? "سنتصل بك لتأكيد طلبك قريباً" : language === "fr" ? "Nous vous appellerons pour confirmer" : "We'll call you to confirm your order"}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setManualConfirm(false)}
-                    className="ms-auto grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 transition hover:bg-white/20"
-                    aria-label="إلغاء"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="px-5 py-4">
-                  <div className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
-                    <div className="text-sm text-slate-700">
-                      {language === "ar"
-                        ? "طلبك محفوظ ✓ سيتصل بك أحد موظفينا على الرقم"
-                        : language === "fr"
-                          ? "Votre commande est enregistrée ✓ Nous vous appellerons au"
-                          : "Your order is saved ✓ We'll call you at"}
-                      <span className="mx-1 font-semibold text-slate-900" dir="ltr">{phone}</span>
-                      {language === "ar" ? "لتأكيد التفاصيل وإتمام الطلب." : language === "fr" ? "pour confirmer les détails." : "to confirm the details."}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {/* No WhatsApp alternative — shown below OTP block */}
-            {otpRequired && phoneIsValid && !isPhoneVerified && !manualConfirm ? (
-              <div className="mt-3 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-50">
-                <div className="px-5 pt-4 pb-2">
-                  <p className="text-sm font-semibold text-slate-700">
-                    {language === "ar" ? "ليس لديك واتساب؟" : language === "fr" ? "Vous n'avez pas WhatsApp ?" : "No WhatsApp?"}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {language === "ar" ? "يمكنك التواصل معنا مباشرةً أو اختيار التأكيد بمكالمة هاتفية" : language === "fr" ? "Contactez-nous ou confirmez par appel téléphonique" : "Contact us directly or confirm by phone call"}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 px-5 pb-4 pt-3">
-                  {siteSettings?.socialLinks?.facebook ? (
-                    <a
-                      href={siteSettings.socialLinks.facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/5 px-4 py-3 text-sm font-semibold text-[#1877F2] transition hover:bg-[#1877F2]/10"
-                    >
-                      <Facebook className="h-5 w-5 shrink-0" />
-                      <span>
-                        {language === "ar" ? "تواصل معنا عبر فيسبوك" : language === "fr" ? "Nous contacter sur Facebook" : "Chat with us on Facebook"}
-                      </span>
-                    </a>
-                  ) : null}
-                  {siteSettings?.socialLinks?.tiktok ? (
-                    <a
-                      href={siteSettings.socialLinks.tiktok}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-                    >
-                      <TikTokIcon className="h-5 w-5 shrink-0" />
-                      <span>
-                        {language === "ar" ? "تواصل معنا عبر تيك توك" : language === "fr" ? "Nous contacter sur TikTok" : "Chat with us on TikTok"}
-                      </span>
-                    </a>
-                  ) : null}
-                  <div className="my-1 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-slate-200" />
-                    <span className="text-xs text-slate-400">{language === "ar" ? "أو" : "ou"}</span>
-                    <div className="h-px flex-1 bg-slate-200" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setManualConfirm(true)}
-                    className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-white px-4 py-3.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
-                  >
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-100">
-                      <PhoneCall className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div className="text-start">
-                      <div>{language === "ar" ? "تأكيد بمكالمة هاتفية" : language === "fr" ? "Confirmer par appel téléphonique" : "Confirm by phone call"}</div>
-                      <div className="mt-0.5 text-xs font-normal text-slate-500">
-                        {language === "ar" ? "سنتصل بك لتأكيد طلبك" : language === "fr" ? "Nous vous appellerons pour confirmer" : "We'll call you to confirm"}
-                      </div>
-                    </div>
-                  </button>
-                </div>
               </div>
             ) : null}
 
