@@ -16,7 +16,7 @@ import { translate } from "@/utils/i18n";
 import { getRecentlyViewed, type RecentlyViewedItem } from "@/utils/recentlyViewed";
 
 export function HomePage() {
-  const { language } = useApp();
+  const { language, siteSettings } = useApp();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [soldOutProducts, setSoldOutProducts] = useState<Product[]>([]);
@@ -73,9 +73,10 @@ export function HomePage() {
         description={translate(language, "heroDescription")}
         path="/"
         type="website"
+        keywords="تسوق أونلاين الجزائر, شراء بالتوصيل, متجر إلكتروني جزائري, دفع عند الاستلام"
         jsonLd={[
-          { "@context": "https://schema.org", "@type": "Organization", name: "VisaStore", url: "https://visadz.store", logo: "https://visadz.store/og-image.png" },
-          { "@context": "https://schema.org", "@type": "WebSite", name: "VisaStore", url: "https://visadz.store" },
+          { "@context": "https://schema.org", "@type": "Organization", name: siteSettings?.storeName || "VisaStore", url: "https://visadz.store", logo: siteSettings?.logo || "https://visadz.store/og-image.png" },
+          { "@context": "https://schema.org", "@type": "WebSite", name: siteSettings?.storeName || "VisaStore", url: "https://visadz.store" },
         ]}
       />
 

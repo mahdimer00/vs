@@ -81,6 +81,7 @@ export interface Product {
   status: "ACTIVE" | "DRAFT" | "ARCHIVED";
   isFeatured: boolean;
   isSoldOut?: boolean;
+  localPickupOnly?: boolean;
   affiliateEnabled: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: number;

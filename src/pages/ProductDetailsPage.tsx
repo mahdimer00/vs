@@ -176,6 +176,7 @@ export function ProductDetailsPage() {
   const gallery = selectedVariant.images.length ? selectedVariant.images : product.images;
   const saving = Math.max(0, product.basePrice - price);
   const adminSoldOut = !!product.isSoldOut;
+  const localPickupOnly = !!product.localPickupOnly;
   const lowStock = !adminSoldOut && selectedVariant.stock <= 5;
   const viewerCount = 8 + hashSeed(product._id);
   const boughtToday = 3 + hashSeed(product._id) % 12;
@@ -253,10 +254,11 @@ export function ProductDetailsPage() {
     <div className="space-y-8 pb-24 lg:pb-0">
       <Seo
         title={productName}
-        description={productDescription}
+        description={productDescription || `${productName} - ${price.toLocaleString("ar-DZ")} دج. اطلب الآن مع التوصيل لجميع ولايات الجزائر.`}
         image={selectedImage || undefined}
         path={`/products/${product.slug}`}
         type="product"
+        keywords={[productName, brandName, category ? getLocalizedText(category.name, "ar") : "", "شراء", "الجزائر", "توصيل"].filter(Boolean).join(", ")}
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Product",
@@ -264,11 +266,13 @@ export function ProductDetailsPage() {
           description: productDescription,
           image: gallery,
           brand: { "@type": "Brand", name: brandName },
+          sku: product._id,
           offers: {
             "@type": "Offer",
             price: price.toFixed(2),
             priceCurrency: "DZD",
             availability: selectedVariant.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            url: `https://visadz.store/products/${product.slug}`,
           },
         }}
       />
@@ -387,6 +391,11 @@ export function ProductDetailsPage() {
               <span className={`h-1.5 w-1.5 rounded-full ${!adminSoldOut && selectedVariant.stock > 0 ? "bg-emerald-500" : "bg-rose-500"}`} />
               {!adminSoldOut && selectedVariant.stock > 0 ? translate(language, "productInStock") : translate(language, "productSoldOut")}
             </span>
+            {localPickupOnly ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                🏪 {language === "ar" ? "متوفر في المتجر فقط" : language === "fr" ? "En magasin uniquement" : "In-store only"}
+              </span>
+            ) : null}
             <span className="inline-flex items-center gap-1.5 text-slate-500">
               <Eye className="h-4 w-4" />
               {viewerCount} {translate(language, "productViewingNow")}
@@ -451,6 +460,17 @@ export function ProductDetailsPage() {
             </div>
           </div>
 
+          {localPickupOnly ? (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-center">
+              <div className="text-2xl">🏪</div>
+              <div className="mt-1 text-sm font-semibold text-amber-800">
+                {language === "ar" ? "هذا المنتج متوفر في المتجر فقط" : language === "fr" ? "Disponible en magasin uniquement" : "Available in-store only"}
+              </div>
+              <div className="mt-1 text-xs text-amber-700">
+                {language === "ar" ? "تواصل معنا لمعرفة طريقة الحصول عليه" : "Contact us for more details"}
+              </div>
+            </div>
+          ) : (
           <button
             disabled={adminSoldOut || selectedVariant.stock <= 0}
             onClick={() => {
@@ -462,10 +482,11 @@ export function ProductDetailsPage() {
             <Zap className="h-5 w-5 fill-current" />
             {adminSoldOut ? translate(language, "productSoldOut") : translate(language, "productBuyNow")}
           </button>
+          )}
 
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
             <button
-              disabled={adminSoldOut || selectedVariant.stock <= 0}
+              disabled={adminSoldOut || localPickupOnly || selectedVariant.stock <= 0}
               onClick={() => addToCart({ product, variant: selectedVariant, quantity })}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -628,7 +649,7 @@ export function ProductDetailsPage() {
       ) : null}
 
       {/* Mobile sticky buy bar */}
-      {!adminSoldOut && selectedVariant.stock > 0 ? (
+      {!adminSoldOut && !localPickupOnly && selectedVariant.stock > 0 ? (
         <div className="fixed bottom-0 start-0 end-0 z-30 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur-md lg:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">

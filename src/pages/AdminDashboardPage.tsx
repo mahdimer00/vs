@@ -45,6 +45,7 @@ import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
 import { ApiError } from "@/services/apiClient";
 import { adminService } from "@/services/admin.service";
+import { orderService } from "@/services/order.service";
 import { productService } from "@/services/product.service";
 import type {
   AdminNotifications,
@@ -121,6 +122,7 @@ type ProductFormState = {
   condition: "NEW" | "USED";
   adminNote: string;
   isSoldOut: boolean;
+  localPickupOnly: boolean;
   affiliateEnabled: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: string;
@@ -144,6 +146,7 @@ const defaultProductForm: ProductFormState = {
   condition: "NEW",
   adminNote: "",
   isSoldOut: false,
+  localPickupOnly: false,
   affiliateEnabled: false,
   commissionType: "PERCENTAGE",
   commissionValue: "",
@@ -321,6 +324,19 @@ export function AdminDashboardPage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [subAdminForm, setSubAdminForm] = useState<SubAdminFormState>(defaultSubAdminForm);
   const [subAdminDrafts, setSubAdminDrafts] = useState<Record<string, { permissions: AdminPermission[]; password: string }>>({});
+  const [showManualOrderForm, setShowManualOrderForm] = useState(false);
+  const [manualOrderForm, setManualOrderForm] = useState({
+    fullName: "",
+    phone: "",
+    phone2: "",
+    wilayaCode: "",
+    commune: "",
+    address: "",
+    deliveryType: "HOME_DELIVERY" as "HOME_DELIVERY" | "DESK_PICKUP",
+    promoCode: "",
+    items: [{ productId: "", variantId: "", quantity: "1" }],
+  });
+  const [manualOrderSaving, setManualOrderSaving] = useState(false);
   const [promoSearch, setPromoSearch] = useState("");
   const [promoStatusFilter, setPromoStatusFilter] = useState("all");
   const [affiliateSearch, setAffiliateSearch] = useState("");
@@ -724,6 +740,7 @@ export function AdminDashboardPage() {
       condition: product.condition || "NEW",
       adminNote: product.adminNote || "",
       isSoldOut: product.isSoldOut ?? false,
+      localPickupOnly: product.localPickupOnly ?? false,
       affiliateEnabled: product.affiliateEnabled,
       commissionType: product.commissionType,
       commissionValue: product.commissionValue ? String(product.commissionValue) : "",
@@ -783,6 +800,7 @@ export function AdminDashboardPage() {
       status: "ACTIVE",
       isFeatured: false,
       isSoldOut: productForm.isSoldOut,
+      localPickupOnly: productForm.localPickupOnly,
       affiliateEnabled: productForm.affiliateEnabled,
       commissionType: productForm.commissionType,
       commissionValue: Number(productForm.commissionValue || 0),
@@ -1387,6 +1405,15 @@ export function AdminDashboardPage() {
               />
               {translate(language, "productSoldOut")} — {translate(language, "adminSoldOutHint") || "يُظهر المنتج كـ Sold Out ولا يمكن الشراء منه"}
             </label>
+            <label className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={productForm.localPickupOnly}
+                onChange={(event) => setProductForm({ ...productForm, localPickupOnly: event.target.checked })}
+                className="h-4 w-4 rounded border-amber-300 accent-amber-600"
+              />
+              متوفر في المتجر فقط — لا يوجد توصيل لهذا المنتج
+            </label>
           </div>
 
           <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
@@ -1475,6 +1502,7 @@ export function AdminDashboardPage() {
                 <td>{formatCurrency(product.basePrice, language)}</td>
                 <td>{product.stock}</td>
                 <td>
+                  <div className="flex flex-wrap gap-1">
                   {product.isSoldOut ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
                       <PackageX className="h-3.5 w-3.5" /> Sold Out
@@ -1482,6 +1510,10 @@ export function AdminDashboardPage() {
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>
                   )}
+                  {product.localPickupOnly ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">متجر فقط</span>
+                  ) : null}
+                  </div>
                 </td>
                 <td>
                   <div className="flex items-center gap-3">
@@ -2045,6 +2077,218 @@ export function AdminDashboardPage() {
               </button>
             );
           })}
+        </div>
+
+        {/* Manual / local order creation */}
+        <div className="admin-panel px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">طلب محلي (بدون موقع)</h3>
+              <p className="mt-0.5 text-xs text-slate-500">أنشئ طلباً يدوياً من رسالة أو مكالمة دون أن يمر بالموقع</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowManualOrderForm((v) => !v)}
+              className="primary-button gap-2 shrink-0"
+            >
+              <Package className="h-4 w-4" />
+              {showManualOrderForm ? "إخفاء النموذج" : "إنشاء طلب محلي"}
+            </button>
+          </div>
+
+          {showManualOrderForm ? (
+            <div className="mt-5 space-y-4 border-t border-slate-100 pt-5">
+              {/* Customer info */}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <input
+                  value={manualOrderForm.fullName}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, fullName: e.target.value }))}
+                  className="field-input"
+                  placeholder="اسم العميل *"
+                />
+                <input
+                  value={manualOrderForm.phone}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, phone: e.target.value }))}
+                  className="field-input"
+                  placeholder="الهاتف * (05xxxxxxxx)"
+                />
+                <input
+                  value={manualOrderForm.phone2}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, phone2: e.target.value }))}
+                  className="field-input"
+                  placeholder="هاتف ثانٍ (اختياري)"
+                />
+                <select
+                  value={manualOrderForm.wilayaCode}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, wilayaCode: e.target.value, commune: "" }))}
+                  className="field-select"
+                >
+                  <option value="">اختر الولاية *</option>
+                  {wilayas.map((w) => (
+                    <option key={w.code} value={w.code}>{w.code} - {w.name.ar}</option>
+                  ))}
+                </select>
+                <select
+                  value={manualOrderForm.commune}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, commune: e.target.value }))}
+                  className="field-select"
+                  disabled={!manualOrderForm.wilayaCode}
+                >
+                  <option value="">اختر البلدية *</option>
+                  {(wilayas.find((w) => w.code === manualOrderForm.wilayaCode)?.communes || []).map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <input
+                  value={manualOrderForm.address}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, address: e.target.value }))}
+                  className="field-input"
+                  placeholder="العنوان التفصيلي"
+                />
+              </div>
+
+              {/* Delivery + promo */}
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={manualOrderForm.deliveryType}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, deliveryType: e.target.value as "HOME_DELIVERY" | "DESK_PICKUP" }))}
+                  className="field-select max-w-[180px]"
+                >
+                  <option value="HOME_DELIVERY">توصيل للمنزل</option>
+                  <option value="DESK_PICKUP">سحب من المكتب</option>
+                </select>
+                <input
+                  value={manualOrderForm.promoCode}
+                  onChange={(e) => setManualOrderForm((f) => ({ ...f, promoCode: e.target.value.toUpperCase() }))}
+                  className="field-input max-w-[180px] uppercase"
+                  placeholder="كود تخفيض (اختياري)"
+                />
+              </div>
+
+              {/* Items */}
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-slate-700">المنتجات</div>
+                {manualOrderForm.items.map((item, idx) => {
+                  const selectedProduct = products.find((p) => p._id === item.productId);
+                  return (
+                    <div key={idx} className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={item.productId}
+                        onChange={(e) => setManualOrderForm((f) => {
+                          const updated = [...f.items];
+                          updated[idx] = { productId: e.target.value, variantId: "", quantity: "1" };
+                          return { ...f, items: updated };
+                        })}
+                        className="field-select flex-1 min-w-[180px]"
+                      >
+                        <option value="">اختر المنتج</option>
+                        {products.map((p) => (
+                          <option key={p._id} value={p._id}>{getLocalizedText(p.name, language)}</option>
+                        ))}
+                      </select>
+                      {selectedProduct?.variants && selectedProduct.variants.length > 0 ? (
+                        <select
+                          value={item.variantId}
+                          onChange={(e) => setManualOrderForm((f) => {
+                            const updated = [...f.items];
+                            updated[idx] = { ...updated[idx], variantId: e.target.value };
+                            return { ...f, items: updated };
+                          })}
+                          className="field-select max-w-[180px]"
+                        >
+                          <option value="">اختر الخيار</option>
+                          {selectedProduct.variants.map((v) => (
+                            <option key={v._id} value={v._id}>{v.ram} {v.storage} {v.color} - {v.price} دج</option>
+                          ))}
+                        </select>
+                      ) : null}
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) => setManualOrderForm((f) => {
+                          const updated = [...f.items];
+                          updated[idx] = { ...updated[idx], quantity: e.target.value };
+                          return { ...f, items: updated };
+                        })}
+                        className="field-input w-20"
+                        placeholder="الكمية"
+                      />
+                      {manualOrderForm.items.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setManualOrderForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))}
+                          className="ghost-button px-2 py-2 text-rose-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setManualOrderForm((f) => ({ ...f, items: [...f.items, { productId: "", variantId: "", quantity: "1" }] }))}
+                  className="ghost-button gap-2 text-sm"
+                >
+                  + إضافة منتج آخر
+                </button>
+              </div>
+
+              {/* Submit */}
+              <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  disabled={manualOrderSaving}
+                  onClick={async () => {
+                    if (!manualOrderForm.fullName || !manualOrderForm.phone || !manualOrderForm.wilayaCode || !manualOrderForm.commune) {
+                      pushToast("يرجى ملء جميع الحقول المطلوبة", "error");
+                      return;
+                    }
+                    if (manualOrderForm.items.some((i) => !i.productId)) {
+                      pushToast("يرجى اختيار منتج لكل سطر", "error");
+                      return;
+                    }
+                    setManualOrderSaving(true);
+                    try {
+                      await orderService.createOrder({
+                        customer: {
+                          fullName: manualOrderForm.fullName,
+                          phone: manualOrderForm.phone,
+                          phone2: manualOrderForm.phone2 || undefined,
+                          wilayaCode: manualOrderForm.wilayaCode,
+                          commune: manualOrderForm.commune,
+                          address: manualOrderForm.address,
+                        },
+                        items: manualOrderForm.items.map((i) => ({
+                          productId: i.productId,
+                          variantId: i.variantId || "",
+                          quantity: Number(i.quantity) || 1,
+                        })),
+                        deliveryType: manualOrderForm.deliveryType,
+                        promoCode: manualOrderForm.promoCode || undefined,
+                        manualConfirm: true,
+                      });
+                      pushToast("تم إنشاء الطلب بنجاح", "success");
+                      setManualOrderForm({ fullName: "", phone: "", phone2: "", wilayaCode: "", commune: "", address: "", deliveryType: "HOME_DELIVERY", promoCode: "", items: [{ productId: "", variantId: "", quantity: "1" }] });
+                      setShowManualOrderForm(false);
+                      await loadAll();
+                    } catch (error) {
+                      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+                    } finally {
+                      setManualOrderSaving(false);
+                    }
+                  }}
+                  className="primary-button gap-2"
+                >
+                  {manualOrderSaving ? "جارٍ الحفظ..." : "إنشاء الطلب"}
+                </button>
+                <button type="button" onClick={() => setShowManualOrderForm(false)} className="ghost-button">
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Filter bar */}
