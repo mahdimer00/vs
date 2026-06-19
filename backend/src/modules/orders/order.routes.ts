@@ -727,7 +727,7 @@ router.post(
 
       // Notify customer via WhatsApp (best-effort)
       if (order.customer?.phone) {
-        void sendWhatsAppStatusUpdate(order.customer.phone, order.orderNumber, trackingNumber, newStatus);
+        void sendWhatsAppStatusUpdate(order.customer.phone, order.orderNumber, trackingNumber ?? "", newStatus);
       }
     }
 

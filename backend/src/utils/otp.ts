@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { env } from "../config/env.js";
+import { WebsiteSettingModel } from "../models/catalog.model.js";
 
 export type OtpChannel = "whatsapp";
 
@@ -83,12 +84,17 @@ export async function sendWhatsAppOtp(phone: string, code: string): Promise<void
     throw new Error("WhatsApp (Baileys) is not configured");
   }
 
+  const settings = await WebsiteSettingModel.findOne().select("storeName").lean().catch(() => null);
+  const storeName = settings?.storeName || "المتجر";
+
   const message = [
-    "*VisaDZ*",
-    `Your verification code: *${code}*`,
-    "Valid for 5 minutes.",
-    "Do not share this code with anyone.",
-    "رمز التحقق الخاص بك صالح لمدة 5 دقائق. لا تشاركه مع أي شخص."
+    `🛍️ *${storeName}*`,
+    ``,
+    `مرحباً! لتأكيد طلبك يرجى إدخال رمز التحقق التالي:`,
+    ``,
+    `🔐 *${code}*`,
+    ``,
+    `⏱️ الرمز صالح لمدة 5 دقائق فقط`,
   ].join("\n");
 
   // Normalize Algerian number to international format.
@@ -145,12 +151,14 @@ export async function sendWhatsAppStatusUpdate(
   status: string,
 ): Promise<void> {
   if (!isWhatsAppConfigured()) return;
+  const settings = await WebsiteSettingModel.findOne().select("storeName").lean().catch(() => null);
+  const storeName = settings?.storeName || "المتجر";
   const statusLine = ZR_STATUS_AR[status] ?? `حالة جديدة: ${status}`;
   const message = [
-    `*VisaDZ* — تحديث طلبك`,
+    `🛍️ *${storeName}* — تحديث طلبك`,
     ``,
     `📦 رقم الطلب: *${orderNumber}*`,
-    `🔍 رقم التتبع: *${trackingNumber}*`,
+    ...(trackingNumber ? [`🔍 رقم التتبع: *${trackingNumber}*`] : []),
     ``,
     statusLine,
     ``,
