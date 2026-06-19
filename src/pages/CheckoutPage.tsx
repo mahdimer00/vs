@@ -47,6 +47,7 @@ export function CheckoutPage() {
 
   const [manualConfirm, setManualConfirm] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyModalStep, setVerifyModalStep] = useState<"choice" | "whatsapp">("choice");
 
   // OTP verification state
   const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean } | null>(null);
@@ -143,6 +144,18 @@ export function CheckoutPage() {
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
     }
   }, [phone, verifiedPhone]);
+
+  // Auto-submit after OTP verified inside the popup modal
+  const isPhoneVerifiedRef = useRef(false);
+  useEffect(() => {
+    const justVerified = Boolean(phoneVerificationToken) && !isPhoneVerifiedRef.current;
+    isPhoneVerifiedRef.current = Boolean(phoneVerificationToken);
+    if (justVerified && showVerifyModal) {
+      setShowVerifyModal(false);
+      void placeOrder();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneVerificationToken, showVerifyModal]);
 
   useEffect(() => {
     if (!commune.trim() || selectedZrTerritory || zrTerritories.length === 0) {
@@ -1245,80 +1258,176 @@ export function CheckoutPage() {
       ) : null}
     </div>
 
-    {/* Verification choice bottom-sheet modal */}
+    {/* Verification choice / OTP bottom-sheet modal */}
     {showVerifyModal ? (
       <div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
-        onClick={() => setShowVerifyModal(false)}
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+        onClick={() => { setShowVerifyModal(false); setVerifyModalStep("choice"); }}
       >
         <div
-          className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]"
+          className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mb-5 text-center">
-            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100">
-              <ShieldCheck className="h-6 w-6 text-slate-600" />
+          {verifyModalStep === "choice" ? (
+            <div className="p-6">
+              <div className="mb-5 text-center">
+                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100">
+                  <ShieldCheck className="h-6 w-6 text-slate-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-950">
+                  {language === "ar" ? "كيف تريد تأكيد طلبك؟" : language === "fr" ? "Comment confirmer votre commande ?" : "How to confirm your order?"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {language === "ar" ? "اختر طريقة مناسبة لك" : language === "fr" ? "Choisissez votre méthode" : "Choose your preferred method"}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerifyModalStep("whatsapp");
+                    void sendOtp();
+                  }}
+                  className="flex w-full items-center gap-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-5 py-4 text-start transition hover:bg-emerald-100"
+                >
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
+                    <MessageCircle className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-emerald-800">
+                      {language === "ar" ? "تحقق عبر واتساب" : language === "fr" ? "Vérifier via WhatsApp" : "Verify via WhatsApp"}
+                    </div>
+                    <div className="mt-0.5 text-sm text-emerald-600" dir="ltr">{phone}</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualConfirm(true);
+                    setShowVerifyModal(false);
+                    setVerifyModalStep("choice");
+                    void placeOrder({ manualConfirmOverride: true });
+                  }}
+                  className="flex w-full items-center gap-4 rounded-2xl border-2 border-blue-200 bg-blue-50 px-5 py-4 text-start transition hover:bg-blue-100"
+                >
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
+                    <PhoneCall className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-blue-800">
+                      {language === "ar" ? "تأكيد بمكالمة هاتفية" : language === "fr" ? "Confirmer par appel" : "Confirm by phone call"}
+                    </div>
+                    <div className="mt-0.5 text-sm text-blue-600">
+                      {language === "ar" ? "سنتصل بك لتأكيد طلبك" : language === "fr" ? "Nous vous appellerons pour confirmer" : "We'll call you to confirm"}
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setShowVerifyModal(false); setVerifyModalStep("choice"); }}
+                className="mt-4 w-full rounded-2xl py-3 text-sm font-medium text-slate-500 transition hover:text-slate-700"
+              >
+                {language === "ar" ? "إلغاء" : language === "fr" ? "Annuler" : "Cancel"}
+              </button>
             </div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              {language === "ar" ? "كيف تريد تأكيد طلبك؟" : language === "fr" ? "Comment confirmer votre commande ?" : "How to confirm your order?"}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {language === "ar" ? "اختر طريقة التأكيد المناسبة لك" : language === "fr" ? "Choisissez votre méthode de confirmation" : "Choose your preferred confirmation method"}
-            </p>
-          </div>
+          ) : (
+            /* WhatsApp OTP step inside modal */
+            <div>
+              <div className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-4 text-white">
+                <button
+                  type="button"
+                  onClick={() => setVerifyModalStep("choice")}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15 transition hover:bg-white/25"
+                  aria-label="back"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
+                  <MessageCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold">
+                    {language === "ar" ? "تأكيد رقم الهاتف" : language === "fr" ? "Vérification WhatsApp" : "Phone Verification"}
+                  </div>
+                  <div className="text-sm text-white/80" dir="ltr">{phone}</div>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => {
-                setManualConfirm(false);
-                setShowVerifyModal(false);
-              }}
-              className="flex w-full items-center gap-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-5 py-4 text-start transition hover:bg-emerald-100"
-            >
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
-                <MessageCircle className="h-6 w-6" />
-              </div>
-              <div>
-                <div className="font-semibold text-emerald-800">
-                  {language === "ar" ? "تحقق عبر واتساب" : language === "fr" ? "Vérifier via WhatsApp" : "Verify via WhatsApp"}
-                </div>
-                <div className="mt-0.5 text-sm text-emerald-600">
-                  {language === "ar" ? "سنرسل لك رمزاً سريعاً" : language === "fr" ? "Code rapide envoyé sur WhatsApp" : "Quick code sent to your WhatsApp"}
-                </div>
-              </div>
-            </button>
+              <div className="p-6 space-y-5">
+                {!otpSent || otpSecondsLeft === 0 ? (
+                  <div className="space-y-4">
+                    {!otpSent ? (
+                      <p className="text-sm text-slate-600">
+                        {language === "ar"
+                          ? "سنرسل رمز 6 أرقام إلى واتسابك على الرقم:"
+                          : "We'll send a 6-digit code to your WhatsApp:"}
+                        <span className="ms-1 font-semibold text-slate-900" dir="ltr">{phone}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-slate-600">
+                        {language === "ar" ? "انتهت صلاحية الرمز. أرسل رمزاً جديداً:" : "Code expired. Send a new code:"}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void sendOtp()}
+                      disabled={otpSending}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-sm font-semibold text-white transition hover:from-green-500 hover:to-emerald-500 disabled:opacity-60"
+                    >
+                      {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {otpSending
+                        ? (language === "ar" ? "جارٍ الإرسال..." : "Sending...")
+                        : (language === "ar" ? "أرسل رمز واتساب" : "Send WhatsApp code")}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {language === "ar" ? "أدخل الرمز الذي وصلك:" : "Enter the code you received:"}
+                      </p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        <Clock3 className="h-3 w-3" />
+                        {otpTimerLabel}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="_ _ _ _ _ _"
+                      className="field-input w-full py-4 text-center font-mono text-2xl tracking-[0.45em]"
+                      dir="ltr"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void verifyOtp()}
+                      disabled={otpCode.length !== 6 || otpVerifying}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-sm font-semibold text-white transition disabled:opacity-60"
+                    >
+                      {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {otpVerifying
+                        ? (language === "ar" ? "جارٍ التحقق..." : "Verifying...")
+                        : (language === "ar" ? "تأكيد الرمز وإتمام الطلب" : "Verify & place order")}
+                    </button>
+                  </div>
+                )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setManualConfirm(true);
-                setShowVerifyModal(false);
-                void placeOrder({ manualConfirmOverride: true });
-              }}
-              className="flex w-full items-center gap-4 rounded-2xl border-2 border-blue-200 bg-blue-50 px-5 py-4 text-start transition hover:bg-blue-100"
-            >
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
-                <PhoneCall className="h-6 w-6" />
+                {otpNotice ? (
+                  <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${otpNoticeClassName}`}>
+                    {otpNotice.text}
+                  </div>
+                ) : null}
               </div>
-              <div>
-                <div className="font-semibold text-blue-800">
-                  {language === "ar" ? "تأكيد بمكالمة هاتفية" : language === "fr" ? "Confirmer par appel" : "Confirm by phone call"}
-                </div>
-                <div className="mt-0.5 text-sm text-blue-600">
-                  {language === "ar" ? "سنتصل بك لتأكيد طلبك" : language === "fr" ? "Nous vous appellerons pour confirmer" : "We'll call you to confirm"}
-                </div>
-              </div>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowVerifyModal(false)}
-            className="mt-4 w-full rounded-2xl py-3 text-sm font-medium text-slate-500 transition hover:text-slate-700"
-          >
-            {language === "ar" ? "إلغاء" : language === "fr" ? "Annuler" : "Cancel"}
-          </button>
+            </div>
+          )}
         </div>
       </div>
     ) : null}

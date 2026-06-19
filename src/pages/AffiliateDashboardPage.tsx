@@ -30,7 +30,7 @@ export function AffiliateDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<{
-    affiliate: { name: string; referralCode: string; commissionRate: number; status: string; level: string; balanceApproved: number; balancePaid: number; balancePending: number };
+    affiliate: { name: string; referralCode: string; commissionRate: number; status: string; level: string; balanceApproved: number; balancePaid: number; balancePending: number; phone?: string };
     ordersCount: number;
     clicksCount: number;
     teamCount: number;
