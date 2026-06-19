@@ -257,4 +257,14 @@ export const adminService = {
       query: { period, from, to },
     });
   },
+  bulkReadyToShip(token: string, orderIds: string[]) {
+    return apiRequest<{ succeeded: string[]; failed: string[] }>("/api/admin/orders/zr-bulk-ready", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ orderIds }),
+    });
+  },
+  getCustomers(token: string) {
+    return apiRequest<Array<{ _id: string; phone: string; fullName: string; orderCount: number; totalSpent: number; lastOrderDate: string; statuses: string[] }>>("/api/admin/customers", { token });
+  },
 };

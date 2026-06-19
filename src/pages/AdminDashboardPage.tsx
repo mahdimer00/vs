@@ -317,6 +317,9 @@ export function AdminDashboardPage() {
   const [printLabelId, setPrintLabelId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkLabelPrinting, setBulkLabelPrinting] = useState(false);
+  const [bulkReadyToShipping, setBulkReadyToShipping] = useState(false);
+  const [customers, setCustomers] = useState<Array<{ _id: string; phone: string; fullName: string; orderCount: number; totalSpent: number; lastOrderDate: string; statuses: string[] }>>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
     message: string;
@@ -399,6 +402,10 @@ export function AdminDashboardPage() {
   // Analytics is available to anyone with the dashboard permission
   if (!isSubAdmin || userPermissions?.includes("dashboard")) {
     links.push({ href: "/gestion/analytics", label: translate(language, "analyticsTitle"), badge: undefined });
+  }
+  // Customers tab — available to anyone with orders permission
+  if (!isSubAdmin || userPermissions?.includes("orders")) {
+    links.push({ href: "/gestion/customers", label: "العملاء", badge: undefined });
   }
 
   const loadAnalytics = async (period: string, from?: string, to?: string) => {
@@ -500,6 +507,15 @@ export function AdminDashboardPage() {
       adminService.getZRStatus(token)
         .then(setZrStatus)
         .catch(() => setZrStatus({ configured: false, webhookUrl: "", webhooks: [] }));
+    }
+  }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load customers when navigating to customers tab
+  useEffect(() => {
+    if (token && tab === "customers" && customers.length === 0) {
+      adminService.getCustomers(token)
+        .then(setCustomers)
+        .catch(() => setCustomers([]));
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1859,7 +1875,7 @@ export function AdminDashboardPage() {
   };
 
   const cancelZRParcelAction = (orderId: string, orderNumber: string) => {
-    setConfirm({
+    setConfirmModal({
       title: language === "ar" ? "إلغاء شحنة ZR" : "Cancel ZR Parcel",
       message: language === "ar" ? `هل تريد إلغاء شحنة ZR للطلب ${orderNumber}؟` : `Cancel ZR parcel for order ${orderNumber}?`,
       confirmLabel: language === "ar" ? "إلغاء الشحنة" : "Cancel Parcel",
@@ -1923,6 +1939,26 @@ export function AdminDashboardPage() {
       pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
     } finally {
       setBulkLabelPrinting(false);
+    }
+  };
+
+  const bulkReadyToShipAction = async () => {
+    const ids = [...selectedOrderIds];
+    if (ids.length === 0) return;
+    setBulkReadyToShipping(true);
+    try {
+      const result = await adminService.bulkReadyToShip(token, ids);
+      pushToast(
+        language === "ar"
+          ? `جاهز للشحن: ${result.succeeded.length} ✓، ${result.failed.length} فشل`
+          : `Ready to ship: ${result.succeeded.length} ok, ${result.failed.length} failed`,
+        result.failed.length === 0 ? "success" : "error",
+      );
+      setSelectedOrderIds(new Set());
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setBulkReadyToShipping(false);
     }
   };
 
@@ -2427,6 +2463,17 @@ export function AdminDashboardPage() {
                   {bulkLabelPrinting
                     ? (language === "ar" ? "جارٍ التحميل..." : language === "fr" ? "Chargement..." : "Downloading...")
                     : `${language === "ar" ? "طباعة" : language === "fr" ? "Imprimer" : "Print"} ${selectedOrderIds.size} ${language === "ar" ? "وصل" : language === "fr" ? "bons" : "labels"}`}
+                </button>
+              )}
+              {[...selectedOrderIds].some((id) => ordersById.get(id)?.zrParcelId) && (
+                <button
+                  type="button"
+                  disabled={bulkReadyToShipping}
+                  onClick={() => void bulkReadyToShipAction()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"
+                >
+                  <Truck className="h-4 w-4" />
+                  {bulkReadyToShipping ? "جارٍ..." : `جاهز للشحن للكل (${selectedOrderIds.size})`}
                 </button>
               )}
             </div>
@@ -3936,6 +3983,62 @@ export function AdminDashboardPage() {
     );
   };
 
+  const renderCustomers = () => {
+    const filteredCustomers = customers.filter((c) => {
+      const q = customerSearch.toLowerCase();
+      return !q || c.phone.includes(q) || c.fullName.toLowerCase().includes(q);
+    });
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+            placeholder="بحث بالاسم أو رقم الهاتف..."
+            className="field-input min-w-[220px] flex-1 py-2 text-sm"
+          />
+          <span className="text-sm text-slate-400">{filteredCustomers.length} عميل</span>
+        </div>
+        <div className="table-wrap">
+          {filteredCustomers.length === 0 ? (
+            <div className="py-16 text-center text-sm text-slate-400">لا يوجد عملاء</div>
+          ) : (
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th>الهاتف</th>
+                  <th>الاسم</th>
+                  <th>عدد الطلبات</th>
+                  <th>المجموع</th>
+                  <th>آخر طلب</th>
+                  <th>الحالات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCustomers.map((c) => (
+                  <tr key={c.phone}>
+                    <td className="font-mono text-sm">{c.phone}</td>
+                    <td>{c.fullName}</td>
+                    <td>{c.orderCount}</td>
+                    <td>{formatCurrency(c.totalSpent)}</td>
+                    <td>{formatDate(c.lastOrderDate)}</td>
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        {c.statuses.map((s) => (
+                          <span key={s} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{s}</span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const currentViewMeta: Record<string, { icon: typeof BarChart3; title: string; description: string }> = {
     dashboard: {
       icon: Sparkles,
@@ -4007,6 +4110,11 @@ export function AdminDashboardPage() {
       title: translate(language, "analyticsTitle"),
       description: translate(language, "analyticsVisitorsByDay"),
     },
+    customers: {
+      icon: Users,
+      title: "العملاء",
+      description: "قاعدة بيانات العملاء مجمّعة من الطلبات",
+    },
   };
 
   const activeViewMeta = currentViewMeta[tab] || currentViewMeta.dashboard;
@@ -4038,7 +4146,9 @@ export function AdminDashboardPage() {
                             ? renderAdmins()
                             : tab === "analytics"
                               ? renderAnalytics()
-                              : renderDashboard();
+                              : tab === "customers"
+                                ? renderCustomers()
+                                : renderDashboard();
 
   return (
     <DashboardShell

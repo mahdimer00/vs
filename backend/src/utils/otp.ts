@@ -133,6 +133,28 @@ export function isWhatsAppConfigured(): boolean {
   return Boolean(env.BAILEYS_API_URL);
 }
 
+// General-purpose WhatsApp message sender (used for abandoned cart recovery etc.)
+export async function sendWhatsAppMessage(phone: string, message: string): Promise<void> {
+  if (!env.BAILEYS_API_URL) return;
+  const normalized = phone.startsWith("0") ? `213${phone.slice(1)}` : phone;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (env.BAILEYS_API_KEY) headers["X-Api-Key"] = env.BAILEYS_API_KEY;
+
+  for (const baseUrl of getBaileysBaseUrls()) {
+    try {
+      const res = await fetch(`${baseUrl}/send`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone: normalized, message }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) return;
+    } catch {
+      // best-effort
+    }
+  }
+}
+
 // Arabic status labels for WhatsApp notifications
 const ZR_STATUS_AR: Record<string, string> = {
   SHIPPED:    "شحنتك في الطريق 🚚",

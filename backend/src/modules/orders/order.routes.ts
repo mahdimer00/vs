@@ -5,7 +5,7 @@ import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { orderCreateRateLimitMiddleware, orderTrackRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { OrderModel, PromoCodeUsageModel } from "../../models/orders.model.js";
-import { ProductVariantModel } from "../../models/catalog.model.js";
+import { ProductModel, ProductVariantModel } from "../../models/catalog.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { AppError } from "../../utils/app-error.js";
 import { syncCommissionForOrder } from "../../utils/commission.js";
@@ -617,6 +617,16 @@ router.post(
       order.stockReserved = willBeReserved;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
+
+      // Auto-restock on RETURNED (zr-sync)
+      if (newStatus === "RETURNED") {
+        for (const item of order.items) {
+          if (item.variantId) {
+            await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+          }
+          await ProductModel.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+        }
+      }
     }
 
     return res.json({ zrState: parcel.state?.name ?? "", orderStatus: order.status });
@@ -770,6 +780,16 @@ router.post(
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
 
+      // Auto-restock on RETURNED (webhook)
+      if (resolvedStatus === "RETURNED") {
+        for (const item of order.items) {
+          if (item.variantId) {
+            await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+          }
+          await ProductModel.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+        }
+      }
+
       // Notify customer via WhatsApp (best-effort)
       if (order.customer?.phone) {
         void sendWhatsAppStatusUpdate(order.customer.phone, order.orderNumber, trackingNumber ?? "", resolvedStatus);
@@ -865,6 +885,60 @@ router.post(
     const { url } = z.object({ url: z.string().url() }).parse(req.body);
     const result = await registerZRWebhook(url);
     return res.json(result);
+  }),
+);
+
+// Admin: bulk set ZR parcels to "جاهز للشحن" (ready to ship)
+router.post(
+  "/admin/orders/zr-bulk-ready",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const { orderIds } = z.object({ orderIds: z.array(z.string()).min(1).max(50) }).parse(req.body);
+    const READY_STATE_ID = "8a948c66-1ab7-4433-aeb0-94219125d134";
+    const succeeded: string[] = [];
+    const failed: string[] = [];
+
+    for (const orderId of orderIds) {
+      const order = await OrderModel.findById(orderId).lean();
+      if (!order?.zrParcelId) {
+        failed.push(orderId);
+        continue;
+      }
+      try {
+        await setZRParcelState(order.zrParcelId, READY_STATE_ID);
+        succeeded.push(orderId);
+      } catch (err) {
+        console.error(`[ZR Bulk Ready] failed for ${orderId}:`, err);
+        failed.push(orderId);
+      }
+    }
+
+    return res.json({ succeeded, failed });
+  }),
+);
+
+// Admin: customer database — aggregate from orders
+router.get(
+  "/admin/customers",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (_req, res) => {
+    const results = await OrderModel.aggregate([
+      {
+        $group: {
+          _id: "$customer.phone",
+          fullName: { $last: "$customer.fullName" },
+          phone: { $first: "$customer.phone" },
+          orderCount: { $sum: 1 },
+          totalSpent: { $sum: "$total" },
+          lastOrderDate: { $max: "$createdAt" },
+          statuses: { $addToSet: "$status" },
+        },
+      },
+      { $sort: { lastOrderDate: -1 } },
+    ]);
+    return res.json(results);
   }),
 );
 

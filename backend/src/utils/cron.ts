@@ -1,6 +1,8 @@
 import { sendTelegramMessage } from "./telegram.js";
 import { OrderModel } from "../models/orders.model.js";
 import { ProductModel } from "../models/catalog.model.js";
+import { WebsiteSettingModel } from "../models/catalog.model.js";
+import { isWhatsAppConfigured, sendWhatsAppMessage } from "./otp.js";
 
 const LOW_STOCK_THRESHOLD = 3;
 
@@ -120,8 +122,67 @@ async function checkLowStock() {
   }
 }
 
+// Abandoned cart recovery: runs every 30 minutes
+const sentAbandonedCartMessages = new Set<string>();
+
+function scheduleAbandonedCartCheck() {
+  const run = () => void checkAbandonedCarts();
+  run();
+  setInterval(run, 30 * 60 * 1000);
+}
+
+async function checkAbandonedCarts() {
+  if (!isWhatsAppConfigured()) return;
+  try {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const pendingOrders = await OrderModel.find({
+      status: "AWAITING_CALL_CONFIRMATION",
+      createdAt: { $gte: twentyFourHoursAgo, $lt: oneHourAgo },
+    }).lean();
+
+    const settings = await WebsiteSettingModel.findOne().select("storeName").lean().catch(() => null);
+    const storeName = settings?.storeName || "المتجر";
+
+    for (const order of pendingOrders) {
+      const orderId = String(order._id);
+      if (sentAbandonedCartMessages.has(orderId)) continue;
+      if (!order.customer?.phone) continue;
+
+      sentAbandonedCartMessages.add(orderId);
+
+      const message = [
+        `🛍️ *${storeName}*`,
+        ``,
+        `مرحباً ${order.customer.fullName}!`,
+        ``,
+        `لديك طلب بانتظار التأكيد 📦`,
+        `رقم الطلب: *${order.orderNumber}*`,
+        ``,
+        `يرجى تأكيد طلبك عبر الرابط:`,
+        `https://visadz.store/confirm-order/${(order as { confirmationToken?: string }).confirmationToken ?? ""}`,
+        ``,
+        `أو تواصل معنا مباشرة ✓`,
+      ].join("\n");
+
+      try {
+        await sendWhatsAppMessage(order.customer.phone, message);
+      } catch (err) {
+        console.error(`[Cron] Abandoned cart WhatsApp failed for ${order.orderNumber}:`, err);
+        // remove from sent set so we retry next time
+        sentAbandonedCartMessages.delete(orderId);
+      }
+    }
+  } catch (err) {
+    console.error("[Cron] abandoned cart check error:", err);
+  }
+}
+
 export function startCronJobs() {
   scheduleDailySummary();
   scheduleLowStockCheck();
-  console.log("[Cron] daily summary + low stock alerts started");
+  scheduleAbandonedCartCheck();
+  console.log("[Cron] daily summary + low stock alerts + abandoned cart recovery started");
 }
