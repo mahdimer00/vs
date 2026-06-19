@@ -714,12 +714,12 @@ router.post(
     // Only update if the new status is HIGHER rank than current (never downgrade via webhook)
     const currentRank = ZR_STATUS_RANK[order.status] ?? 0;
     const newRank = newStatus ? (ZR_STATUS_RANK[newStatus] ?? 0) : -1;
-    const shouldUpdate = newStatus && newStatus !== order.status && newRank > currentRank;
 
-    if (shouldUpdate) {
-      order.status = newStatus as typeof order.status;
+    if (newStatus && newStatus !== order.status && newRank > currentRank) {
+      const resolvedStatus = newStatus;
+      order.status = resolvedStatus as typeof order.status;
       const wasReserved = hasReservedStock(order);
-      const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus as (typeof ORDER_STATUS_VALUES)[number]);
+      const willBeReserved = STOCK_RESERVED_STATUSES.has(resolvedStatus as (typeof ORDER_STATUS_VALUES)[number]);
       if (wasReserved && !willBeReserved) await releaseStockForOrder(order);
       order.stockReserved = willBeReserved;
       await order.save();
@@ -727,7 +727,7 @@ router.post(
 
       // Notify customer via WhatsApp (best-effort)
       if (order.customer?.phone) {
-        void sendWhatsAppStatusUpdate(order.customer.phone, order.orderNumber, trackingNumber ?? "", newStatus);
+        void sendWhatsAppStatusUpdate(order.customer.phone, order.orderNumber, trackingNumber ?? "", resolvedStatus);
       }
     }
 
