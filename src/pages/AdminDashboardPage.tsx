@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   Crown,
+  Download,
   Facebook,
   Gift,
   Instagram,
@@ -320,6 +321,14 @@ export function AdminDashboardPage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [subAdminForm, setSubAdminForm] = useState<SubAdminFormState>(defaultSubAdminForm);
   const [subAdminDrafts, setSubAdminDrafts] = useState<Record<string, { permissions: AdminPermission[]; password: string }>>({});
+  const [promoSearch, setPromoSearch] = useState("");
+  const [promoStatusFilter, setPromoStatusFilter] = useState("all");
+  const [affiliateSearch, setAffiliateSearch] = useState("");
+  const [affiliateStatusFilter, setAffiliateStatusFilter] = useState("all");
+  const [commissionStatusFilter, setCommissionStatusFilter] = useState("all");
+  const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState("all");
+  const [couponStatusFilter, setCouponStatusFilter] = useState("PENDING");
+  const [subAdminSearch, setSubAdminSearch] = useState("");
 
   const role = adminSession?.user.role;
   const userPermissions = adminSession?.user.permissions;
@@ -961,6 +970,36 @@ export function AdminDashboardPage() {
               </button>
             </div>
           )}
+          {data ? (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const rows = [
+                    ["Metric", "Value"],
+                    ["Visitors", String(data.totalVisitors)],
+                    ["Today Visitors", String(data.todayVisitors)],
+                    ["Product Views", String(data.productViews)],
+                    ["Total Orders", String(data.ordersCount)],
+                    ["Revenue (DZD)", String(data.revenueTotal)],
+                    ["Conversion Rate", String(data.conversionRate)],
+                  ];
+                  const csv = rows.map((r) => r.join(",")).join("\n");
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `analytics-${analyticsPeriod}-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="ghost-button gap-2"
+              >
+                <Download className="h-4 w-4" />
+                تصدير CSV
+              </button>
+            </div>
+          ) : null}
         </Panel>
 
         {analyticsLoading ? (
@@ -2498,8 +2537,42 @@ export function AdminDashboardPage() {
         </button>
       </Panel>
 
+      {/* Promo search + filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          value={promoSearch}
+          onChange={(event) => setPromoSearch(event.target.value)}
+          className="field-input max-w-xs"
+          placeholder="بحث بالكود..."
+        />
+        <select value={promoStatusFilter} onChange={(event) => setPromoStatusFilter(event.target.value)} className="field-select max-w-[10rem]">
+          <option value="all">جميع الحالات</option>
+          <option value="active">مفعّل</option>
+          <option value="inactive">معطّل</option>
+        </select>
+        <span className="text-sm text-slate-500">
+          {promos.filter((promo) => {
+            const q = promoSearch.toLowerCase();
+            const isExpired = Boolean(promo.expiresAt && new Date(promo.expiresAt).getTime() < Date.now());
+            const isExhausted = Boolean(promo.usageLimit && promo.usedCount >= promo.usageLimit);
+            const isActive = promo.isActive && !isExpired && !isExhausted;
+            if (promoStatusFilter === "active" && !isActive) return false;
+            if (promoStatusFilter === "inactive" && isActive) return false;
+            return !q || promo.code.toLowerCase().includes(q);
+          }).length} نتيجة
+        </span>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {promos.map((promo) => {
+        {promos.filter((promo) => {
+          const q = promoSearch.toLowerCase();
+          const isExpired = Boolean(promo.expiresAt && new Date(promo.expiresAt).getTime() < Date.now());
+          const isExhausted = Boolean(promo.usageLimit && promo.usedCount >= promo.usageLimit);
+          const isActive = promo.isActive && !isExpired && !isExhausted;
+          if (promoStatusFilter === "active" && !isActive) return false;
+          if (promoStatusFilter === "inactive" && isActive) return false;
+          return !q || promo.code.toLowerCase().includes(q);
+        }).map((promo) => {
           const draft = promoDrafts[promo._id];
           const isEditing = editingPromoId === promo._id;
 
@@ -2611,9 +2684,49 @@ export function AdminDashboardPage() {
     </div>
   );
 
-  const renderAffiliates = () => (
-    <div className="grid gap-4 xl:grid-cols-2">
-      {affiliates.map((affiliate) => {
+  const renderAffiliates = () => {
+    const pendingAffiliates = affiliates.filter((a) => a.status === "PENDING");
+    const filteredAffiliates = affiliates.filter((affiliate) => {
+      const q = affiliateSearch.toLowerCase();
+      if (affiliateStatusFilter !== "all" && affiliate.status !== affiliateStatusFilter) return false;
+      return !q || affiliate.name.toLowerCase().includes(q) || affiliate.email.toLowerCase().includes(q) || affiliate.phone?.includes(q) || affiliate.referralCode.toLowerCase().includes(q);
+    });
+    return (
+    <div className="space-y-4">
+      {/* Search + filter + bulk actions */}
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          value={affiliateSearch}
+          onChange={(event) => setAffiliateSearch(event.target.value)}
+          className="field-input max-w-xs"
+          placeholder="بحث بالاسم أو البريد أو الهاتف..."
+        />
+        <select value={affiliateStatusFilter} onChange={(event) => setAffiliateStatusFilter(event.target.value)} className="field-select max-w-[10rem]">
+          <option value="all">جميع الحالات</option>
+          <option value="PENDING">في الانتظار</option>
+          <option value="ACTIVE">نشط</option>
+          <option value="BLOCKED">محظور</option>
+        </select>
+        {pendingAffiliates.length > 0 ? (
+          <button
+            onClick={() => {
+              void Promise.all(
+                pendingAffiliates.map((a) =>
+                  adminService.updateAffiliate(token, a._id, { status: "ACTIVE", commissionRate: a.commissionRate, level: a.level || "BRONZE" })
+                )
+              ).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
+            }}
+            className="primary-button gap-2"
+          >
+            <Check className="h-4 w-4" />
+            قبول الكل ({pendingAffiliates.length})
+          </button>
+        ) : null}
+        <span className="text-sm text-slate-500">{filteredAffiliates.length} مسوّق</span>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+      {filteredAffiliates.map((affiliate) => {
         const draft = affiliateDrafts[affiliate._id];
         const LevelIcon = levelIcons[draft?.level || affiliate.level || "BRONZE"];
         const referrer = typeof affiliate.referredBy === "string" ? null : affiliate.referredBy;
@@ -2727,12 +2840,42 @@ export function AdminDashboardPage() {
           </div>
         );
       })}
+      </div>
     </div>
-  );
+    );
+  };
 
-  const renderCommissions = () => (
+  const renderCommissions = () => {
+    const filteredCommissions = commissions.filter((c) =>
+      commissionStatusFilter === "all" || c.status === commissionStatusFilter
+    );
+    const pendingCommissions = commissions.filter((c) => c.status === "APPROVED");
+    return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <select value={commissionStatusFilter} onChange={(event) => setCommissionStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
+          <option value="all">جميع الحالات</option>
+          <option value="PENDING">في الانتظار</option>
+          <option value="APPROVED">موافق عليه</option>
+          <option value="PAID">مدفوع</option>
+        </select>
+        {pendingCommissions.length > 0 ? (
+          <button
+            onClick={() =>
+              void Promise.all(pendingCommissions.map((c) => adminService.markCommissionPaid(token, c._id)))
+                .then(loadAll)
+                .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+            }
+            className="primary-button gap-2"
+          >
+            <Check className="h-4 w-4" />
+            تحديد الكل مدفوع ({pendingCommissions.length})
+          </button>
+        ) : null}
+        <span className="text-sm text-slate-500">{filteredCommissions.length} عمولة</span>
+      </div>
     <div className="grid gap-4 xl:grid-cols-2">
-      {commissions.map((commission) => {
+      {filteredCommissions.map((commission) => {
         const orderId = typeof commission.order === "string" ? commission.order : commission.order?._id;
         const order = orderId ? ordersById.get(orderId) : undefined;
         const affiliateName = typeof commission.affiliate === "string" ? commission.affiliate : commission.affiliate?.name ?? "";
@@ -2758,14 +2901,30 @@ export function AdminDashboardPage() {
         );
       })}
     </div>
-  );
+    </div>
+    );
+  };
 
-  const renderWithdrawals = () => (
+  const renderWithdrawals = () => {
+    const filteredWithdrawals = [...withdrawals]
+      .filter((w) => withdrawalStatusFilter === "all" || w.status === withdrawalStatusFilter)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return (
     <div className="space-y-4">
       <Panel title={translate(language, "adminWithdrawalsTitle")} description={translate(language, "adminWithdrawalsDescription")}>
-        {withdrawals.length ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <select value={withdrawalStatusFilter} onChange={(event) => setWithdrawalStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
+            <option value="all">جميع الحالات</option>
+            <option value="PENDING">في الانتظار</option>
+            <option value="APPROVED">موافق عليه</option>
+            <option value="PAID">مدفوع</option>
+            <option value="REJECTED">مرفوض</option>
+          </select>
+          <span className="text-sm text-slate-500">{filteredWithdrawals.length} طلب</span>
+        </div>
+        {filteredWithdrawals.length ? (
           <div className="grid gap-4 xl:grid-cols-2">
-            {withdrawals.map((withdrawal) => {
+            {filteredWithdrawals.map((withdrawal) => {
               const affiliate = typeof withdrawal.affiliate === "string" ? null : withdrawal.affiliate;
               return (
                 <div key={withdrawal._id} className="surface-card p-5">
@@ -2874,14 +3033,28 @@ export function AdminDashboardPage() {
         )}
       </Panel>
     </div>
-  );
+    );
+  };
 
-  const renderCouponRequests = () => (
+  const renderCouponRequests = () => {
+    const filteredCoupons = couponRequests.filter(
+      (r) => couponStatusFilter === "all" || r.status === couponStatusFilter
+    );
+    return (
     <div className="space-y-4">
       <Panel title={translate(language, "adminCouponRequestsTitle")} description={translate(language, "adminCouponRequestsDescription")}>
-        {couponRequests.length ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <select value={couponStatusFilter} onChange={(event) => setCouponStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
+            <option value="PENDING">في الانتظار</option>
+            <option value="APPROVED">موافق عليه</option>
+            <option value="REJECTED">مرفوض</option>
+            <option value="all">الكل</option>
+          </select>
+          <span className="text-sm text-slate-500">{filteredCoupons.length} طلب</span>
+        </div>
+        {filteredCoupons.length ? (
           <div className="grid gap-4 xl:grid-cols-2">
-            {couponRequests.map((request) => {
+            {filteredCoupons.map((request) => {
               const affiliate = typeof request.affiliate === "string" ? null : request.affiliate;
               const draft = couponDrafts[request._id] || { code: request.desiredCode || "", adminNote: request.adminNote || "" };
               return (
@@ -2962,7 +3135,8 @@ export function AdminDashboardPage() {
         )}
       </Panel>
     </div>
-  );
+    );
+  };
 
   const renderSettings = () =>
     settings ? (
@@ -3212,7 +3386,12 @@ export function AdminDashboardPage() {
       </div>
     ) : null;
 
-  const renderAdmins = () => (
+  const renderAdmins = () => {
+    const filteredSubAdmins = subAdmins.filter((a) => {
+      const q = subAdminSearch.toLowerCase();
+      return !q || a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q);
+    });
+    return (
     <div className="space-y-6">
       <Panel title={translate(language, "adminAdminsTitle")} description={translate(language, "adminAdminsDescription")}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -3261,8 +3440,18 @@ export function AdminDashboardPage() {
       </Panel>
 
       {subAdmins.length ? (
+        <>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            value={subAdminSearch}
+            onChange={(event) => setSubAdminSearch(event.target.value)}
+            className="field-input max-w-xs"
+            placeholder="بحث بالاسم أو البريد..."
+          />
+          <span className="text-sm text-slate-500">{filteredSubAdmins.length} مشرف</span>
+        </div>
         <div className="grid gap-4">
-          {subAdmins.map((subAdmin) => {
+          {filteredSubAdmins.map((subAdmin) => {
             const draft = subAdminDrafts[subAdmin._id] || { permissions: subAdmin.permissions, password: "" };
             return (
               <div key={subAdmin._id} className="surface-card p-5">
@@ -3351,11 +3540,13 @@ export function AdminDashboardPage() {
             );
           })}
         </div>
+        </>
       ) : (
         <EmptyState title={translate(language, "adminAdminsTitle")} description={translate(language, "adminNoSubAdmins")} />
       )}
     </div>
-  );
+    );
+  };
 
   const currentViewMeta: Record<string, { icon: typeof BarChart3; title: string; description: string }> = {
     dashboard: {
