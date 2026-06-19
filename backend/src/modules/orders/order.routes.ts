@@ -665,11 +665,21 @@ router.post(
       newStatus = "RETURNED";
     } else if (stateName.includes("annul") || stateName.includes("cancel")) {
       newStatus = "CANCELLED";
-    } else if (stateName.includes("echec") || stateName.includes("failed")) {
+    } else if (stateName.includes("echec") || stateName.includes("failed") || stateName.includes("failure")) {
       newStatus = "FAILED";
-    } else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) {
+    } else if (stateName.includes("ready to ship") || stateName.includes("prêt") || stateName.includes("pret")) {
       newStatus = "SHIPPED";
-    } else if (stateName.includes("pris en charge") || stateName.includes("accept") || stateName.includes("confirmed")) {
+    } else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("en cours de livraison") || stateName.includes("out for delivery")) {
+      newStatus = "SHIPPED";
+    } else if (
+      stateName.includes("order in process") ||
+      stateName.includes("order confirmed") ||
+      stateName.includes("confirmation call") ||
+      stateName.includes("pris en charge") ||
+      stateName.includes("accept") ||
+      stateName.includes("confirmed") ||
+      stateName.includes("en cours de traitement")
+    ) {
       newStatus = "PROCESSING";
     }
 

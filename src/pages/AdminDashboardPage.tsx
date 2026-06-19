@@ -71,6 +71,27 @@ import { ADMIN_PERMISSIONS } from "@/types";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate, type TranslationKey } from "@/utils/i18n";
 
+const ZR_STATE_AR: Record<string, string> = {
+  "order in process": "الطلب قيد المعالجة",
+  "confirmation call": "مكالمة تأكيد العميل",
+  "order confirmed": "تم تأكيد الطلب",
+  "ready to ship": "جاهز للشحن",
+  "in transit": "في الطريق",
+  "out for delivery": "في رحلة التسليم",
+  "delivered": "تم التسليم",
+  "picked up": "تم الاستلام",
+  "returned": "مُرجَع",
+  "failed delivery": "فشل التسليم",
+  "cancelled": "ملغى",
+  "accepted": "مقبول",
+  "pris en charge": "تم الاستلام من المتجر",
+  "en cours de livraison": "في الطريق للتسليم",
+  "livré": "تم التسليم",
+  "retour": "مُرجَع",
+  "annulé": "ملغى",
+};
+const getZRStateAr = (state: string, stateAr: string) => stateAr || ZR_STATE_AR[state.toLowerCase()] || state;
+
 const levelIcons: Record<AffiliateLevel, typeof Medal> = {
   BRONZE: Medal,
   SILVER: Award,
@@ -2569,7 +2590,7 @@ export function AdminDashboardPage() {
                                           <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
                                           <div>
                                             <div className="text-[11px] font-semibold text-slate-800">
-                                              {language === "ar" ? entry.stateAr || entry.state : entry.state}
+                                              {language === "ar" ? getZRStateAr(entry.state, entry.stateAr) : entry.state}
                                             </div>
                                             <div className="text-[10px] text-slate-400">{entry.date ? new Date(entry.date).toLocaleString(language === "ar" ? "ar-DZ" : language === "fr" ? "fr-DZ" : "en-DZ") : ""}</div>
                                           </div>

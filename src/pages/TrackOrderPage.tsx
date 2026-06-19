@@ -16,6 +16,32 @@ interface ZREvent {
   date: string;
 }
 
+const ZR_STATE_AR: Record<string, string> = {
+  "order in process": "الطلب قيد المعالجة",
+  "confirmation call": "مكالمة تأكيد العميل",
+  "order confirmed": "تم تأكيد الطلب",
+  "ready to ship": "جاهز للشحن",
+  "in transit": "في الطريق",
+  "out for delivery": "في رحلة التسليم",
+  "delivered": "تم التسليم",
+  "picked up": "تم الاستلام",
+  "returned": "مُرجَع",
+  "failed delivery": "فشل التسليم",
+  "cancelled": "ملغى",
+  "accepted": "مقبول",
+  "pris en charge": "تم الاستلام من المتجر",
+  "en cours de livraison": "في الطريق للتسليم",
+  "livré": "تم التسليم",
+  "retour": "مُرجَع",
+  "échec de livraison": "فشل التسليم",
+  "annulé": "ملغى",
+};
+
+function getZRStateAr(state: string, stateAr: string): string {
+  if (stateAr) return stateAr;
+  return ZR_STATE_AR[state.toLowerCase()] ?? state;
+}
+
 export function TrackOrderPage() {
   const { language } = useApp();
   const [phone, setPhone] = useState("");
@@ -203,7 +229,7 @@ export function TrackOrderPage() {
                         : "border-slate-100 bg-slate-50/60"
                     }`}>
                       <div className={`font-semibold ${idx === 0 ? isDelivered ? "text-emerald-800" : isFailed ? "text-rose-700" : "text-teal-800" : "text-slate-700"}`}>
-                        {language === "ar" ? event.stateAr || event.state : event.state}
+                        {language === "ar" ? getZRStateAr(event.state, event.stateAr) : event.state}
                       </div>
                       <div className="mt-1 text-xs text-slate-400">
                         {event.date ? formatDate(event.date, language) : ""}
