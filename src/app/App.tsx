@@ -4,6 +4,7 @@ import { useApp } from "@/hooks/useApp";
 import { MainLayout } from "@/layout/MainLayout";
 import { initAnalytics, trackPageview } from "@/utils/analytics";
 import { initPixel, pixelPageView } from "@/utils/pixel";
+import { initTikTokPixel } from "@/utils/tiktok";
 import { trackEvent } from "@/utils/tracking";
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
   useEffect(() => {
     initAnalytics();
     initPixel();
+    initTikTokPixel();
   }, []);
 
   useEffect(() => {
