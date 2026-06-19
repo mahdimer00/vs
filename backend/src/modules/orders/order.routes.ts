@@ -63,6 +63,7 @@ const createOrderSchema = z.object({
   clientUserAgent: z.string().max(512).optional(),
   phoneVerificationToken: z.string().optional(),
   zrTerritoryId: z.string().uuid().optional(),
+  manualConfirm: z.boolean().optional(),
 });
 
 function isOtpEnforced(): boolean {
@@ -162,8 +163,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
 
-    // Verify phone OTP token when OTP is enforced
-    if (isOtpEnforced()) {
+    // Verify phone OTP token when OTP is enforced (skip if customer chose manual phone-call confirmation)
+    if (isOtpEnforced() && !input.manualConfirm) {
       if (!input.phoneVerificationToken) {
         throw new AppError("يجب التحقق من رقم هاتفك أولاً", 400);
       }
