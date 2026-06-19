@@ -58,6 +58,7 @@ const orderSchema = new Schema(
     zrParcelId: { type: String, default: null },
     zrTrackingNumber: { type: String, default: null },
     zrTerritoryId: { type: String, default: null },
+    adminNote: { type: String, default: null },
   },
   { timestamps: true },
 );

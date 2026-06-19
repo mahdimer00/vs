@@ -54,6 +54,12 @@ export const adminService = {
   getZRStates(token: string) {
     return apiRequest<Array<{ id: string; name: string; label: string; labelFr: string }>>("/api/admin/zr/states", { token });
   },
+  cancelZRParcel(token: string, orderId: string) {
+    return apiRequest<{ ok: boolean }>(`/api/admin/orders/${orderId}/zr-cancel`, { method: "POST", token });
+  },
+  saveOrderNote(token: string, orderId: string, note: string) {
+    return apiRequest<{ ok: boolean }>(`/api/admin/orders/${orderId}/note`, { method: "PATCH", token, body: JSON.stringify({ note }) });
+  },
   printBulkZRLabels(token: string, orderIds: string[]) {
     return apiRequest<Blob>("/api/admin/zr/bulk-labels", { method: "POST", token, body: JSON.stringify({ orderIds }) });
   },

@@ -184,6 +184,7 @@ export interface Order {
   zrParcelId?: string | null;
   zrTrackingNumber?: string | null;
   zrTerritoryId?: string | null;
+  adminNote?: string | null;
   createdAt: string;
   confirmationToken?: string;
 }

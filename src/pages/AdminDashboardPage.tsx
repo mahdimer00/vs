@@ -311,6 +311,9 @@ export function AdminDashboardPage() {
   const [zrSyncingId, setZrSyncingId] = useState<string | null>(null);
   const [telegramLabelId, setTelegramLabelId] = useState<string | null>(null);
   const [zrStateChangingId, setZrStateChangingId] = useState<string | null>(null);
+  const [zrCancellingId, setZrCancellingId] = useState<string | null>(null);
+  const [orderNoteEditing, setOrderNoteEditing] = useState<string | null>(null);
+  const [orderNoteDraft, setOrderNoteDraft] = useState("");
   const [printLabelId, setPrintLabelId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkLabelPrinting, setBulkLabelPrinting] = useState(false);
@@ -1855,6 +1858,38 @@ export function AdminDashboardPage() {
     }
   };
 
+  const cancelZRParcelAction = (orderId: string, orderNumber: string) => {
+    setConfirm({
+      title: language === "ar" ? "إلغاء شحنة ZR" : "Cancel ZR Parcel",
+      message: language === "ar" ? `هل تريد إلغاء شحنة ZR للطلب ${orderNumber}؟` : `Cancel ZR parcel for order ${orderNumber}?`,
+      confirmLabel: language === "ar" ? "إلغاء الشحنة" : "Cancel Parcel",
+      tone: "danger",
+      onConfirm: async () => {
+        setZrCancellingId(orderId);
+        try {
+          await adminService.cancelZRParcel(token, orderId);
+          pushToast(language === "ar" ? "تم إلغاء شحنة ZR ✓" : "ZR parcel cancelled", "success");
+          await loadAll();
+        } catch (error) {
+          pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+        } finally {
+          setZrCancellingId(null);
+        }
+      },
+    });
+  };
+
+  const saveOrderNote = async (orderId: string, note: string) => {
+    try {
+      await adminService.saveOrderNote(token, orderId, note);
+      pushToast(language === "ar" ? "تم حفظ الملاحظة ✓" : "Note saved", "success");
+      setOrderNoteEditing(null);
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    }
+  };
+
   const loadZRHistory = async (orderId: string) => {
     if (zrHistory[orderId]) {
       setZrHistory((prev) => { const next = { ...prev }; delete next[orderId]; return next; });
@@ -2609,6 +2644,19 @@ export function AdminDashboardPage() {
                                     </select>
                                   </div>
 
+                                  {/* Cancel ZR parcel */}
+                                  <button
+                                    type="button"
+                                    disabled={zrCancellingId === order._id}
+                                    onClick={(e) => { e.stopPropagation(); cancelZRParcelAction(order._id, order.orderNumber); }}
+                                    className="ghost-button gap-1.5 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                                  >
+                                    {zrCancellingId === order._id
+                                      ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-600" />
+                                      : <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>}
+                                    {language === "ar" ? "إلغاء ZR" : "Cancel ZR"}
+                                  </button>
+
                                   {/* Toggle history */}
                                   <button
                                     type="button"
@@ -2679,6 +2727,35 @@ export function AdminDashboardPage() {
                                 </span>
                               </div>
                             ) : null}
+
+                            {/* Admin note */}
+                            <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                              {orderNoteEditing === order._id ? (
+                                <div className="flex items-start gap-2">
+                                  <textarea
+                                    autoFocus
+                                    value={orderNoteDraft}
+                                    onChange={(e) => setOrderNoteDraft(e.target.value)}
+                                    rows={2}
+                                    className="field-input flex-1 resize-none text-xs"
+                                    placeholder={language === "ar" ? "ملاحظة على الطلب..." : "Order note..."}
+                                  />
+                                  <div className="flex flex-col gap-1">
+                                    <button type="button" onClick={() => void saveOrderNote(order._id, orderNoteDraft)} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">{language === "ar" ? "حفظ" : "Save"}</button>
+                                    <button type="button" onClick={() => setOrderNoteEditing(null)} className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50">{language === "ar" ? "إلغاء" : "Cancel"}</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => { setOrderNoteEditing(order._id); setOrderNoteDraft(order.adminNote ?? ""); }}
+                                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition ${order.adminNote ? "border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" : "border border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"}`}
+                                >
+                                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                  {order.adminNote ? order.adminNote : (language === "ar" ? "إضافة ملاحظة" : "Add note")}
+                                </button>
+                              )}
+                            </div>
 
                             {/* Actions */}
                             <div className="flex flex-wrap items-center gap-2">

@@ -691,18 +691,30 @@ router.post(
   "/webhooks/zrexpress",
   asyncHandler(async (req, res) => {
     const body = req.body as Record<string, unknown>;
+    console.log("[ZR Webhook] received:", JSON.stringify(body).slice(0, 800));
+
     const eventType = ((body.eventType ?? body.type) as string | undefined) ?? "";
     const data = (body.data as Record<string, unknown> | undefined) ?? body;
 
-    const trackingNumber = data.trackingNumber as string | undefined;
-    if (!trackingNumber) return res.json({ ok: true });
+    // trackingNumber may be at data.trackingNumber or data.parcel.trackingNumber
+    const parcelObj = data.parcel as Record<string, unknown> | undefined;
+    const trackingNumber = (data.trackingNumber ?? parcelObj?.trackingNumber) as string | undefined;
+    if (!trackingNumber) {
+      console.log("[ZR Webhook] no trackingNumber found, keys:", Object.keys(data).join(","));
+      return res.json({ ok: true });
+    }
 
     const order = await OrderModel.findOne({ zrTrackingNumber: trackingNumber });
-    if (!order) return res.json({ ok: true });
+    if (!order) {
+      console.log("[ZR Webhook] no order for tracking:", trackingNumber);
+      return res.json({ ok: true });
+    }
 
-    const stateObj = data.state as Record<string, unknown> | undefined;
-    const stateName = ((stateObj?.name as string | undefined) ?? "").toLowerCase();
-    const isReturn = Boolean(data.isReturn);
+    // state may be at data.state or data.parcel.state or data.newState
+    const stateObj = (data.state ?? parcelObj?.state ?? data.newState) as Record<string, unknown> | undefined;
+    const stateName = ((stateObj?.name as string | undefined) ?? (stateObj?.description as string | undefined) ?? "").toLowerCase();
+    console.log("[ZR Webhook] order:", order.orderNumber, "event:", eventType, "state:", stateName);
+    const isReturn = Boolean(data.isReturn ?? parcelObj?.isReturn);
 
     let newStatus: string | null = null;
 
@@ -719,24 +731,26 @@ router.post(
     } else if (stateName.includes("echec") || stateName.includes("failed") || stateName.includes("failure")) {
       newStatus = "FAILED";
     } else if (
-      stateName.includes("out for delivery") ||
-      stateName.includes("ready to ship") ||
-      stateName.includes("confirmed at office") ||
-      stateName.includes("dispatch") ||
-      stateName.includes("to region") ||
-      stateName.includes("prêt") || stateName.includes("pret") ||
+      // English names
+      stateName.includes("out for delivery") || stateName.includes("ready to ship") ||
+      stateName.includes("confirmed at office") || stateName.includes("dispatch") ||
+      stateName.includes("to region") || stateName.includes("in transit") ||
+      // French slugs (ZR internal keys)
+      stateName.includes("pret_a_expedier") || stateName.includes("prêt") || stateName.includes("pret") ||
+      stateName.includes("confirme_au_bureau") || stateName.includes("vers_wilaya") ||
+      stateName.includes("en_livraison") || stateName.includes("sortie_en_livraison") ||
       stateName.includes("transit") || stateName.includes("sort") ||
       stateName.includes("en cours de livraison")
     ) {
       newStatus = "SHIPPED";
     } else if (
-      stateName.includes("order received") ||
-      stateName.includes("order in process") ||
-      stateName.includes("order confirmed") ||
-      stateName.includes("confirmation call") ||
-      stateName.includes("pris en charge") ||
-      stateName.includes("accept") ||
-      stateName.includes("confirmed") ||
+      // English names
+      stateName.includes("order received") || stateName.includes("order in process") ||
+      stateName.includes("order confirmed") || stateName.includes("confirmation call") ||
+      // French slugs
+      stateName.includes("commande_recue") || stateName.includes("en_cours_de_traitement") ||
+      stateName.includes("appel_de_confirmation") || stateName.includes("commande_confirmee") ||
+      stateName.includes("pris en charge") || stateName.includes("accept") ||
       stateName.includes("en cours de traitement")
     ) {
       newStatus = "PROCESSING";
@@ -796,6 +810,36 @@ router.post(
 
     await OrderModel.findByIdAndUpdate(req.params.id, { zrParcelId: parcelId, zrTrackingNumber: trackingNumber });
     return res.json({ parcelId, trackingNumber });
+  }),
+);
+
+// Admin: cancel ZR parcel from site
+router.post(
+  "/admin/orders/:id/zr-cancel",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const order = await OrderModel.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrParcelId) return res.status(400).json({ message: "No ZR parcel for this order" });
+    await cancelZRParcel(order.zrParcelId);
+    order.zrParcelId = null;
+    order.zrTrackingNumber = null;
+    await order.save();
+    return res.json({ ok: true });
+  }),
+);
+
+// Admin: save note on order
+router.patch(
+  "/admin/orders/:id/note",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const { note } = z.object({ note: z.string().max(500) }).parse(req.body);
+    const order = await OrderModel.findByIdAndUpdate(req.params.id, { adminNote: note || null }, { new: true });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    return res.json({ ok: true, adminNote: order.adminNote });
   }),
 );
 
