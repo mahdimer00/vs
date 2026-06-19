@@ -22,6 +22,7 @@ export const orderService = {
     clientUserAgent?: string;
     phoneVerificationToken?: string;
     zrTerritoryId?: string;
+    manualConfirm?: boolean;
   }) {
     return apiRequest<Order>("/api/orders", {
       method: "POST",
