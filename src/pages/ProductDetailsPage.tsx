@@ -12,6 +12,7 @@ import type { Product, ProductVariant } from "@/types";
 import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText, hashSeed } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { pixelViewContent } from "@/utils/pixel";
+import { ttqAddToWishlist, ttqViewContent } from "@/utils/tiktok";
 import { trackEvent } from "@/utils/tracking";
 import { addRecentlyViewed } from "@/utils/recentlyViewed";
 
@@ -85,6 +86,7 @@ export function ProductDetailsPage() {
         const productName = data.name.en || data.name.ar || data.name.fr;
         const price = firstVariant?.price ?? data.discountPrice ?? data.basePrice;
         pixelViewContent({ productId: data._id, productName, value: price });
+        ttqViewContent(data._id, productName, price);
         trackEvent({ eventType: "product_view", productId: data._id });
         addRecentlyViewed({
           id: data._id,
@@ -495,7 +497,13 @@ export function ProductDetailsPage() {
             </button>
             <button
               type="button"
-              onClick={() => toggleWishlist(product._id)}
+              onClick={() => {
+                if (!isWishlisted(product._id)) {
+                  const name = product.name.en || product.name.ar || product.name.fr;
+                  ttqAddToWishlist(product._id, name, selectedVariant?.price ?? product.discountPrice ?? product.basePrice ?? 0);
+                }
+                toggleWishlist(product._id);
+              }}
               aria-label={translate(language, isWishlisted(product._id) ? "wishlistRemove" : "wishlistAdd")}
               aria-pressed={isWishlisted(product._id)}
               className={`inline-flex items-center justify-center gap-2 rounded-full border px-6 py-4 text-base font-semibold transition ${

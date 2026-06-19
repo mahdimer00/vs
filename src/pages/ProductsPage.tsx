@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -11,6 +11,7 @@ import { productService } from "@/services/product.service";
 import type { Category, Product } from "@/types";
 import { getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
+import { ttqSearch } from "@/utils/tiktok";
 
 export function ProductsPage() {
   const { language } = useApp();
@@ -19,6 +20,7 @@ export function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filters, setFilters] = useState<ProductFilterState>({
     search: searchParams.get("q") || "",
     category: searchParams.get("category") || "all",
@@ -37,6 +39,14 @@ export function ProductsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const q = filters.search.trim();
+    if (!q) return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => { ttqSearch(q); }, 800);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [filters.search]);
 
   const filtered = useMemo(() => {
     return products.filter((product) => {

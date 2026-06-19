@@ -6,6 +6,7 @@ import type { AuthSession, CartItem, Locale, PendingOrderPayload, WebsiteSetting
 import { buildVariantLabel, getLocalizedText, isRTL } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { pixelAddToCart } from "@/utils/pixel";
+import { ttqAddToCart } from "@/utils/tiktok";
 import { trackEvent } from "@/utils/tracking";
 import { readSessionStorage, readStorage, writeSessionStorage, writeStorage } from "@/utils/storage";
 
@@ -115,6 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Track AddToCart for Meta Pixel and internal analytics
     const productName = item.product.name.en || item.product.name.ar || item.product.name.fr;
     pixelAddToCart({ productId: item.product._id, productName, value: item.variant.price * item.quantity });
+    ttqAddToCart(item.product._id, productName, item.variant.price * item.quantity);
     trackEvent({ eventType: "add_to_cart", productId: item.product._id });
   };
 

@@ -15,6 +15,7 @@ import type { DeliveryType, Wilaya } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { pixelInitiateCheckout, pixelLead, pixelPurchase } from "@/utils/pixel";
+import { ttqAddPaymentInfo, ttqCompleteRegistration, ttqIdentify, ttqInitiateCheckout, ttqPlaceAnOrder, ttqPurchase } from "@/utils/tiktok";
 import { trackEvent } from "@/utils/tracking";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
@@ -199,6 +200,9 @@ export function CheckoutPage() {
     setOtpNotice(null);
     try {
       const result = await otpService.sendOtp(phone.trim(), "whatsapp");
+      void ttqIdentify(phone.trim());
+      const _ttqContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
+      ttqAddPaymentInfo(_ttqContents, subtotal);
       setOtpSent(true);
       setOtpCode("");
       const ttl = result.expiresIn ?? 300;
@@ -237,6 +241,7 @@ export function CheckoutPage() {
     setOtpNotice(null);
     try {
       const result = await otpService.verifyOtp(phone.trim(), otpCode);
+      ttqCompleteRegistration();
       setPhoneVerificationToken(result.verificationToken);
       setVerifiedPhone(phone.trim());
       if (otpTimerRef.current) clearInterval(otpTimerRef.current);
@@ -280,6 +285,8 @@ export function CheckoutPage() {
     if (cart.length === 0) return;
     const numItems = cart.reduce((n, item) => n + item.quantity, 0);
     pixelInitiateCheckout({ value: subtotal, numItems });
+    const ttqContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
+    ttqInitiateCheckout(ttqContents, subtotal);
     trackEvent({ eventType: "checkout_start" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally run only once on mount
@@ -370,6 +377,9 @@ export function CheckoutPage() {
     const fbc = getCookie("_fbc");
 
     pixelLead(capiEventId);
+    const _placeContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
+    void ttqIdentify(phone);
+    ttqPlaceAnOrder(_placeContents, total);
     trackEvent({ eventType: "order_submit" });
 
     try {
@@ -400,6 +410,7 @@ export function CheckoutPage() {
       });
 
       pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });
+      ttqPurchase(_placeContents, total);
       trackEvent({ eventType: "purchase", orderId: order._id });
 
       window.localStorage.removeItem(checkoutDraftKey);
