@@ -602,7 +602,14 @@ router.post(
     else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("ship") || stateName.includes("en cours")) newStatus = "SHIPPED";
     else if (stateName.includes("pris en charge") || stateName.includes("accept")) newStatus = "PROCESSING";
 
-    if (newStatus && order.status !== newStatus) {
+    const statusRank: Record<string, number> = {
+      PENDING_AI_CONFIRMATION: 0, AWAITING_CALL_CONFIRMATION: 1,
+      CONFIRMED: 2, PROCESSING: 3, SHIPPED: 4,
+      DELIVERED: 5, PICKED_UP: 5, FAILED: 6, RETURNED: 6, CANCELLED: 6,
+    };
+    const currentRank = statusRank[order.status] ?? 0;
+    const newRank = newStatus ? (statusRank[newStatus] ?? 0) : -1;
+    if (newStatus && newStatus !== order.status && newRank > currentRank) {
       const wasReserved = hasReservedStock(order);
       const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus);
       if (wasReserved && !willBeReserved) await releaseStockForOrder(order);
@@ -634,8 +641,21 @@ router.post(
   }),
 );
 
-// Public webhook — ZR Express (via Svix) calls this with parcel state updates
-// Payload format: { eventType, occurredAt, data: { trackingNumber, state: { name }, isReturn } }
+// Status rank — webhook only moves FORWARD (never downgrade via ZR webhook)
+const ZR_STATUS_RANK: Record<string, number> = {
+  PENDING_AI_CONFIRMATION: 0,
+  AWAITING_CALL_CONFIRMATION: 1,
+  CONFIRMED: 2,
+  PROCESSING: 3,
+  SHIPPED: 4,
+  DELIVERED: 5,
+  PICKED_UP: 5,
+  FAILED: 6,
+  RETURNED: 6,
+  CANCELLED: 6,
+};
+
+// Public webhook — ZR Express calls this with parcel state updates
 router.post(
   "/webhooks/zrexpress",
   asyncHandler(async (req, res) => {
@@ -657,20 +677,16 @@ router.post(
 
     if (eventType === "parcel.isReturn.updated" && isReturn) {
       newStatus = "RETURNED";
-    } else if (stateName.includes("livr") || stateName.includes("delivered")) {
+    } else if (stateName.includes("delivered") || stateName.includes("livré") || stateName.includes("livr")) {
       newStatus = "DELIVERED";
-    } else if (stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) {
+    } else if (stateName.includes("collected") || stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) {
       newStatus = "PICKED_UP";
-    } else if (stateName.includes("retour") || stateName.includes("return")) {
+    } else if (stateName.includes("retour") || stateName.includes("return") || stateName.includes("recovered")) {
       newStatus = "RETURNED";
     } else if (stateName.includes("annul") || stateName.includes("cancel")) {
       newStatus = "CANCELLED";
     } else if (stateName.includes("echec") || stateName.includes("failed") || stateName.includes("failure")) {
       newStatus = "FAILED";
-    } else if (stateName.includes("delivered") || stateName.includes("livré") || stateName.includes("livr")) {
-      newStatus = "DELIVERED";
-    } else if (stateName.includes("collected") || stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) {
-      newStatus = "PICKED_UP";
     } else if (
       stateName.includes("out for delivery") ||
       stateName.includes("ready to ship") ||
@@ -695,7 +711,12 @@ router.post(
       newStatus = "PROCESSING";
     }
 
-    if (newStatus && order.status !== newStatus) {
+    // Only update if the new status is HIGHER rank than current (never downgrade via webhook)
+    const currentRank = ZR_STATUS_RANK[order.status] ?? 0;
+    const newRank = newStatus ? (ZR_STATUS_RANK[newStatus] ?? 0) : -1;
+    const shouldUpdate = newStatus && newStatus !== order.status && newRank > currentRank;
+
+    if (shouldUpdate) {
       order.status = newStatus as typeof order.status;
       const wasReserved = hasReservedStock(order);
       const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus as (typeof ORDER_STATUS_VALUES)[number]);
