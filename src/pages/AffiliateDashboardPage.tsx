@@ -1,4 +1,4 @@
-import { Award, Banknote, Clock, Copy, Crown, Gift, Link2, Medal, MousePointerClick, PackageSearch, ShoppingBag, Sparkles, Users, WalletCards } from "lucide-react";
+import { Award, Banknote, Clock, Copy, Crown, Gift, KeyRound, Link2, Medal, MousePointerClick, PackageSearch, Phone, Settings, ShoppingBag, Sparkles, Users, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -47,6 +47,8 @@ export function AffiliateDashboardPage() {
   const [team, setTeam] = useState<Affiliate[]>([]);
   const [couponRequests, setCouponRequests] = useState<CouponRequest[]>([]);
   const [couponForm, setCouponForm] = useState({ type: "PERCENTAGE", value: "", desiredCode: "", reason: "" });
+  const [profileForm, setProfileForm] = useState({ name: "", phone: "", currentPassword: "", newPassword: "" });
+  const [profileSaving, setProfileSaving] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -93,6 +95,7 @@ export function AffiliateDashboardPage() {
     { href: "/affiliate/promo-codes", label: translate(language, "promoCodes") },
     { href: "/affiliate/coupons", label: translate(language, "affiliateCouponRequestsTitle") },
     { href: "/affiliate/team", label: translate(language, "affiliateTeamTitle") },
+    { href: "/affiliate/profile", label: language === "ar" ? "الملف الشخصي" : language === "fr" ? "Profil" : "Profile" },
   ];
 
   const copyProductLink = async (slug: string) => {
@@ -224,30 +227,49 @@ export function AffiliateDashboardPage() {
             )}
           </div>
         );
-      case "orders":
+      case "orders": {
+        const commissionByOrder = new Map(
+          commissions
+            .filter((c) => c.order && typeof c.order !== "string")
+            .map((c) => [String((c.order as { _id: string })._id), c]),
+        );
         return orders.length ? (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order._id} className="surface-card p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="text-lg font-semibold text-slate-950">{order.orderNumber}</div>
-                    <div className="mt-1 text-sm text-slate-500">
-                      {order.items.map((item) => item.productName.en).join(", ")}
+            {orders.map((order) => {
+              const comm = commissionByOrder.get(order._id);
+              return (
+                <div key={order._id} className="surface-card p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-base font-semibold text-slate-950">{order.orderNumber}</div>
+                      <div className="mt-0.5 truncate text-sm text-slate-500">
+                        {order.items.map((item) => item.productName.en).join(", ")}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">{formatDate(order.createdAt, language)}</div>
                     </div>
-                    <div className="mt-3 text-sm text-slate-500">{formatDate(order.createdAt, language)}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <StatusBadge label={order.status} language={language} />
-                    <div className="text-lg font-semibold text-slate-950">{formatCurrency(order.total, language)}</div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <StatusBadge label={order.status} language={language} />
+                      <div className="text-sm font-semibold text-slate-900">{formatCurrency(order.total, language)}</div>
+                      {comm ? (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                          comm.status === "APPROVED" || comm.status === "PAID"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                          <Banknote className="h-3 w-3" />
+                          {formatCurrency(comm.amount, language)} {translate(language, "affiliateCommission")}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <EmptyState title={translate(language, "affiliateOrdersTitle")} description={translate(language, "affiliateNoOrders")} />
         );
+      }
       case "commissions":
         return commissions.length ? (
           <div className="space-y-4">
@@ -385,10 +407,23 @@ export function AffiliateDashboardPage() {
                   <h2 className="text-xl font-semibold text-slate-950">{translate(language, "affiliateReferralLink")}</h2>
                   <p className="mt-2 text-sm text-slate-600">{dashboard?.affiliate.referralCode}</p>
                 </div>
-                <button onClick={() => void copyReferral()} className="ghost-button gap-2">
-                  <Copy className="h-4 w-4" />
-                  {translate(language, "affiliateCopy")}
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => void copyReferral()} className="ghost-button gap-2">
+                    <Copy className="h-4 w-4" />
+                    {translate(language, "affiliateCopy")}
+                  </button>
+                  {dashboard?.referralLink ? (
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent((language === "ar" ? "🛍️ تسوق عبر رابطي الخاص:\n" : "🛍️ Shop via my link:\n") + dashboard.referralLink)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ghost-button gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.978-1.305A9.96 9.96 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.95 7.95 0 0 1-4.031-1.102l-.29-.17-2.951.773.789-2.876-.19-.3A7.959 7.959 0 0 1 4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z"/></svg>
+                      واتساب
+                    </a>
+                  ) : null}
+                </div>
               </div>
               <div className="mt-4 rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700 break-all">
                 {dashboard?.referralLink}
@@ -557,6 +592,136 @@ export function AffiliateDashboardPage() {
             </div>
           </div>
         );
+      case "profile":
+        return (
+          <div className="space-y-6">
+            <div className="surface-card p-6">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-700">
+                  <Settings className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    {language === "ar" ? "الملف الشخصي" : language === "fr" ? "Mon profil" : "My Profile"}
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {language === "ar" ? "تعديل بياناتك الشخصية وكلمة المرور" : language === "fr" ? "Modifier vos informations et mot de passe" : "Update your personal info and password"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">
+                    {language === "ar" ? "الاسم الكامل" : language === "fr" ? "Nom complet" : "Full name"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      value={profileForm.name}
+                      onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })}
+                      placeholder={dashboard?.affiliate.name}
+                      className="field-input w-full ps-10"
+                    />
+                    <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Users className="h-4 w-4" />
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">
+                    {language === "ar" ? "رقم الهاتف" : language === "fr" ? "Téléphone" : "Phone"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      dir="ltr"
+                      inputMode="tel"
+                      value={profileForm.phone}
+                      onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value.replace(/\D/g, "").slice(0, 10) })}
+                      placeholder={dashboard?.affiliate.phone ?? "05xxxxxxxx"}
+                      className="field-input w-full ps-10"
+                    />
+                    <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Phone className="h-4 w-4" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <h3 className="text-base font-semibold text-slate-950">
+                  {language === "ar" ? "تغيير كلمة المرور" : language === "fr" ? "Changer le mot de passe" : "Change password"}
+                </h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">
+                      {language === "ar" ? "كلمة المرور الحالية" : language === "fr" ? "Mot de passe actuel" : "Current password"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={profileForm.currentPassword}
+                        onChange={(event) => setProfileForm({ ...profileForm, currentPassword: event.target.value })}
+                        className="field-input w-full ps-10"
+                        autoComplete="current-password"
+                      />
+                      <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <KeyRound className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">
+                      {language === "ar" ? "كلمة المرور الجديدة" : language === "fr" ? "Nouveau mot de passe" : "New password"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={profileForm.newPassword}
+                        onChange={(event) => setProfileForm({ ...profileForm, newPassword: event.target.value })}
+                        className="field-input w-full ps-10"
+                        autoComplete="new-password"
+                      />
+                      <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <KeyRound className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                disabled={profileSaving}
+                onClick={() => {
+                  if (!profileForm.name.trim() && !profileForm.phone && !profileForm.newPassword) {
+                    pushToast(language === "ar" ? "لم تقم بتغيير أي شيء" : "Nothing to update", "error");
+                    return;
+                  }
+                  setProfileSaving(true);
+                  void affiliateService
+                    .updateProfile(token, {
+                      name: profileForm.name.trim() || undefined,
+                      phone: profileForm.phone || undefined,
+                      currentPassword: profileForm.currentPassword || undefined,
+                      newPassword: profileForm.newPassword || undefined,
+                    })
+                    .then(() => {
+                      pushToast(language === "ar" ? "تم حفظ التغييرات بنجاح" : "Changes saved", "success");
+                      setProfileForm({ name: "", phone: "", currentPassword: "", newPassword: "" });
+                    })
+                    .catch((err: unknown) => {
+                      pushToast(err instanceof Error ? err.message : language === "ar" ? "حدث خطأ" : "Error", "error");
+                    })
+                    .finally(() => setProfileSaving(false));
+                }}
+                className="primary-button mt-6 px-8"
+              >
+                {profileSaving
+                  ? (language === "ar" ? "جارٍ الحفظ..." : "Saving...")
+                  : (language === "ar" ? "حفظ التغييرات" : language === "fr" ? "Enregistrer" : "Save changes")}
+              </button>
+            </div>
+          </div>
+        );
       default:
         return (
           <div className="space-y-6">
@@ -624,10 +789,23 @@ export function AffiliateDashboardPage() {
                 <div className="mt-4 rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700 break-all">
                   {dashboard?.referralLink}
                 </div>
-                <button onClick={() => void copyReferral()} className="ghost-button mt-4 gap-2">
-                  <Copy className="h-4 w-4" />
-                  {translate(language, "affiliateCopy")}
-                </button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button onClick={() => void copyReferral()} className="ghost-button gap-2">
+                    <Copy className="h-4 w-4" />
+                    {translate(language, "affiliateCopy")}
+                  </button>
+                  {dashboard?.referralLink ? (
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent((language === "ar" ? "🛍️ تسوق عبر رابطي:\n" : "🛍️ Shop via my referral link:\n") + dashboard.referralLink)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ghost-button gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.978-1.305A9.96 9.96 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.95 7.95 0 0 1-4.031-1.102l-.29-.17-2.951.773.789-2.876-.19-.3A7.959 7.959 0 0 1 4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z"/></svg>
+                      {language === "ar" ? "مشاركة واتساب" : "Share on WhatsApp"}
+                    </a>
+                  ) : null}
+                </div>
               </div>
 
               <div className="surface-card p-6">

@@ -46,6 +46,7 @@ export function CheckoutPage() {
   const [showCommuneSuggestions, setShowCommuneSuggestions] = useState(false);
 
   const [manualConfirm, setManualConfirm] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   // OTP verification state
   const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean } | null>(null);
@@ -286,13 +287,6 @@ export function CheckoutPage() {
     if (!phonePattern.test(phone.trim())) {
       return translate(language, "checkoutValidationPhone");
     }
-    if (otpRequired && !isPhoneVerified && !manualConfirm) {
-      return language === "ar"
-        ? "يجب التحقق من رقم هاتفك عبر WhatsApp أو اختيار التأكيد بمكالمة هاتفية"
-        : language === "fr"
-          ? "Veuillez vérifier votre numéro ou choisir la confirmation par appel"
-          : "Please verify your phone or choose phone call confirmation";
-    }
     if (!commune.trim()) {
       return translate(language, "checkoutValidationCommune");
     }
@@ -350,29 +344,18 @@ export function CheckoutPage() {
     setPromoCode("");
   };
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const validationError = validate();
-    if (validationError) {
-      setErrorMessage(validationError);
-      pushToast(validationError, "error");
-      return;
-    }
+  const placeOrder = async (opts: { manualConfirmOverride?: boolean } = {}) => {
+    const effectiveManualConfirm = opts.manualConfirmOverride ?? manualConfirm;
 
     setSubmitting(true);
     setErrorMessage("");
 
-    // Generate a unique ID for this submission so the browser Pixel event and
-    // the server-side CAPI event can be deduplicated by Meta.
     const capiEventId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
-    // Read _fbp / _fbc cookies set by Meta Pixel (used by CAPI for better matching)
     const getCookie = (name: string) =>
       document.cookie.split("; ").find((row) => row.startsWith(`${name}=`))?.split("=")[1] ?? undefined;
     const fbp = getCookie("_fbp");
     const fbc = getCookie("_fbc");
 
-    // Lead fires when the customer submits the form (intent confirmed)
     pixelLead(capiEventId);
     trackEvent({ eventType: "order_submit" });
 
@@ -396,15 +379,13 @@ export function CheckoutPage() {
         affiliateRef: affiliateRef || undefined,
         capiEventId,
         phoneVerificationToken: phoneVerificationToken ?? undefined,
-        manualConfirm: manualConfirm || undefined,
+        manualConfirm: effectiveManualConfirm || undefined,
         zrTerritoryId: selectedZrTerritory?.id,
         fbp,
         fbc,
         clientUserAgent: navigator.userAgent,
       });
 
-      // Purchase fires only after the backend confirms the order was created.
-      // eventID matches the _purchase suffix in capi.ts to keep deduplication correct.
       pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });
       trackEvent({ eventType: "purchase", orderId: order._id });
 
@@ -422,7 +403,23 @@ export function CheckoutPage() {
     }
   };
 
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const validationError = validate();
+    if (validationError) {
+      setErrorMessage(validationError);
+      pushToast(validationError, "error");
+      return;
+    }
+    if (otpRequired && !isPhoneVerified && !manualConfirm) {
+      setShowVerifyModal(true);
+      return;
+    }
+    await placeOrder();
+  };
+
   return (
+    <>
     <div className="space-y-6 pb-24 lg:pb-0">
       <Seo title={translate(language, "checkoutTitle")} description={translate(language, "checkoutDescription")} path="/checkout" noindex />
 
@@ -1247,5 +1244,84 @@ export function CheckoutPage() {
         </div>
       ) : null}
     </div>
+
+    {/* Verification choice bottom-sheet modal */}
+    {showVerifyModal ? (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+        onClick={() => setShowVerifyModal(false)}
+      >
+        <div
+          className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-5 text-center">
+            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100">
+              <ShieldCheck className="h-6 w-6 text-slate-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {language === "ar" ? "كيف تريد تأكيد طلبك؟" : language === "fr" ? "Comment confirmer votre commande ?" : "How to confirm your order?"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {language === "ar" ? "اختر طريقة التأكيد المناسبة لك" : language === "fr" ? "Choisissez votre méthode de confirmation" : "Choose your preferred confirmation method"}
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                setManualConfirm(false);
+                setShowVerifyModal(false);
+              }}
+              className="flex w-full items-center gap-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-5 py-4 text-start transition hover:bg-emerald-100"
+            >
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="font-semibold text-emerald-800">
+                  {language === "ar" ? "تحقق عبر واتساب" : language === "fr" ? "Vérifier via WhatsApp" : "Verify via WhatsApp"}
+                </div>
+                <div className="mt-0.5 text-sm text-emerald-600">
+                  {language === "ar" ? "سنرسل لك رمزاً سريعاً" : language === "fr" ? "Code rapide envoyé sur WhatsApp" : "Quick code sent to your WhatsApp"}
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setManualConfirm(true);
+                setShowVerifyModal(false);
+                void placeOrder({ manualConfirmOverride: true });
+              }}
+              className="flex w-full items-center gap-4 rounded-2xl border-2 border-blue-200 bg-blue-50 px-5 py-4 text-start transition hover:bg-blue-100"
+            >
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
+                <PhoneCall className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="font-semibold text-blue-800">
+                  {language === "ar" ? "تأكيد بمكالمة هاتفية" : language === "fr" ? "Confirmer par appel" : "Confirm by phone call"}
+                </div>
+                <div className="mt-0.5 text-sm text-blue-600">
+                  {language === "ar" ? "سنتصل بك لتأكيد طلبك" : language === "fr" ? "Nous vous appellerons pour confirmer" : "We'll call you to confirm"}
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowVerifyModal(false)}
+            className="mt-4 w-full rounded-2xl py-3 text-sm font-medium text-slate-500 transition hover:text-slate-700"
+          >
+            {language === "ar" ? "إلغاء" : language === "fr" ? "Annuler" : "Cancel"}
+          </button>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }

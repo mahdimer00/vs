@@ -51,4 +51,11 @@ export const affiliateService = {
   getCouponRequests(token: string) {
     return apiRequest<CouponRequest[]>("/api/affiliate/coupon-requests", { token });
   },
+  updateProfile(token: string, payload: { name?: string; phone?: string; currentPassword?: string; newPassword?: string }) {
+    return apiRequest<Affiliate>("/api/affiliate/profile", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
 };
