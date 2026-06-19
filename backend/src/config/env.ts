@@ -24,6 +24,8 @@ const schema = z.object({
   // Meta Conversions API (server-side pixel)
   META_PIXEL_ID: z.string().optional(),
   FACEBOOK_ACCESS_TOKEN: z.string().optional(),
+  // TikTok Events API (server-side pixel)
+  TIKTOK_ACCESS_TOKEN: z.string().optional(),
   // Request signing — must match VITE_API_SECRET in frontend
   API_REQUEST_SECRET: z.string().optional(),
   // ZR Express shipping integration

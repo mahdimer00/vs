@@ -12,6 +12,7 @@ import { syncCommissionForOrder } from "../../utils/commission.js";
 import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCode } from "../../utils/order.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendCapiEvent } from "../../utils/capi.js";
+import { sendTikTokEvent } from "../../utils/tiktokEvents.js";
 import { env } from "../../config/env.js";
 import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook, setZRParcelState, ZR_SUPPLIER_STATES } from "../../utils/zrexpress.js";
 import { isWhatsAppConfigured, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
@@ -284,6 +285,25 @@ router.post(
       eventId: input.capiEventId ? `${input.capiEventId}_purchase` : undefined,
       ...capiBase,
     });
+
+    const ttqContents = order.items.map((item) => ({
+      content_id: String(item.productId),
+      content_type: "product" as const,
+      content_name: item.productName.en || item.productName.ar || item.productName.fr || "",
+      price: item.unitPrice,
+      quantity: item.quantity,
+    }));
+    const ttqBase = {
+      phone: input.customer.phone,
+      clientIp: req.ip,
+      clientUserAgent: input.clientUserAgent ?? String(req.headers["user-agent"] ?? ""),
+      sourceUrl: `${env.FRONTEND_URL}/checkout`,
+      value: order.total,
+      currency: "DZD",
+      contents: ttqContents,
+    };
+    void sendTikTokEvent({ event: "PlaceAnOrder", eventId: input.capiEventId, ...ttqBase });
+    void sendTikTokEvent({ event: "Purchase", eventId: input.capiEventId ? `${input.capiEventId}_ttq_purchase` : undefined, ...ttqBase });
 
     return res.status(201).json({
       ...populatedOrder,

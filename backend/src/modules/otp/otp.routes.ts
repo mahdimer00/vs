@@ -12,6 +12,7 @@ import {
   sendWhatsAppOtp,
   verifyOtpCode,
 } from "../../utils/otp.js";
+import { sendTikTokEvent } from "../../utils/tiktokEvents.js";
 
 const router = Router();
 
@@ -106,6 +107,15 @@ router.post(
 
     otp.usedAt = new Date();
     await otp.save();
+
+    void sendTikTokEvent({
+      event: "CompleteRegistration",
+      phone: input.phone,
+      clientIp: req.ip,
+      clientUserAgent: String(req.headers["user-agent"] ?? ""),
+      sourceUrl: `${process.env.FRONTEND_URL ?? ""}/checkout`,
+      value: 0,
+    });
 
     return res.json({ success: true, verificationToken: createVerificationToken(input.phone) });
   }),
