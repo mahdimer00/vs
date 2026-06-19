@@ -667,11 +667,23 @@ router.post(
       newStatus = "CANCELLED";
     } else if (stateName.includes("echec") || stateName.includes("failed") || stateName.includes("failure")) {
       newStatus = "FAILED";
-    } else if (stateName.includes("ready to ship") || stateName.includes("prêt") || stateName.includes("pret")) {
-      newStatus = "SHIPPED";
-    } else if (stateName.includes("transit") || stateName.includes("sort") || stateName.includes("en cours de livraison") || stateName.includes("out for delivery")) {
+    } else if (stateName.includes("delivered") || stateName.includes("livré") || stateName.includes("livr")) {
+      newStatus = "DELIVERED";
+    } else if (stateName.includes("collected") || stateName.includes("ramass") || stateName.includes("picked up") || stateName.includes("enlev")) {
+      newStatus = "PICKED_UP";
+    } else if (
+      stateName.includes("out for delivery") ||
+      stateName.includes("ready to ship") ||
+      stateName.includes("confirmed at office") ||
+      stateName.includes("dispatch") ||
+      stateName.includes("to region") ||
+      stateName.includes("prêt") || stateName.includes("pret") ||
+      stateName.includes("transit") || stateName.includes("sort") ||
+      stateName.includes("en cours de livraison")
+    ) {
       newStatus = "SHIPPED";
     } else if (
+      stateName.includes("order received") ||
       stateName.includes("order in process") ||
       stateName.includes("order confirmed") ||
       stateName.includes("confirmation call") ||

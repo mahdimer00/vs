@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, Clock, Package, Phone, Search, Truck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Phone, Search, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
@@ -17,13 +17,20 @@ interface ZREvent {
 }
 
 const ZR_STATE_AR: Record<string, string> = {
+  "order received": "تم استلام الطلب",
   "order in process": "الطلب قيد المعالجة",
   "confirmation call": "مكالمة تأكيد العميل",
   "order confirmed": "تم تأكيد الطلب",
   "ready to ship": "جاهز للشحن",
+  "confirmed at office": "مؤكد في المكتب",
+  "dispatch in the same wilaya": "إرسال داخل نفس الولاية",
+  "to region": "في الطريق إلى الولاية",
   "in transit": "في الطريق",
   "out for delivery": "في رحلة التسليم",
+  "out for delivery again": "محاولة تسليم ثانية",
   "delivered": "تم التسليم",
+  "collected": "تم الاستلام من المكتب",
+  "recovered": "مُرجَع",
   "picked up": "تم الاستلام",
   "returned": "مُرجَع",
   "failed delivery": "فشل التسليم",
@@ -165,7 +172,7 @@ export function TrackOrderPage() {
         </div>
       </div>
 
-      {/* ZR Express live tracking timeline */}
+      {/* ZR Express live tracking */}
       <div className="surface-card p-6">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-600">
@@ -173,10 +180,10 @@ export function TrackOrderPage() {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-slate-950">
-              {language === "ar" ? "تتبع الشحنة" : language === "fr" ? "Suivi de livraison" : "Delivery Tracking"}
+              {language === "ar" ? "تتبع الشحنة - ZR Express" : language === "fr" ? "Suivi ZR Express" : "ZR Express Tracking"}
             </h2>
             {zrTrackingNumber ? (
-              <div className="text-sm text-slate-500" dir="ltr">{zrTrackingNumber}</div>
+              <div className="mt-0.5 text-sm font-mono text-slate-500" dir="ltr">{zrTrackingNumber}</div>
             ) : null}
           </div>
         </div>
@@ -189,49 +196,91 @@ export function TrackOrderPage() {
         ) : zrTracking && zrTracking.length > 0 ? (() => {
           const sorted = [...zrTracking].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
           const latestState = sorted[0].state.toLowerCase();
-          const isDelivered = latestState.includes("livr") || latestState.includes("delivered") || latestState.includes("picked up");
-          const isFailed = latestState.includes("retour") || latestState.includes("echec") || latestState.includes("annul") || latestState.includes("cancel");
-          const oldestDate = sorted[sorted.length - 1].date ? new Date(sorted[sorted.length - 1].date) : null;
-          const estimatedDate = oldestDate ? new Date(oldestDate.getTime() + 5 * 24 * 60 * 60 * 1000) : null;
-          const estimatedStr = estimatedDate ? estimatedDate.toLocaleDateString(language === "ar" ? "ar-DZ" : language === "fr" ? "fr-DZ" : "en-GB", { weekday: "long", day: "numeric", month: "long" }) : null;
+          const isDelivered = latestState.includes("delivered") || latestState.includes("livr") || latestState.includes("collected") || latestState.includes("picked up");
+          const isFailed = latestState.includes("return") || latestState.includes("retour") || latestState.includes("echec") || latestState.includes("annul") || latestState.includes("cancel") || latestState.includes("recovered");
+
+          // ZR full pipeline steps
+          const ZR_STEPS = [
+            { key: "order received", ar: "استلام الطلب", fr: "Reçu" },
+            { key: "order in process", ar: "قيد المعالجة", fr: "En traitement" },
+            { key: "confirmation call", ar: "مكالمة التأكيد", fr: "Appel" },
+            { key: "order confirmed", ar: "مؤكد", fr: "Confirmé" },
+            { key: "ready to ship", ar: "جاهز للشحن", fr: "Prêt" },
+            { key: "confirmed at office", ar: "مؤكد بالمكتب", fr: "Au bureau" },
+            { key: "dispatch", ar: "مُرسَل", fr: "Expédié" },
+            { key: "to region", ar: "إلى الولاية", fr: "En région" },
+            { key: "out for delivery", ar: "في رحلة التسليم", fr: "En livraison" },
+            { key: "delivered", ar: "تم التسليم", fr: "Livré" },
+          ];
+
+          // Find which step is active
+          const completedKeys = sorted.map((e) => e.state.toLowerCase());
+          const activeStepIdx = ZR_STEPS.reduce((acc, step, idx) => {
+            const found = completedKeys.some((s) => s.includes(step.key.split(" ")[0]));
+            return found ? idx : acc;
+          }, -1);
 
           return (
             <>
-              {!isDelivered && !isFailed && estimatedStr ? (
-                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-                  <Clock className="h-4 w-4 shrink-0 text-blue-500" />
-                  <div className="text-sm text-blue-800">
-                    {language === "ar"
-                      ? `التسليم المتوقع: ${estimatedStr}`
-                      : language === "fr"
-                        ? `Livraison estimée : ${estimatedStr}`
-                        : `Estimated delivery: ${estimatedStr}`}
+              {/* Progress stepper */}
+              {!isFailed && (
+                <div className="mt-5 overflow-x-auto">
+                  <div className="flex min-w-[600px] items-start gap-0">
+                    {ZR_STEPS.map((step, idx) => {
+                      const done = idx <= activeStepIdx;
+                      const current = idx === activeStepIdx;
+                      const label = language === "ar" ? step.ar : language === "fr" ? step.fr : step.key.replace(/(^|\s)\w/g, (c) => c.toUpperCase());
+                      return (
+                        <div key={step.key} className="flex flex-1 flex-col items-center gap-1 text-center">
+                          <div className="relative flex w-full items-center">
+                            {idx > 0 && (
+                              <div className={`h-0.5 flex-1 ${done ? "bg-emerald-400" : "bg-slate-200"}`} />
+                            )}
+                            <div className={`z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-all ${
+                              isDelivered && done
+                                ? "border-emerald-500 bg-emerald-500 text-white"
+                                : current
+                                  ? "border-teal-500 bg-teal-500 text-white shadow-[0_0_0_4px_rgba(20,184,166,0.2)]"
+                                  : done
+                                    ? "border-emerald-400 bg-emerald-400 text-white"
+                                    : "border-slate-200 bg-white text-slate-400"
+                            }`}>
+                              {done ? "✓" : idx + 1}
+                            </div>
+                            {idx < ZR_STEPS.length - 1 && (
+                              <div className={`h-0.5 flex-1 ${idx < activeStepIdx ? "bg-emerald-400" : "bg-slate-200"}`} />
+                            )}
+                          </div>
+                          <div className={`mt-1 text-[10px] leading-tight font-medium ${current ? "text-teal-700" : done ? "text-emerald-700" : "text-slate-400"}`}>
+                            {label}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              ) : null}
-              <ol className="relative mt-6 border-s border-slate-200 ps-6 space-y-6">
+              )}
+
+              {/* Events log */}
+              <ol className="relative mt-6 border-s border-slate-200 ps-5 space-y-4">
                 {sorted.map((event, idx) => (
                   <li key={idx} className="relative">
-                    <span className="absolute -start-[1.1rem] flex h-[1.35rem] w-[1.35rem] items-center justify-center">
+                    <span className="absolute -start-[0.95rem] flex h-[1.2rem] w-[1.2rem] items-center justify-center">
                       {idx === 0 ? (
                         <CheckCircle2 className={`h-5 w-5 ${isDelivered ? "text-emerald-500" : isFailed ? "text-rose-400" : "text-teal-600"}`} />
                       ) : (
-                        <Package className="h-4 w-4 text-slate-400" />
+                        <span className="h-2 w-2 rounded-full bg-slate-300" />
                       )}
                     </span>
-                    <div className={`rounded-2xl border p-4 ${
+                    <div className={`ms-2 rounded-xl border px-4 py-3 ${
                       idx === 0
-                        ? isDelivered
-                          ? "border-emerald-200 bg-emerald-50/60"
-                          : isFailed
-                            ? "border-rose-200 bg-rose-50/60"
-                            : "border-teal-200 bg-teal-50/60"
-                        : "border-slate-100 bg-slate-50/60"
+                        ? isDelivered ? "border-emerald-200 bg-emerald-50" : isFailed ? "border-rose-200 bg-rose-50" : "border-teal-200 bg-teal-50"
+                        : "border-slate-100 bg-slate-50"
                     }`}>
-                      <div className={`font-semibold ${idx === 0 ? isDelivered ? "text-emerald-800" : isFailed ? "text-rose-700" : "text-teal-800" : "text-slate-700"}`}>
+                      <div className={`font-semibold text-sm ${idx === 0 ? isDelivered ? "text-emerald-800" : isFailed ? "text-rose-700" : "text-teal-800" : "text-slate-700"}`}>
                         {language === "ar" ? getZRStateAr(event.state, event.stateAr) : event.state}
                       </div>
-                      <div className="mt-1 text-xs text-slate-400">
+                      <div className="mt-0.5 text-xs text-slate-400">
                         {event.date ? formatDate(event.date, language) : ""}
                       </div>
                     </div>

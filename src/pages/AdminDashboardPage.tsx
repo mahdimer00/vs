@@ -72,13 +72,20 @@ import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate, type TranslationKey } from "@/utils/i18n";
 
 const ZR_STATE_AR: Record<string, string> = {
+  "order received": "تم استلام الطلب",
   "order in process": "الطلب قيد المعالجة",
   "confirmation call": "مكالمة تأكيد العميل",
   "order confirmed": "تم تأكيد الطلب",
   "ready to ship": "جاهز للشحن",
+  "confirmed at office": "مؤكد في المكتب",
+  "dispatch in the same wilaya": "إرسال داخل نفس الولاية",
+  "to region": "في الطريق إلى الولاية",
   "in transit": "في الطريق",
   "out for delivery": "في رحلة التسليم",
+  "out for delivery again": "محاولة تسليم ثانية",
   "delivered": "تم التسليم",
+  "collected": "تم الاستلام من المكتب",
+  "recovered": "مُرجَع",
   "picked up": "تم الاستلام",
   "returned": "مُرجَع",
   "failed delivery": "فشل التسليم",
