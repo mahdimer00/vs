@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { authMiddleware, type AuthedRequest } from "../../middleware/auth.middleware.js";
 import { roleMiddleware } from "../../middleware/role.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -156,6 +157,32 @@ router.post("/affiliate/coupon-requests", authMiddleware, roleMiddleware(["AFFIL
 
 router.get("/affiliate/coupon-requests", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {
   return res.json(await CouponRequestModel.find({ affiliate: req.user?.sub }).populate("promoCode").sort({ createdAt: -1 }).lean());
+}));
+
+router.patch("/affiliate/profile", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {
+  const input = z.object({
+    name: z.string().min(2).optional(),
+    phone: z.string().regex(/^(05|06|07)\d{8}$/).optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().min(8).optional(),
+  }).parse(req.body);
+
+  const affiliate = await AffiliateModel.findById(req.user?.sub);
+  if (!affiliate) return res.status(404).json({ message: "Affiliate not found" });
+
+  if (input.name) affiliate.name = input.name;
+  if (input.phone) affiliate.phone = input.phone;
+
+  if (input.newPassword) {
+    if (!input.currentPassword) return res.status(400).json({ message: "كلمة المرور الحالية مطلوبة" });
+    const valid = await bcrypt.compare(input.currentPassword, affiliate.passwordHash);
+    if (!valid) return res.status(400).json({ message: "كلمة المرور الحالية غير صحيحة" });
+    affiliate.passwordHash = await bcrypt.hash(input.newPassword, 10);
+  }
+
+  await affiliate.save();
+  const { passwordHash: _ph, ...safe } = affiliate.toObject();
+  return res.json(safe);
 }));
 
 export default router;

@@ -472,8 +472,8 @@ router.patch(
       void cancelZRParcel(existing.zrParcelId);
     }
 
-    // Auto-create ZR Express parcel when moving to CONFIRMED or PROCESSING
-    if ((input.status === "CONFIRMED" || input.status === "PROCESSING") && !existing.zrParcelId && isZRConfigured()) {
+    // Auto-create ZR Express parcel when moving to CONFIRMED, PROCESSING, or SHIPPED
+    if ((input.status === "CONFIRMED" || input.status === "PROCESSING" || input.status === "SHIPPED") && !existing.zrParcelId && isZRConfigured()) {
       try {
         const populated = await OrderModel.findById(req.params.id).populate("customer.wilaya").lean();
         if (populated?.customer) {
