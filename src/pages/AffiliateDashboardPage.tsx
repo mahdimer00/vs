@@ -759,20 +759,50 @@ export function AffiliateDashboardPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: translate(language, "affiliateClicks"), value: String(dashboard?.clicksCount ?? 0), icon: MousePointerClick },
-                { label: translate(language, "affiliateOrders"), value: String(dashboard?.ordersCount ?? 0), icon: ShoppingBag },
-                { label: translate(language, "affiliateApproved"), value: formatCurrency(dashboard?.affiliate.balanceApproved ?? 0, language), icon: Banknote },
-                { label: translate(language, "affiliatePending"), value: formatCurrency(dashboard?.affiliate.balancePending ?? 0, language), icon: Clock },
-              ].map(({ label, value, icon: Icon }) => (
-                <div key={label} className="stat-card">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </div>
-                  <div className="mt-3 text-3xl font-semibold text-slate-950">{value}</div>
+              <div className="stat-card">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <MousePointerClick className="h-4 w-4" />
+                  {translate(language, "affiliateClicks")}
                 </div>
-              ))}
+                <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.clicksCount ?? 0}</div>
+              </div>
+              <div className="stat-card">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <ShoppingBag className="h-4 w-4" />
+                  {translate(language, "affiliateOrders")}
+                </div>
+                <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.ordersCount ?? 0}</div>
+              </div>
+              {/* DZD approved balance card */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg">
+                <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10" />
+                <div className="absolute -bottom-6 -left-4 h-24 w-24 rounded-full bg-white/5" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 text-sm text-emerald-100">
+                    <Banknote className="h-4 w-4" />
+                    {translate(language, "affiliateApproved")}
+                  </div>
+                  <div className="mt-3 text-3xl font-bold tracking-tight">
+                    {(dashboard?.affiliate.balanceApproved ?? 0).toLocaleString("ar-DZ")}
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-200">دج</div>
+                </div>
+              </div>
+              {/* DZD pending balance card */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 p-5 text-white shadow-lg">
+                <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10" />
+                <div className="absolute -bottom-6 -left-4 h-24 w-24 rounded-full bg-white/5" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 text-sm text-amber-100">
+                    <Clock className="h-4 w-4" />
+                    {translate(language, "affiliatePending")}
+                  </div>
+                  <div className="mt-3 text-3xl font-bold tracking-tight">
+                    {(dashboard?.affiliate.balancePending ?? 0).toLocaleString("ar-DZ")}
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-amber-200">دج</div>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
