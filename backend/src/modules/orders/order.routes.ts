@@ -13,7 +13,7 @@ import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCod
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendCapiEvent } from "../../utils/capi.js";
 import { env } from "../../config/env.js";
-import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook } from "../../utils/zrexpress.js";
+import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook, setZRParcelState, ZR_SUPPLIER_STATES } from "../../utils/zrexpress.js";
 import { isWhatsAppConfigured, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
 
 const router = Router();
@@ -620,6 +620,37 @@ router.post(
     }
 
     return res.json({ zrState: parcel.state?.name ?? "", orderStatus: order.status });
+  }),
+);
+
+// Admin: get available ZR states that supplier can set
+router.get(
+  "/admin/zr/states",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (_req, res) => {
+    return res.json(ZR_SUPPLIER_STATES);
+  }),
+);
+
+// Admin: change ZR parcel state directly from the site
+router.post(
+  "/admin/orders/:id/zr-set-state",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const { stateId } = z.object({ stateId: z.string().uuid() }).parse(req.body);
+    const validIds = ZR_SUPPLIER_STATES.map((s) => s.id);
+    if (!validIds.includes(stateId as typeof validIds[number])) {
+      return res.status(400).json({ message: "Invalid ZR state ID" });
+    }
+    const order = await OrderModel.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order.zrParcelId) return res.status(400).json({ message: "No ZR parcel for this order" });
+
+    const result = await setZRParcelState(order.zrParcelId, stateId);
+    const stateLabel = ZR_SUPPLIER_STATES.find((s) => s.id === stateId)?.label ?? result.newStateName;
+    return res.json({ ok: true, newStateName: result.newStateName, stateLabel });
   }),
 );
 

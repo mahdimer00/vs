@@ -310,6 +310,7 @@ export function AdminDashboardPage() {
   const [zrHistoryLoading, setZrHistoryLoading] = useState<string | null>(null);
   const [zrSyncingId, setZrSyncingId] = useState<string | null>(null);
   const [telegramLabelId, setTelegramLabelId] = useState<string | null>(null);
+  const [zrStateChangingId, setZrStateChangingId] = useState<string | null>(null);
   const [printLabelId, setPrintLabelId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkLabelPrinting, setBulkLabelPrinting] = useState(false);
@@ -1841,6 +1842,19 @@ export function AdminDashboardPage() {
     }
   };
 
+  const setZRStateAction = async (orderId: string, stateId: string, stateLabel: string) => {
+    setZrStateChangingId(orderId);
+    try {
+      await adminService.setZRParcelState(token, orderId, stateId);
+      pushToast(language === "ar" ? `تم تغيير حالة ZR إلى: ${stateLabel}` : `ZR state changed to: ${stateLabel}`, "success");
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setZrStateChangingId(null);
+    }
+  };
+
   const loadZRHistory = async (orderId: string) => {
     if (zrHistory[orderId]) {
       setZrHistory((prev) => { const next = { ...prev }; delete next[orderId]; return next; });
@@ -2569,6 +2583,31 @@ export function AdminDashboardPage() {
                                     <svg className={`h-3.5 w-3.5 ${zrSyncingId === order._id ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
                                     {language === "ar" ? "تحديث الحالة" : language === "fr" ? "Actualiser" : "Sync Status"}
                                   </button>
+
+                                  {/* Change ZR state directly */}
+                                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                    <select
+                                      disabled={zrStateChangingId === order._id}
+                                      defaultValue=""
+                                      onChange={(e) => {
+                                        const stateId = e.target.value;
+                                        if (!stateId) return;
+                                        const labels: Record<string, string> = {
+                                          "8a948c66-1ab7-4433-aeb0-94219125d134": "جاهز للشحن",
+                                        };
+                                        void setZRStateAction(order._id, stateId, labels[stateId] ?? stateId);
+                                        e.target.value = "";
+                                      }}
+                                      className="h-7 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 text-[11px] text-slate-700 shadow-sm hover:border-blue-300 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 disabled:opacity-50"
+                                    >
+                                      <option value="" disabled>
+                                        {zrStateChangingId === order._id
+                                          ? (language === "ar" ? "جارٍ التغيير..." : "Changing...")
+                                          : (language === "ar" ? "تغيير حالة ZR" : "Set ZR State")}
+                                      </option>
+                                      <option value="8a948c66-1ab7-4433-aeb0-94219125d134">جاهز للشحن (Prêt à expédier)</option>
+                                    </select>
+                                  </div>
 
                                   {/* Toggle history */}
                                   <button

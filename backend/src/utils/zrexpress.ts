@@ -462,6 +462,25 @@ export async function generateZRBulkLabelPdf(trackingNumbers: string[]): Promise
   return Buffer.concat(buffers);
 }
 
+// Known ZR state UUIDs that suppliers can set
+export const ZR_SUPPLIER_STATES = [
+  { id: "8a948c66-1ab7-4433-aeb0-94219125d134", name: "pret_a_expedier", label: "جاهز للشحن", labelFr: "Prêt à expédier" },
+] as const;
+
+export async function setZRParcelState(parcelId: string, newStateId: string): Promise<{ newStateName: string; trackingNumber: string }> {
+  if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
+  const res = await fetch(`${ZR_BASE}/parcels/${parcelId}/state`, {
+    method: "PATCH",
+    headers: zrHeaders(),
+    body: JSON.stringify({ parcelId, newStateId }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`ZR state change failed ${res.status}: ${err}`);
+  }
+  return (await res.json()) as { newStateName: string; trackingNumber: string };
+}
+
 export function resetTerritoriesCache(): void {
   territoriesMap = null;
   ratesCache = null;

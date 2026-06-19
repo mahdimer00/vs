@@ -48,6 +48,12 @@ export const adminService = {
   syncZRParcelStatus(token: string, orderId: string) {
     return apiRequest<{ zrState: string; orderStatus: string }>(`/api/admin/orders/${orderId}/zr-sync`, { method: "POST", token });
   },
+  setZRParcelState(token: string, orderId: string, stateId: string) {
+    return apiRequest<{ ok: boolean; stateLabel: string }>(`/api/admin/orders/${orderId}/zr-set-state`, { method: "POST", token, body: JSON.stringify({ stateId }) });
+  },
+  getZRStates(token: string) {
+    return apiRequest<Array<{ id: string; name: string; label: string; labelFr: string }>>("/api/admin/zr/states", { token });
+  },
   printBulkZRLabels(token: string, orderIds: string[]) {
     return apiRequest<Blob>("/api/admin/zr/bulk-labels", { method: "POST", token, body: JSON.stringify({ orderIds }) });
   },
