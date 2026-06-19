@@ -1790,6 +1790,83 @@ export function AdminDashboardPage() {
     }
   };
 
+  const printReceiptAction = (order: Order) => {
+    const wilayaLabel = typeof order.customer.wilaya === "string"
+      ? order.customer.wilaya
+      : order.customer.wilaya.name.ar || order.customer.wilaya.name.fr || order.customer.wilaya.name.en;
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>وصل طلب ${order.orderNumber}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; background: #fff; padding: 32px; font-size: 14px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 16px; margin-bottom: 20px; }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .meta { text-align: left; font-size: 12px; color: #555; }
+  .meta .num { font-size: 18px; font-weight: 700; color: #111; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .info-box { background: #f8f8f8; border-radius: 8px; padding: 12px 16px; }
+  .info-box p { margin-bottom: 4px; font-size: 13px; }
+  .info-box strong { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  th { text-align: right; padding: 8px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; border-bottom: 1px solid #e5e5e5; }
+  td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .totals { margin-left: auto; width: 240px; }
+  .totals tr td:first-child { color: #666; }
+  .totals tr td:last-child { font-weight: 600; text-align: left; }
+  .totals .grand td { font-size: 16px; font-weight: 800; border-top: 2px solid #111; padding-top: 10px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #f0fdf4; color: #166534; }
+  .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 11px; color: #aaa; text-align: center; }
+  @media print { body { padding: 16px; } }
+</style></head><body>
+<div class="header">
+  <div class="logo">VisaDZ</div>
+  <div class="meta">
+    <div class="num">${order.orderNumber}</div>
+    <div>${new Date(order.createdAt).toLocaleDateString("fr-DZ", { day: "2-digit", month: "long", year: "numeric" })}</div>
+    ${order.zrTrackingNumber ? `<div style="margin-top:4px;font-weight:600">ZR: ${order.zrTrackingNumber}</div>` : ""}
+  </div>
+</div>
+<div class="grid2">
+  <div class="info-box">
+    <div class="section-title">بيانات الزبون</div>
+    <p><strong>${order.customer.fullName}</strong></p>
+    <p>${order.customer.phone}${order.customer.phone2 ? ` / ${order.customer.phone2}` : ""}</p>
+    <p>${wilayaLabel}${order.customer.commune ? ` — ${order.customer.commune}` : ""}</p>
+    ${order.customer.address ? `<p>${order.customer.address}</p>` : ""}
+  </div>
+  <div class="info-box">
+    <div class="section-title">بيانات التسليم</div>
+    <p><strong>${order.deliveryType === "HOME_DELIVERY" ? "توصيل للمنزل" : "استلام من المكتب"}</strong></p>
+    <p>طريقة الدفع: <strong>COD — الدفع عند التسليم</strong></p>
+    <p>الحالة: <span class="badge">${order.status}</span></p>
+  </div>
+</div>
+<div class="section-title">المنتجات</div>
+<table>
+  <thead><tr><th>المنتج</th><th>المتغير</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr></thead>
+  <tbody>
+    ${order.items.map((item) => `<tr>
+      <td>${typeof item.productName === "object" ? (item.productName.ar || item.productName.fr || item.productName.en) : item.productName}</td>
+      <td style="color:#888">${item.variantLabel ?? "—"}</td>
+      <td style="text-align:center">${item.quantity}</td>
+      <td>${item.unitPrice.toLocaleString("fr-DZ")} دج</td>
+      <td style="font-weight:600">${item.lineTotal.toLocaleString("fr-DZ")} دج</td>
+    </tr>`).join("")}
+  </tbody>
+</table>
+<table class="totals">
+  <tr><td>المبلغ الفرعي</td><td>${order.subtotal.toLocaleString("fr-DZ")} دج</td></tr>
+  ${order.discount > 0 ? `<tr><td>الخصم</td><td>- ${order.discount.toLocaleString("fr-DZ")} دج</td></tr>` : ""}
+  <tr><td>رسوم التوصيل</td><td>${order.shippingFee.toLocaleString("fr-DZ")} دج</td></tr>
+  <tr class="grand"><td>الإجمالي</td><td>${order.total.toLocaleString("fr-DZ")} دج</td></tr>
+</table>
+<div class="footer">VisaDZ · visadz.store · شكراً لتسوقك معنا</div>
+<script>window.onload = () => { window.print(); }</script>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
   const printLabelAction = async (orderId: string, trackingNumber: string) => {
     setPrintLabelId(orderId);
     try {
@@ -2233,6 +2310,15 @@ export function AdminDashboardPage() {
                               </div>
                             ) : null}
 
+                            {/* Phone2 backup number */}
+                            {order.customer.phone2 ? (
+                              <div className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
+                                <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <a href={`tel:${order.customer.phone2}`} className="font-medium text-teal-600 hover:underline" dir="ltr" onClick={(e) => e.stopPropagation()}>{order.customer.phone2}</a>
+                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-400">{language === "ar" ? "رقم بديل" : language === "fr" ? "N° alternatif" : "Backup"}</span>
+                              </div>
+                            ) : null}
+
                             {/* Address + delivery type */}
                             {order.customer.address ? (
                               <div className="mb-3 flex items-center gap-1.5 text-xs text-slate-500">
@@ -2272,6 +2358,15 @@ export function AdminDashboardPage() {
                                   </button>
                                 );
                               })}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); printReceiptAction(order); }}
+                                className="ghost-button gap-1.5 px-4 py-2 text-sm"
+                                title={language === "ar" ? "طباعة الوصل" : language === "fr" ? "Imprimer le reçu" : "Print Receipt"}
+                              >
+                                <Printer className="h-4 w-4" />
+                                {language === "ar" ? "وصل" : language === "fr" ? "Reçu" : "Receipt"}
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); confirmDeleteOrder(order._id, order.orderNumber); }}

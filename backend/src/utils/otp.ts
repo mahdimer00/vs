@@ -126,3 +126,52 @@ export async function sendWhatsAppOtp(phone: string, code: string): Promise<void
 export function isWhatsAppConfigured(): boolean {
   return Boolean(env.BAILEYS_API_URL);
 }
+
+// Arabic status labels for WhatsApp notifications
+const ZR_STATUS_AR: Record<string, string> = {
+  SHIPPED:    "شحنتك في الطريق 🚚",
+  DELIVERED:  "تم تسليم طلبك بنجاح ✅",
+  PICKED_UP:  "تم استلام طلبك ✅",
+  RETURNED:   "تم إرجاع الشحنة 🔄",
+  CANCELLED:  "تم إلغاء الشحنة ❌",
+  FAILED:     "فشلت محاولة التسليم ⚠️",
+  PROCESSING: "جارٍ تجهيز شحنتك 📦",
+};
+
+export async function sendWhatsAppStatusUpdate(
+  phone: string,
+  orderNumber: string,
+  trackingNumber: string,
+  status: string,
+): Promise<void> {
+  if (!isWhatsAppConfigured()) return;
+  const statusLine = ZR_STATUS_AR[status] ?? `حالة جديدة: ${status}`;
+  const message = [
+    `*VisaDZ* — تحديث طلبك`,
+    ``,
+    `📦 رقم الطلب: *${orderNumber}*`,
+    `🔍 رقم التتبع: *${trackingNumber}*`,
+    ``,
+    statusLine,
+    ``,
+    `تابع شحنتك على: https://visadz.store/track-order`,
+  ].join("\n");
+
+  const normalized = phone.startsWith("0") ? `213${phone.slice(1)}` : phone;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (env.BAILEYS_API_KEY) headers["X-Api-Key"] = env.BAILEYS_API_KEY;
+
+  for (const baseUrl of getBaileysBaseUrls()) {
+    try {
+      const res = await fetch(`${baseUrl}/send`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone: normalized, message }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) return;
+    } catch {
+      // best-effort — don't block order update on WhatsApp failure
+    }
+  }
+}

@@ -160,29 +160,61 @@ export function TrackOrderPage() {
             <Clock className="h-4 w-4 animate-spin" />
             {language === "ar" ? "جاري التحميل..." : language === "fr" ? "Chargement..." : "Loading..."}
           </div>
-        ) : zrTracking && zrTracking.length > 0 ? (
-          <ol className="relative mt-6 border-s border-slate-200 ps-6 space-y-6">
-            {zrTracking.map((event, idx) => (
-              <li key={idx} className="relative">
-                <span className="absolute -start-[1.1rem] flex h-[1.35rem] w-[1.35rem] items-center justify-center">
-                  {idx === 0 ? (
-                    <CheckCircle2 className="h-5 w-5 text-teal-600" />
-                  ) : (
-                    <Package className="h-4 w-4 text-slate-400" />
-                  )}
-                </span>
-                <div className={`rounded-2xl border p-4 ${idx === 0 ? "border-teal-200 bg-teal-50/60" : "border-slate-100 bg-slate-50/60"}`}>
-                  <div className={`font-semibold ${idx === 0 ? "text-teal-800" : "text-slate-700"}`}>
-                    {language === "ar" ? event.stateAr || event.state : event.state}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    {event.date ? formatDate(event.date, language) : ""}
+        ) : zrTracking && zrTracking.length > 0 ? (() => {
+          const sorted = [...zrTracking].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const latestState = sorted[0].state.toLowerCase();
+          const isDelivered = latestState.includes("livr") || latestState.includes("delivered") || latestState.includes("picked up");
+          const isFailed = latestState.includes("retour") || latestState.includes("echec") || latestState.includes("annul") || latestState.includes("cancel");
+          const oldestDate = sorted[sorted.length - 1].date ? new Date(sorted[sorted.length - 1].date) : null;
+          const estimatedDate = oldestDate ? new Date(oldestDate.getTime() + 5 * 24 * 60 * 60 * 1000) : null;
+          const estimatedStr = estimatedDate ? estimatedDate.toLocaleDateString(language === "ar" ? "ar-DZ" : language === "fr" ? "fr-DZ" : "en-GB", { weekday: "long", day: "numeric", month: "long" }) : null;
+
+          return (
+            <>
+              {!isDelivered && !isFailed && estimatedStr ? (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                  <Clock className="h-4 w-4 shrink-0 text-blue-500" />
+                  <div className="text-sm text-blue-800">
+                    {language === "ar"
+                      ? `التسليم المتوقع: ${estimatedStr}`
+                      : language === "fr"
+                        ? `Livraison estimée : ${estimatedStr}`
+                        : `Estimated delivery: ${estimatedStr}`}
                   </div>
                 </div>
-              </li>
-            ))}
-          </ol>
-        ) : zrTracking !== null ? (
+              ) : null}
+              <ol className="relative mt-6 border-s border-slate-200 ps-6 space-y-6">
+                {sorted.map((event, idx) => (
+                  <li key={idx} className="relative">
+                    <span className="absolute -start-[1.1rem] flex h-[1.35rem] w-[1.35rem] items-center justify-center">
+                      {idx === 0 ? (
+                        <CheckCircle2 className={`h-5 w-5 ${isDelivered ? "text-emerald-500" : isFailed ? "text-rose-400" : "text-teal-600"}`} />
+                      ) : (
+                        <Package className="h-4 w-4 text-slate-400" />
+                      )}
+                    </span>
+                    <div className={`rounded-2xl border p-4 ${
+                      idx === 0
+                        ? isDelivered
+                          ? "border-emerald-200 bg-emerald-50/60"
+                          : isFailed
+                            ? "border-rose-200 bg-rose-50/60"
+                            : "border-teal-200 bg-teal-50/60"
+                        : "border-slate-100 bg-slate-50/60"
+                    }`}>
+                      <div className={`font-semibold ${idx === 0 ? isDelivered ? "text-emerald-800" : isFailed ? "text-rose-700" : "text-teal-800" : "text-slate-700"}`}>
+                        {language === "ar" ? event.stateAr || event.state : event.state}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {event.date ? formatDate(event.date, language) : ""}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </>
+          );
+        })() : zrTracking !== null ? (
           <div className="mt-6 text-sm text-slate-400">
             {language === "ar" ? "لا توجد تحديثات للشحنة بعد" : language === "fr" ? "Aucune mise à jour de livraison pour l'instant" : "No delivery updates yet"}
           </div>

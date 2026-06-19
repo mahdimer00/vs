@@ -14,7 +14,7 @@ import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendCapiEvent } from "../../utils/capi.js";
 import { env } from "../../config/env.js";
 import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook } from "../../utils/zrexpress.js";
-import { isWhatsAppConfigured, verifyVerificationToken } from "../../utils/otp.js";
+import { isWhatsAppConfigured, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
 
 const router = Router();
 
@@ -680,6 +680,11 @@ router.post(
       order.stockReserved = willBeReserved;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
+
+      // Notify customer via WhatsApp (best-effort)
+      if (order.customer?.phone) {
+        void sendWhatsAppStatusUpdate(order.customer.phone, order.orderNumber, trackingNumber, newStatus);
+      }
     }
 
     return res.json({ ok: true });
