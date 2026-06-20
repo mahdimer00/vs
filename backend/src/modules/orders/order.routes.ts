@@ -16,6 +16,7 @@ import { sendTikTokEvent } from "../../utils/tiktokEvents.js";
 import { env } from "../../config/env.js";
 import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook, setZRParcelState, ZR_SUPPLIER_STATES } from "../../utils/zrexpress.js";
 import { isWhatsAppConfigured, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
+import { emitOrderUpdate } from "../../utils/sse.js";
 
 const router = Router();
 
@@ -527,6 +528,7 @@ router.patch(
     }
 
     await syncCommissionForOrder(String(order._id), "admin");
+    emitOrderUpdate(String(order._id), input.status);
     return res.json(order);
   }),
 );
@@ -637,6 +639,8 @@ router.post(
       order.stockReserved = willBeReserved;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
+      // Push real-time update to connected admin dashboard clients
+      emitOrderUpdate(String(order._id), newStatus);
 
       // Auto-restock on RETURNED (zr-sync)
       if (newStatus === "RETURNED") {

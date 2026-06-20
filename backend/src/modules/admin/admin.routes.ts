@@ -13,6 +13,7 @@ import { hashPassword } from "../../utils/auth.js";
 import { ADMIN_PERMISSIONS } from "../../constants/permissions.js";
 import { AppError } from "../../utils/app-error.js";
 import { validateObjectId } from "../../middleware/objectId.middleware.js";
+import { addSseClient } from "../../utils/sse.js";
 
 const router = Router();
 
@@ -277,5 +278,32 @@ router.patch("/admin/coupon-requests/:id", authMiddleware, permissionMiddleware(
 
   return res.json(await CouponRequestModel.findById(couponRequest._id).populate("affiliate", "-passwordHash").populate("promoCode").lean());
 }));
+
+// Server-Sent Events stream — admin dashboard listens for real-time order updates
+// Token passed as query param because EventSource cannot set custom headers
+router.get(
+  "/admin/events",
+  (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
+    // Accept token from query param for SSE (EventSource can't set headers)
+    if (req.query.token && !req.headers.authorization) {
+      req.headers.authorization = `Bearer ${String(req.query.token)}`;
+    }
+    next();
+  },
+  authMiddleware,
+  permissionMiddleware("orders"),
+  (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering
+    res.flushHeaders();
+    res.write(": connected\n\n");
+    addSseClient(res);
+    // Heartbeat every 25s to keep connection alive through proxies
+    const hb = setInterval(() => { try { res.write(": ping\n\n"); } catch { clearInterval(hb); } }, 25_000);
+    req.on("close", () => clearInterval(hb));
+  },
+);
 
 export default router;

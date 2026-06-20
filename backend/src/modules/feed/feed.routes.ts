@@ -69,7 +69,8 @@ router.get(
       const imageUrl = escapeXml(resolveImageUrl(image));
 
       // One item per product (Google also supports item_group_id for variants)
-      const title = escapeXml(product.name.fr || product.name.ar || product.name.en || "");
+      const rawTitle = (product.name.fr || product.name.ar || product.name.en || "").trim();
+      const title = escapeXml(rawTitle.length > 150 ? rawTitle.slice(0, 147) + "..." : rawTitle);
       const description = escapeXml(
         (product.description.fr || product.description.ar || product.description.en || "")
           .replace(/\s+/g, " ")

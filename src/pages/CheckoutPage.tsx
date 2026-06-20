@@ -478,7 +478,7 @@ export function CheckoutPage() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <form id="checkout-form" onSubmit={submit} className="surface-card order-2 space-y-6 p-6 lg:order-1">
+        <form id="checkout-form" onSubmit={submit} className="surface-card order-2 space-y-6 p-4 sm:p-6 lg:order-1">
           <section>
             <div className="mb-4 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-white">1</div>
@@ -487,7 +487,7 @@ export function CheckoutPage() {
                 <p className="text-sm text-slate-500">{translate(language, "checkoutSecureNote")}</p>
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <IconField icon={UserRound}>
                   <input
@@ -495,7 +495,7 @@ export function CheckoutPage() {
                     value={firstName}
                     onChange={(event) => setFirstName(event.target.value)}
                     className="field-input field-input-icon"
-                    placeholder={language === "ar" ? "الاسم" : language === "fr" ? "Prenom" : "First name"}
+                    placeholder={language === "ar" ? "الاسم" : language === "fr" ? "Prénom" : "First name"}
                   />
                 </IconField>
               </div>
@@ -532,11 +532,11 @@ export function CheckoutPage() {
                     value={phone2}
                     onChange={(event) => setPhone2(event.target.value.replace(/\D/g, "").slice(0, 10))}
                     className="field-input field-input-icon"
-                    placeholder={language === "ar" ? "رقم بديل (اختياري)" : language === "fr" ? "Numéro alternatif (optionnel)" : "Alternate phone (optional)"}
+                    placeholder={language === "ar" ? "رقم بديل (اختياري)" : language === "fr" ? "N° alternatif (optionnel)" : "Alt. phone (optional)"}
                   />
                 </IconField>
                 <p className="ps-1 text-xs text-slate-400">
-                  {language === "ar" ? "رقم ثاني للتواصل إذا كان الأول مغلقاً (اختياري)" : language === "fr" ? "Numéro alternatif si le premier est injoignable (optionnel)" : "Backup number if primary is unreachable (optional)"}
+                  {language === "ar" ? "رقم ثاني للتواصل (اختياري)" : language === "fr" ? "Numéro alternatif (optionnel)" : "Backup number (optional)"}
                 </p>
               </div>
             </div>

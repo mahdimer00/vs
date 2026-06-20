@@ -43,7 +43,7 @@ import { Seo } from "@/components/Seo";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
-import { ApiError } from "@/services/apiClient";
+import { ApiError, sseUrl } from "@/services/apiClient";
 import { adminService } from "@/services/admin.service";
 import { orderService } from "@/services/order.service";
 import { productService } from "@/services/product.service";
@@ -494,6 +494,23 @@ export function AdminDashboardPage() {
     }
   }, [token]);
 
+  // Real-time order status updates via Server-Sent Events
+  useEffect(() => {
+    if (!token) return;
+    const es = new EventSource(sseUrl("/api/admin/events", token));
+    es.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as { type: string; orderId: string; status: string };
+        if (payload.type === "order:status") {
+          setOrders((prev) =>
+            prev.map((o) => (o._id === payload.orderId ? { ...o, status: payload.status as import("@/types").OrderStatus } : o)),
+          );
+        }
+      } catch { /* ignore malformed events */ }
+    };
+    return () => es.close();
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Load analytics data when navigating to analytics tab
   useEffect(() => {
     if (token && tab === "analytics") {
@@ -509,6 +526,7 @@ export function AdminDashboardPage() {
         .catch(() => setZrStatus({ configured: false, webhookUrl: "", webhooks: [] }));
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // Load customers when navigating to customers tab
   useEffect(() => {

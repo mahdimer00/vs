@@ -116,3 +116,10 @@ export async function apiUpload<T>(path: string, file: File, token: string): Pro
 export function tokenFromSession(session: AuthSession | null): string | undefined {
   return session?.token;
 }
+
+export function sseUrl(path: string, token: string): string {
+  const base = API_BASE_URL.startsWith("http")
+    ? `${API_BASE_URL}${path}`
+    : `${window.location.origin}${API_BASE_URL}${path}`;
+  return `${base}?token=${encodeURIComponent(token)}`;
+}
