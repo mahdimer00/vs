@@ -133,6 +133,13 @@ export function CheckoutPage() {
     zrShippingService.getTerritories().then(setZrTerritories).catch(() => setZrTerritories([]));
   }, []);
 
+  // Identify user with TikTok as soon as phone is valid
+  useEffect(() => {
+    if (phonePattern.test(phone.trim())) {
+      void ttqIdentify(phone.trim());
+    }
+  }, [phone]);
+
   // Reset OTP if phone changes
   useEffect(() => {
     if (verifiedPhone && phone !== verifiedPhone) {

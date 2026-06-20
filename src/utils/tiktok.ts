@@ -140,3 +140,7 @@ export function ttqPurchase(contents: TtqContents, value: number, eventId?: stri
 export function ttqCompleteRegistration(): void {
   ttq()?.track("CompleteRegistration", { value: 0, currency: "DZD", event_id: genEventId() });
 }
+
+export function ttqPage(): void {
+  ttq()?.page();
+}
