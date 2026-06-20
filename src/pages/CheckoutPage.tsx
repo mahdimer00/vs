@@ -379,7 +379,7 @@ export function CheckoutPage() {
     pixelLead(capiEventId);
     const _placeContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
     void ttqIdentify(phone);
-    ttqPlaceAnOrder(_placeContents, total);
+    ttqPlaceAnOrder(_placeContents, total, capiEventId);
     trackEvent({ eventType: "order_submit" });
 
     try {
@@ -410,7 +410,7 @@ export function CheckoutPage() {
       });
 
       pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });
-      ttqPurchase(_placeContents, total);
+      ttqPurchase(_placeContents, total, `${capiEventId}_ttq_purchase`);
       trackEvent({ eventType: "purchase", orderId: order._id });
 
       window.localStorage.removeItem(checkoutDraftKey);

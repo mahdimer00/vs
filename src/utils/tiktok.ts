@@ -82,6 +82,10 @@ function ttq() {
   return window.ttq;
 }
 
+function genEventId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export async function ttqIdentify(phone?: string): Promise<void> {
   const t = ttq();
   if (!t || !phone) return;
@@ -93,52 +97,46 @@ export async function ttqIdentify(phone?: string): Promise<void> {
 export function ttqViewContent(productId: string, productName: string, value: number): void {
   ttq()?.track("ViewContent", {
     contents: [{ content_id: productId, content_type: "product", content_name: productName }],
-    value,
-    currency: "DZD",
+    value, currency: "DZD", event_id: genEventId(),
   });
 }
 
 export function ttqAddToCart(productId: string, productName: string, value: number): void {
   ttq()?.track("AddToCart", {
     contents: [{ content_id: productId, content_type: "product", content_name: productName }],
-    value,
-    currency: "DZD",
+    value, currency: "DZD", event_id: genEventId(),
   });
 }
 
 export function ttqAddToWishlist(productId: string, productName: string, value: number): void {
   ttq()?.track("AddToWishlist", {
     contents: [{ content_id: productId, content_type: "product", content_name: productName }],
-    value,
-    currency: "DZD",
+    value, currency: "DZD", event_id: genEventId(),
   });
 }
 
 export function ttqSearch(query: string, contents: TtqContents = []): void {
   ttq()?.track("Search", {
-    contents,
-    search_string: query,
-    value: 0,
-    currency: "DZD",
+    contents, search_string: query, value: 0, currency: "DZD", event_id: genEventId(),
   });
 }
 
 export function ttqInitiateCheckout(contents: TtqContents, value: number): void {
-  ttq()?.track("InitiateCheckout", { contents, value, currency: "DZD" });
+  ttq()?.track("InitiateCheckout", { contents, value, currency: "DZD", event_id: genEventId() });
 }
 
 export function ttqAddPaymentInfo(contents: TtqContents, value: number): void {
-  ttq()?.track("AddPaymentInfo", { contents, value, currency: "DZD" });
+  ttq()?.track("AddPaymentInfo", { contents, value, currency: "DZD", event_id: genEventId() });
 }
 
-export function ttqPlaceAnOrder(contents: TtqContents, value: number): void {
-  ttq()?.track("PlaceAnOrder", { contents, value, currency: "DZD" });
+export function ttqPlaceAnOrder(contents: TtqContents, value: number, eventId?: string): void {
+  ttq()?.track("PlaceAnOrder", { contents, value, currency: "DZD", event_id: eventId ?? genEventId() });
 }
 
-export function ttqPurchase(contents: TtqContents, value: number): void {
-  ttq()?.track("Purchase", { contents, value, currency: "DZD" });
+export function ttqPurchase(contents: TtqContents, value: number, eventId?: string): void {
+  ttq()?.track("Purchase", { contents, value, currency: "DZD", event_id: eventId ?? genEventId() });
 }
 
 export function ttqCompleteRegistration(): void {
-  ttq()?.track("CompleteRegistration", { value: 0, currency: "DZD" });
+  ttq()?.track("CompleteRegistration", { value: 0, currency: "DZD", event_id: genEventId() });
 }
