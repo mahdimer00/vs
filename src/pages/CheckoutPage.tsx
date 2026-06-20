@@ -317,8 +317,12 @@ export function CheckoutPage() {
     if (!commune.trim()) {
       return translate(language, "checkoutValidationCommune");
     }
-    if (!address.trim()) {
-      return translate(language, "checkoutValidationAddress");
+    if (address.trim().length < 5) {
+      return language === "ar"
+        ? "يرجى إدخال عنوان كامل (5 أحرف على الأقل)"
+        : language === "fr"
+          ? "Veuillez saisir une adresse complète (5 caractères minimum)"
+          : "Please enter a complete address (at least 5 characters)";
     }
     return "";
   };
@@ -1009,9 +1013,15 @@ export function CheckoutPage() {
 
             <div className="mt-4 space-y-1.5">
               <IconField icon={Home}>
-                <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className="field-textarea field-input-icon" placeholder={translate(language, "address")} />
+                <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className={`field-textarea field-input-icon ${address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={translate(language, "address")} />
               </IconField>
-              <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintAddress")}</p>
+              {address.trim().length > 0 && address.trim().length < 5 ? (
+                <p className="ps-1 text-xs font-medium text-rose-500">
+                  {language === "ar" ? `${address.trim().length}/5 أحرف — يرجى إدخال عنوان أكثر تفصيلاً` : language === "fr" ? `${address.trim().length}/5 caractères minimum` : `${address.trim().length}/5 characters minimum`}
+                </p>
+              ) : (
+                <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintAddress")}</p>
+              )}
             </div>
           </section>
 
