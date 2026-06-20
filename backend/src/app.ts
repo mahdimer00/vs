@@ -20,6 +20,7 @@ import adminRoutes from "./modules/admin/admin.routes.js";
 import aiRoutes from "./modules/ai/ai.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 import otpRoutes from "./modules/otp/otp.routes.js";
+import feedRoutes from "./modules/feed/feed.routes.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { roleMiddleware } from "./middleware/role.middleware.js";
 import { AppError } from "./utils/app-error.js";
@@ -93,6 +94,9 @@ app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "A
     filename: req.file.filename,
   });
 });
+
+// Public product feed (no auth, no signature) for Google/Meta/TikTok catalogs
+app.use("/api", feedRoutes);
 
 app.use("/api", signatureMiddleware);
 app.use("/api/auth", authRoutes);
