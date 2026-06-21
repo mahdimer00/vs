@@ -43,6 +43,7 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [promoApplying, setPromoApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [invalidField, setInvalidField] = useState<string | null>(null);
   const [zrTerritories, setZrTerritories] = useState<ZRTerritory[]>([]);
   const [selectedZrTerritory, setSelectedZrTerritory] = useState<ZRTerritory | null>(null);
 
@@ -298,32 +299,56 @@ export function CheckoutPage() {
     );
   }
 
+  const scrollToField = (fieldId: string) => {
+    setInvalidField(fieldId);
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus();
+      }
+    }, 50);
+  };
+
   const validate = () => {
     const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
     if (nameParts.length < 2 || nameParts.some((p) => p.length < 2)) {
       trackFormValidationError("fullName");
+      scrollToField("field-fullname");
       return language === "ar"
-        ? "يرجى إدخال الاسم الكامل — الاسم واللقب معاً (مثال: أحمد محمد)"
+        ? "⚠️ يرجى إدخال الاسم الكامل — الاسم واللقب معاً (مثال: أحمد محمد)"
         : language === "fr"
-          ? "Entrez votre nom complet — prénom et nom (ex: Ahmed Mohamed)"
-          : "Enter your full name — first and last name (e.g. Ahmed Mohamed)";
+          ? "⚠️ Entrez prénom ET nom — ex: Ahmed Mohamed"
+          : "⚠️ Enter first AND last name — e.g. Ahmed Mohamed";
     }
     if (!phonePattern.test(phone.trim())) {
       trackFormValidationError("phone");
-      return translate(language, "checkoutValidationPhone");
+      scrollToField("field-phone");
+      return language === "ar"
+        ? "⚠️ رقم الهاتف غير صحيح — يجب أن يبدأ بـ 05 أو 06 أو 07"
+        : language === "fr"
+          ? "⚠️ Numéro invalide — doit commencer par 05, 06 ou 07"
+          : "⚠️ Invalid phone — must start with 05, 06 or 07";
     }
     if (!commune.trim()) {
       trackFormValidationError("commune");
-      return translate(language, "checkoutValidationCommune");
+      scrollToField("field-commune");
+      return language === "ar"
+        ? "⚠️ يرجى اختيار البلدية"
+        : language === "fr"
+          ? "⚠️ Veuillez choisir votre commune"
+          : "⚠️ Please select your commune";
     }
     if (address.trim().length < 5) {
       trackFormValidationError("address");
+      scrollToField("field-address");
       return language === "ar"
-        ? "يرجى إدخال عنوان كامل (5 أحرف على الأقل)"
+        ? "⚠️ يرجى كتابة عنوانك بالتفصيل (مثال: حي النصر، شارع 20، رقم 5)"
         : language === "fr"
-          ? "Veuillez saisir une adresse complète (5 caractères minimum)"
-          : "Please enter a complete address (at least 5 characters)";
+          ? "⚠️ Écrivez votre adresse complète (ex: Cité Nasr, rue 20, n°5)"
+          : "⚠️ Write your full address (e.g. El Nasr district, street 20, n°5)";
     }
+    setInvalidField(null);
     return "";
   };
 
@@ -444,9 +469,13 @@ export function CheckoutPage() {
     const validationError = validate();
     if (validationError) {
       setErrorMessage(validationError);
-      pushToast(validationError, "error");
+      // Scroll to error banner at top of form
+      setTimeout(() => {
+        document.getElementById("checkout-error-banner")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 80);
       return;
     }
+    setInvalidField(null);
     if (otpRequired && !isPhoneVerified && !manualConfirm) {
       setShowVerifyModal(true);
       return;
@@ -466,6 +495,22 @@ export function CheckoutPage() {
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
         <form id="checkout-form" onSubmit={submit} className="surface-card order-2 space-y-6 p-4 sm:p-6 lg:order-1">
+
+          {/* Error banner — top of form, scrolled to automatically on validation fail */}
+          {errorMessage ? (
+            <div id="checkout-error-banner" className="flex items-start gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 px-4 py-4 shadow-sm">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-100 text-rose-600">
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+              </div>
+              <div>
+                <p className="font-bold text-rose-800">{errorMessage}</p>
+                <p className="mt-0.5 text-sm text-rose-600">
+                  {language === "ar" ? "انتبه للحقل المحدد باللون الأحمر أدناه 👇" : language === "fr" ? "Regardez le champ en rouge ci-dessous 👇" : "Look at the highlighted field below 👇"}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           <section>
             <div className="mb-4 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-white">1</div>
@@ -488,10 +533,11 @@ export function CheckoutPage() {
                     </label>
                     <IconField icon={UserRound}>
                       <input
+                        id="field-fullname"
                         required
                         value={fullName}
-                        onChange={(event) => setFullName(event.target.value)}
-                        className={`field-input field-input-icon transition ${typedSomething && !hasTwo ? "border-amber-400 ring-1 ring-amber-200" : typedSomething && hasTwo ? "border-emerald-400 ring-1 ring-emerald-200" : ""}`}
+                        onChange={(event) => { setFullName(event.target.value); if (invalidField === "field-fullname") setInvalidField(null); }}
+                        className={`field-input field-input-icon transition ${invalidField === "field-fullname" ? "border-rose-500 ring-2 ring-rose-200" : typedSomething && !hasTwo ? "border-amber-400 ring-1 ring-amber-200" : typedSomething && hasTwo ? "border-emerald-400 ring-1 ring-emerald-200" : ""}`}
                         placeholder={language === "ar" ? "أحمد محمد" : language === "fr" ? "Ahmed Mohamed" : "Ahmed Mohamed"}
                         autoComplete="name"
                       />
@@ -530,12 +576,13 @@ export function CheckoutPage() {
                   </label>
                   <IconField icon={Phone}>
                     <input
+                      id="field-phone"
                       required
                       dir="ltr"
                       inputMode="tel"
                       value={phone}
-                      onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="field-input field-input-icon"
+                      onChange={(event) => { setPhone(event.target.value.replace(/\D/g, "").slice(0, 10)); if (invalidField === "field-phone") setInvalidField(null); }}
+                      className={`field-input field-input-icon transition ${invalidField === "field-phone" ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                       placeholder="0555 12 34 56"
                       autoComplete="tel"
                     />
@@ -629,8 +676,10 @@ export function CheckoutPage() {
                   </label>
                   <IconField icon={MapPinned}>
                     <select
+                      id="field-commune"
                       value={communeOther ? "__other__" : selectedZrTerritory?.id ?? ""}
                       onChange={(event) => {
+                        if (invalidField === "field-commune") setInvalidField(null);
                         const { value } = event.target;
                         if (value === "__other__") {
                           setCommuneOther(true);
@@ -786,7 +835,7 @@ export function CheckoutPage() {
                 <span className="ms-1 text-rose-500">*</span>
               </label>
               <IconField icon={Home}>
-                <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={3} className={`field-textarea field-input-icon ${address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
+                <textarea id="field-address" required value={address} onChange={(event) => { setAddress(event.target.value); if (invalidField === "field-address") setInvalidField(null); }} rows={3} className={`field-textarea field-input-icon transition ${invalidField === "field-address" ? "border-rose-500 ring-2 ring-rose-200" : address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
               </IconField>
               {address.trim().length > 0 && address.trim().length < 5 ? (
                 <p className="ps-1 text-xs font-medium text-rose-500">
@@ -834,12 +883,6 @@ export function CheckoutPage() {
                 </div>
               )}
             </section>
-          ) : null}
-
-          {errorMessage ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-              {errorMessage}
-            </div>
           ) : null}
 
           {/* Trust badges — above submit button for max visibility */}
