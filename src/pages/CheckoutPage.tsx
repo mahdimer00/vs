@@ -512,12 +512,9 @@ export function CheckoutPage() {
           ) : null}
 
           <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-950 text-white">1</div>
-              <div>
-                <h2 className="text-lg font-semibold text-slate-950">{translate(language, "checkoutStepCustomer")}</h2>
-                <p className="text-sm text-slate-500">{translate(language, "checkoutSecureNote")}</p>
-              </div>
+            <div className="mb-3 flex items-center gap-2.5">
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">1</div>
+              <h2 className="font-semibold text-slate-950">{translate(language, "checkoutStepCustomer")}</h2>
             </div>
             <div className="grid gap-4">
               {/* Full name — single field, requires 2 words, live validation */}
@@ -587,7 +584,7 @@ export function CheckoutPage() {
                       autoComplete="tel"
                     />
                   </IconField>
-                  <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
+                  <p className="ps-1 text-xs text-slate-400">{language === "ar" ? "05/06/07XXXXXXXX" : "05/06/07XXXXXXXX"}</p>
                 </div>
 
                 {/* Alternate phone */}
@@ -607,9 +604,7 @@ export function CheckoutPage() {
                       autoComplete="tel"
                     />
                   </IconField>
-                  <p className="ps-1 text-xs text-slate-400">
-                    {language === "ar" ? "إذا كان الرقم الأول مغلقاً" : language === "fr" ? "Si le premier est injoignable" : "If primary is unreachable"}
-                  </p>
+                  <p className="ps-1 text-xs text-slate-400">{language === "ar" ? "اختياري" : language === "fr" ? "Optionnel" : "Optional"}</p>
                 </div>
               </div>
             </div>
@@ -627,19 +622,16 @@ export function CheckoutPage() {
           </section>
 
           <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-teal-600 text-white">2</div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-slate-950">{translate(language, "checkoutStepDelivery")}</h2>
-                <p className="text-sm text-slate-500">{translate(language, "trustDelivery")}</p>
-              </div>
+            <div className="mb-3 flex items-center gap-2.5">
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal-600 text-xs font-bold text-white">2</div>
+              <h2 className="font-semibold text-slate-950">{translate(language, "checkoutStepDelivery")}</h2>
               {useZrCommunes && (
-                <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">
-                  <svg width="18" height="18" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <div className="ms-auto flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1">
+                  <svg width="14" height="14" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <rect width="40" height="40" rx="8" fill="#0CAF60"/>
                     <text x="20" y="27" textAnchor="middle" fontFamily="Arial Black,Arial" fontWeight="900" fontSize="18" fill="white">ZR</text>
                   </svg>
-                  <span className="text-[11px] font-bold text-emerald-700">ZR Express</span>
+                  <span className="text-[10px] font-bold text-emerald-700">ZR Express</span>
                 </div>
               )}
             </div>
@@ -693,7 +685,7 @@ export function CheckoutPage() {
                         setSelectedZrTerritory(territory);
                         setCommune(territory?.name ?? "");
                       }}
-                      className="field-select field-input-icon"
+                      className={`field-select field-input-icon transition ${invalidField === "field-commune" ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                     >
                       <option value="">{language === "ar" ? "اختر البلدية" : language === "fr" ? "Choisir la commune" : "Choose your commune"}</option>
                       {selectedWilayaZrTerritories.map((territory) => (
@@ -786,46 +778,43 @@ export function CheckoutPage() {
                 </div>
               ) : null}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            {/* Compact delivery type toggle */}
+            <div className="mt-1 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setDeliveryType("DESK_PICKUP")}
-                className={`relative rounded-[1.5rem] border p-4 text-start transition ${
+                className={`flex items-center gap-2.5 rounded-2xl border-2 px-4 py-3 text-start transition active:scale-[0.98] ${
                   deliveryType === "DESK_PICKUP"
-                    ? "border-teal-500 bg-teal-50 shadow-[0_0_0_3px_rgba(20,184,166,0.12)]"
-                    : "border-slate-200 bg-white hover:border-slate-300"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                 }`}
               >
-                {deliveryType === "DESK_PICKUP" && (
-                  <span className="absolute end-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-white">
-                    <Check className="h-3 w-3" />
-                  </span>
-                )}
-                <div className={`mb-2 grid h-10 w-10 place-items-center rounded-2xl ${deliveryType === "DESK_PICKUP" ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
-                  <Building2 className="h-5 w-5" />
+                <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${deliveryType === "DESK_PICKUP" ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-400"}`}>
+                  <Building2 className="h-4 w-4" />
                 </div>
-                <div className="font-semibold text-slate-950">{translate(language, "deskPickup")}</div>
-                <div className="mt-1 text-xs text-slate-500">{translate(language, "checkoutDeliveryDeskDesc")}</div>
+                <div>
+                  <div className="text-sm font-bold">{translate(language, "deskPickup")}</div>
+                  <div className="text-[11px] opacity-70">{language === "ar" ? "أرخص" : language === "fr" ? "Moins cher" : "Cheaper"}</div>
+                </div>
+                {deliveryType === "DESK_PICKUP" && <Check className="ms-auto h-4 w-4 shrink-0 text-teal-600" />}
               </button>
               <button
                 type="button"
                 onClick={() => setDeliveryType("HOME_DELIVERY")}
-                className={`relative rounded-[1.5rem] border p-4 text-start transition ${
+                className={`flex items-center gap-2.5 rounded-2xl border-2 px-4 py-3 text-start transition active:scale-[0.98] ${
                   deliveryType === "HOME_DELIVERY"
-                    ? "border-teal-500 bg-teal-50 shadow-[0_0_0_3px_rgba(20,184,166,0.12)]"
-                    : "border-slate-200 bg-white hover:border-slate-300"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                 }`}
               >
-                {deliveryType === "HOME_DELIVERY" && (
-                  <span className="absolute end-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-white">
-                    <Check className="h-3 w-3" />
-                  </span>
-                )}
-                <div className={`mb-2 grid h-10 w-10 place-items-center rounded-2xl ${deliveryType === "HOME_DELIVERY" ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
-                  <Home className="h-5 w-5" />
+                <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${deliveryType === "HOME_DELIVERY" ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-400"}`}>
+                  <Home className="h-4 w-4" />
                 </div>
-                <div className="font-semibold text-slate-950">{translate(language, "homeDelivery")}</div>
-                <div className="mt-1 text-xs text-slate-500">{translate(language, "checkoutDeliveryHomeDesc")}</div>
+                <div>
+                  <div className="text-sm font-bold">{translate(language, "homeDelivery")}</div>
+                  <div className="text-[11px] opacity-70">{language === "ar" ? "للباب" : language === "fr" ? "Domicile" : "To door"}</div>
+                </div>
+                {deliveryType === "HOME_DELIVERY" && <Check className="ms-auto h-4 w-4 shrink-0 text-teal-600" />}
               </button>
             </div>
 
@@ -835,7 +824,7 @@ export function CheckoutPage() {
                 <span className="ms-1 text-rose-500">*</span>
               </label>
               <IconField icon={Home}>
-                <textarea id="field-address" required value={address} onChange={(event) => { setAddress(event.target.value); if (invalidField === "field-address") { setInvalidField(null); setErrorMessage(""); } }} rows={3} className={`field-textarea field-input-icon transition ${invalidField === "field-address" ? "border-rose-500 ring-2 ring-rose-200" : address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
+                <textarea id="field-address" required value={address} onChange={(event) => { setAddress(event.target.value); if (invalidField === "field-address") { setInvalidField(null); setErrorMessage(""); } }} rows={2} className={`field-textarea field-input-icon transition ${invalidField === "field-address" ? "border-rose-500 ring-2 ring-rose-200" : address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
               </IconField>
               {address.trim().length > 0 && address.trim().length < 5 ? (
                 <p className="ps-1 text-xs font-medium text-rose-500">
@@ -885,32 +874,21 @@ export function CheckoutPage() {
             </section>
           ) : null}
 
-          {/* Trust badges — above submit button for max visibility */}
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-4">
-            <div className="flex flex-col items-center gap-1 text-center">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
-                <WalletCards className="h-4 w-4" />
+          {/* Trust badges — horizontal scroll on mobile */}
+          <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { icon: WalletCards, ar: "دفع عند الاستلام", fr: "Paiement à la livraison", en: "Pay on delivery" },
+              { icon: Truck, ar: "توصيل 58 ولاية", fr: "58 wilayas", en: "58 wilayas" },
+              { icon: Lock, ar: "معلوماتك آمنة", fr: "Données sécurisées", en: "Secure" },
+              { icon: X, ar: "الإلغاء مجاني", fr: "Annulation gratuite", en: "Free cancel" },
+            ].map(({ icon: Icon, ar, fr, en }) => (
+              <div key={ar} className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                <Icon className="h-3.5 w-3.5 shrink-0 text-teal-600" />
+                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-700">
+                  {language === "ar" ? ar : language === "fr" ? fr : en}
+                </span>
               </div>
-              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "دفع عند الاستلام" : language === "fr" ? "Paiement à la livraison" : "Pay on delivery"}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
-                <Truck className="h-4 w-4" />
-              </div>
-              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "شحن لكل الولايات" : language === "fr" ? "Livraison partout" : "All wilayas"}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
-                <Lock className="h-4 w-4" />
-              </div>
-              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "بياناتك آمنة" : language === "fr" ? "Données sécurisées" : "Secure data"}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
-                <X className="h-4 w-4" />
-              </div>
-              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "الإلغاء مجاني" : language === "fr" ? "Annulation gratuite" : "Free cancellation"}</span>
-            </div>
+            ))}
           </div>
 
           {/* Sticky submit — stays visible on mobile while scrolling the form */}
