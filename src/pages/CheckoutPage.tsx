@@ -456,23 +456,9 @@ export function CheckoutPage() {
 
   return (
     <>
-    <div className="space-y-6 pb-24 lg:pb-0">
+    <div className="space-y-6">
       <Seo title={translate(language, "checkoutTitle")} description={translate(language, "checkoutDescription")} path="/checkout" noindex />
 
-      {/* Fixed mobile CTA — scrolls to the form */}
-      <div className="fixed bottom-0 start-0 end-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden">
-        <button
-          type="button"
-          onClick={() => document.getElementById("checkout-form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          className="flex w-full items-center justify-between gap-3 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-4 text-base font-semibold text-white shadow-[0_8px_24px_rgba(20,184,166,0.35)] transition active:scale-95"
-        >
-          <span className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" />
-            {language === "ar" ? "أكمل بياناتك" : language === "fr" ? "Remplir le formulaire" : "Fill in your details"}
-          </span>
-          <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold">{formatCurrency(total, language)}</span>
-        </button>
-      </div>
 
       <div>
         <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "checkoutTitle")}</h1>
@@ -884,13 +870,21 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          <button
-            disabled={submitting}
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 py-4 text-base font-semibold text-white shadow-[0_14px_32px_rgba(20,184,166,0.28)] transition hover:from-teal-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <ShieldCheck className="h-5 w-5" />
-            {submitting ? translate(language, "checkoutSubmitting") : translate(language, "checkoutSubmit")}
-          </button>
+          {/* Sticky submit — stays visible on mobile while scrolling the form */}
+          <div className="sticky bottom-0 -mx-4 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:relative lg:mx-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+            <button
+              disabled={submitting}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="flex items-center gap-2.5">
+                <ShieldCheck className="h-5 w-5 shrink-0" />
+                <span>{submitting ? translate(language, "checkoutSubmitting") : translate(language, "checkoutSubmit")}</span>
+              </span>
+              <span className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-sm font-extrabold">
+                {formatCurrency(total, language)}
+              </span>
+            </button>
+          </div>
         </form>
 
         <div className="order-1 space-y-4 lg:order-2">
