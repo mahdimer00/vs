@@ -536,7 +536,7 @@ export function CheckoutPage() {
                         id="field-fullname"
                         required
                         value={fullName}
-                        onChange={(event) => { setFullName(event.target.value); if (invalidField === "field-fullname") setInvalidField(null); }}
+                        onChange={(event) => { setFullName(event.target.value); if (invalidField === "field-fullname") { setInvalidField(null); setErrorMessage(""); } }}
                         className={`field-input field-input-icon transition ${invalidField === "field-fullname" ? "border-rose-500 ring-2 ring-rose-200" : typedSomething && !hasTwo ? "border-amber-400 ring-1 ring-amber-200" : typedSomething && hasTwo ? "border-emerald-400 ring-1 ring-emerald-200" : ""}`}
                         placeholder={language === "ar" ? "أحمد محمد" : language === "fr" ? "Ahmed Mohamed" : "Ahmed Mohamed"}
                         autoComplete="name"
@@ -581,7 +581,7 @@ export function CheckoutPage() {
                       dir="ltr"
                       inputMode="tel"
                       value={phone}
-                      onChange={(event) => { setPhone(event.target.value.replace(/\D/g, "").slice(0, 10)); if (invalidField === "field-phone") setInvalidField(null); }}
+                      onChange={(event) => { setPhone(event.target.value.replace(/\D/g, "").slice(0, 10)); if (invalidField === "field-phone") { setInvalidField(null); setErrorMessage(""); } }}
                       className={`field-input field-input-icon transition ${invalidField === "field-phone" ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                       placeholder="0555 12 34 56"
                       autoComplete="tel"
@@ -679,7 +679,7 @@ export function CheckoutPage() {
                       id="field-commune"
                       value={communeOther ? "__other__" : selectedZrTerritory?.id ?? ""}
                       onChange={(event) => {
-                        if (invalidField === "field-commune") setInvalidField(null);
+                        if (invalidField === "field-commune") { setInvalidField(null); setErrorMessage(""); }
                         const { value } = event.target;
                         if (value === "__other__") {
                           setCommuneOther(true);
@@ -835,7 +835,7 @@ export function CheckoutPage() {
                 <span className="ms-1 text-rose-500">*</span>
               </label>
               <IconField icon={Home}>
-                <textarea id="field-address" required value={address} onChange={(event) => { setAddress(event.target.value); if (invalidField === "field-address") setInvalidField(null); }} rows={3} className={`field-textarea field-input-icon transition ${invalidField === "field-address" ? "border-rose-500 ring-2 ring-rose-200" : address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
+                <textarea id="field-address" required value={address} onChange={(event) => { setAddress(event.target.value); if (invalidField === "field-address") { setInvalidField(null); setErrorMessage(""); } }} rows={3} className={`field-textarea field-input-icon transition ${invalidField === "field-address" ? "border-rose-500 ring-2 ring-rose-200" : address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
               </IconField>
               {address.trim().length > 0 && address.trim().length < 5 ? (
                 <p className="ps-1 text-xs font-medium text-rose-500">
@@ -964,21 +964,33 @@ export function CheckoutPage() {
         >
           {verifyModalStep === "choice" ? (
             <div className="p-5">
-              {/* Header */}
-              <div className="mb-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 px-5 py-4 text-center">
-                <div className="mx-auto mb-2 grid h-14 w-14 place-items-center rounded-full bg-white shadow-sm ring-2 ring-slate-200">
-                  <ShieldCheck className="h-7 w-7 text-teal-600" />
+              {/* Header — clearly "last step", NOT a success screen */}
+              <div className="mb-5">
+                {/* Step indicator */}
+                <div className="mb-3 flex items-center justify-center gap-2">
+                  <div className="h-2 w-8 rounded-full bg-teal-500" />
+                  <div className="h-2 w-8 rounded-full bg-teal-500" />
+                  <div className="h-2 w-8 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="ms-1 text-xs font-semibold text-amber-600">
+                    {language === "ar" ? "الخطوة الأخيرة" : language === "fr" ? "Étape finale" : "Final step"}
+                  </span>
                 </div>
-                <h2 className="text-lg font-bold text-slate-950">
-                  {language === "ar" ? "خطوة أخيرة — تأكيد الطلب" : language === "fr" ? "Dernière étape — Confirmer la commande" : "Last step — Confirm your order"}
-                </h2>
-                <p className="mt-1.5 text-sm text-slate-600 leading-relaxed">
-                  {language === "ar"
-                    ? <span>طلبك جاهز! اختر طريقة التأكيد على الرقم <span className="font-bold text-slate-900" dir="ltr">{phone}</span></span>
-                    : language === "fr"
-                      ? <span>Commande prête ! Choisissez comment confirmer au <span className="font-bold text-slate-900" dir="ltr">{phone}</span></span>
-                      : <span>Order ready! Choose how to confirm at <span className="font-bold text-slate-900" dir="ltr">{phone}</span></span>}
-                </p>
+
+                <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4 text-center">
+                  <div className="mx-auto mb-2 grid h-14 w-14 place-items-center rounded-full bg-white shadow-sm ring-2 ring-amber-300">
+                    <span className="text-2xl">📦</span>
+                  </div>
+                  <h2 className="text-lg font-extrabold text-slate-950">
+                    {language === "ar" ? "طلبك لم يُرسَل بعد!" : language === "fr" ? "Commande pas encore envoyée !" : "Order not sent yet!"}
+                  </h2>
+                  <p className="mt-1.5 text-sm text-slate-700 leading-relaxed">
+                    {language === "ar"
+                      ? <span>اختر طريقة التأكيد التالية وسيُسجَّل طلبك فوراً على الرقم <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>
+                      : language === "fr"
+                        ? <span>Choisissez une méthode — la commande sera envoyée au <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>
+                        : <span>Choose a method — your order will be sent to <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>}
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-3">
