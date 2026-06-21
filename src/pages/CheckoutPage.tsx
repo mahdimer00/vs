@@ -983,8 +983,12 @@ export function CheckoutPage() {
                 <h2 className="text-lg font-semibold text-slate-950">
                   {language === "ar" ? "كيف تريد تأكيد طلبك؟" : language === "fr" ? "Comment confirmer votre commande ?" : "How to confirm your order?"}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {language === "ar" ? "اختر طريقة مناسبة لك" : language === "fr" ? "Choisissez votre méthode" : "Choose your preferred method"}
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                  {language === "ar"
+                    ? <span>سنتواصل معك على الرقم <span className="font-semibold text-slate-900" dir="ltr">{phone}</span> لتأكيد الطلب وتحديد موعد التسليم. قد يستغرق ذلك بضع دقائق أو ساعات.</span>
+                    : language === "fr"
+                      ? <span>Nous vous contacterons au <span className="font-semibold text-slate-900" dir="ltr">{phone}</span> pour confirmer la commande et planifier la livraison. Cela peut prendre quelques minutes ou heures.</span>
+                      : <span>We'll contact you at <span className="font-semibold text-slate-900" dir="ltr">{phone}</span> to confirm the order and schedule delivery. This may take a few minutes or hours.</span>}
                 </p>
               </div>
 
