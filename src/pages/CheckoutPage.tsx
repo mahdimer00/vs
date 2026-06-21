@@ -494,7 +494,7 @@ export function CheckoutPage() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <form id="checkout-form" onSubmit={submit} className="surface-card order-2 space-y-6 p-4 sm:p-6 lg:order-1">
+        <form id="checkout-form" onSubmit={submit} className="surface-card space-y-6 p-4 sm:p-6">
 
           {/* Error banner — top of form, scrolled to automatically on validation fail */}
           {errorMessage ? (
@@ -908,22 +908,25 @@ export function CheckoutPage() {
           </div>
         </form>
 
-        <div className="order-1 space-y-4 lg:order-2">
+        <div className="space-y-4 lg:order-2">
           <div className="lg:sticky lg:top-24 lg:space-y-4">
-            <OrderSummaryCard
-              cart={cart}
-              subtotal={subtotal}
-              shippingFee={shippingFee}
-              discount={discount}
-              total={total}
-              language={language}
-              onUpdateQuantity={updateQuantity}
-              onRemove={removeFromCart}
-            />
-            <div className="surface-card mt-4 p-5 lg:mt-0">
-              <div className="text-sm text-slate-500">{translate(language, "shippingFee")}</div>
-              <div className="mt-2 text-lg font-semibold text-slate-950">{selectedWilaya ? `${selectedWilaya.code} · ${language === "ar" ? selectedWilaya.name.ar : language === "fr" ? selectedWilaya.name.fr : selectedWilaya.name.en}` : "-"}</div>
-              <div className="mt-2 text-sm text-slate-600">{translate(language, deliveryType === "HOME_DELIVERY" ? "checkoutDeliveryHomeDesc" : "checkoutDeliveryDeskDesc")}</div>
+            {/* Order summary — visible on desktop sidebar, hidden on mobile (form is priority) */}
+            <div className="hidden lg:block">
+              <OrderSummaryCard
+                cart={cart}
+                subtotal={subtotal}
+                shippingFee={shippingFee}
+                discount={discount}
+                total={total}
+                language={language}
+                onUpdateQuantity={updateQuantity}
+                onRemove={removeFromCart}
+              />
+              <div className="surface-card mt-4 p-5">
+                <div className="text-sm text-slate-500">{translate(language, "shippingFee")}</div>
+                <div className="mt-2 text-lg font-semibold text-slate-950">{selectedWilaya ? `${selectedWilaya.code} · ${language === "ar" ? selectedWilaya.name.ar : language === "fr" ? selectedWilaya.name.fr : selectedWilaya.name.en}` : "-"}</div>
+                <div className="mt-2 text-sm text-slate-600">{translate(language, deliveryType === "HOME_DELIVERY" ? "checkoutDeliveryHomeDesc" : "checkoutDeliveryDeskDesc")}</div>
+              </div>
             </div>
           </div>
         </div>
