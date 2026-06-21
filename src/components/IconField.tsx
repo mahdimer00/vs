@@ -8,7 +8,7 @@ interface IconFieldProps {
 
 export function IconField({ icon: Icon, children, className = "" }: IconFieldProps) {
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative min-w-0 ${className}`}>
       <Icon className="pointer-events-none absolute start-4 top-3.5 h-4 w-4 text-slate-400" />
       {children}
     </div>

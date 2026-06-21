@@ -485,7 +485,7 @@ export function CheckoutPage() {
 
   return (
     <>
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <Seo title={translate(language, "checkoutTitle")} description={translate(language, "checkoutDescription")} path="/checkout" noindex />
 
 
@@ -493,8 +493,8 @@ export function CheckoutPage() {
         <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl">{translate(language, "checkoutTitle")}</h1>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <form id="checkout-form" onSubmit={submit} className="surface-card space-y-6 p-4 sm:p-6">
+      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <form id="checkout-form" onSubmit={submit} className="surface-card min-w-0 space-y-5 overflow-hidden p-4 sm:p-6">
 
           {/* Error banner — top of form, scrolled to automatically on validation fail */}
           {errorMessage ? (
@@ -564,7 +564,7 @@ export function CheckoutPage() {
                 );
               })()}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 {/* Primary phone */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-700">
@@ -635,8 +635,8 @@ export function CheckoutPage() {
                 </div>
               )}
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 gap-3 md:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
                 <label className="block text-sm font-medium text-slate-700">
                   {language === "ar" ? "الولاية" : language === "fr" ? "Wilaya" : "Wilaya"}
                   <span className="ms-1 text-rose-500">*</span>
