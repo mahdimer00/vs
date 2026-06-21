@@ -4,7 +4,7 @@ declare global {
   }
 }
 
-const CLARITY_ID = (import.meta.env.VITE_CLARITY_ID as string | undefined)?.trim();
+const CLARITY_ID = (import.meta.env.VITE_CLARITY_ID as string | undefined)?.trim() || "xaoo2w13pn";
 
 export function initClarity(): void {
   if (!CLARITY_ID || typeof window === "undefined" || typeof document === "undefined") return;
