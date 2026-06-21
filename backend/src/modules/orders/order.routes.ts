@@ -447,15 +447,25 @@ router.get(
   "/admin/orders",
   authMiddleware,
   permissionMiddleware("orders"),
-  asyncHandler(async (_req, res) => {
-    return res.json(
-      await OrderModel.find()
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 100, 200);
+    const skip = Number(req.query.skip) || 0;
+    const statusFilter = typeof req.query.status === "string" && req.query.status ? req.query.status : null;
+
+    const query = statusFilter ? { status: statusFilter } : {};
+    const [orders, total] = await Promise.all([
+      OrderModel.find(query)
         .select("-confirmationTokenHash")
         .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
         .populate("customer.wilaya")
         .populate("affiliate", "-passwordHash")
         .lean(),
-    );
+      OrderModel.countDocuments(query),
+    ]);
+
+    return res.json({ orders, total, limit, skip });
   }),
 );
 
@@ -529,6 +539,18 @@ router.patch(
 
     await syncCommissionForOrder(String(order._id), "admin");
     emitOrderUpdate(String(order._id), input.status);
+
+    // Send WhatsApp notification to customer on key status changes
+    const WA_NOTIFY_STATUSES = new Set(["SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED"]);
+    if (WA_NOTIFY_STATUSES.has(input.status) && isWhatsAppConfigured() && existing.customer?.phone) {
+      void sendWhatsAppStatusUpdate(
+        existing.customer.phone,
+        existing.orderNumber,
+        existing.zrTrackingNumber ?? "",
+        input.status,
+      );
+    }
+
     return res.json(order);
   }),
 );
@@ -641,6 +663,17 @@ router.post(
       await syncCommissionForOrder(String(order._id), "admin");
       // Push real-time update to connected admin dashboard clients
       emitOrderUpdate(String(order._id), newStatus);
+
+      // Send WhatsApp notification to customer (ZR-triggered)
+      const ZR_WA_STATUSES = new Set(["SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED"]);
+      if (ZR_WA_STATUSES.has(newStatus) && isWhatsAppConfigured() && order.customer?.phone) {
+        void sendWhatsAppStatusUpdate(
+          order.customer.phone,
+          order.orderNumber,
+          order.zrTrackingNumber ?? "",
+          newStatus,
+        );
+      }
 
       // Auto-restock on RETURNED (zr-sync)
       if (newStatus === "RETURNED") {

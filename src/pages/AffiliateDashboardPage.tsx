@@ -95,7 +95,7 @@ export function AffiliateDashboardPage() {
     { href: "/affiliate/promo-codes", label: translate(language, "promoCodes") },
     { href: "/affiliate/coupons", label: translate(language, "affiliateCouponRequestsTitle") },
     { href: "/affiliate/team", label: translate(language, "affiliateTeamTitle") },
-    { href: "/affiliate/profile", label: language === "ar" ? "الملف الشخصي" : language === "fr" ? "Profil" : "Profile" },
+    { href: "/affiliate/profile", label: translate(language, "affiliateProfile") },
   ];
 
   const copyProductLink = async (slug: string) => {

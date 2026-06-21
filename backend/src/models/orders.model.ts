@@ -106,6 +106,14 @@ const aiConversationSchema = new Schema(
   { timestamps: true },
 );
 
+// Indexes for common query patterns
+orderSchema.index({ "customer.phone": 1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ affiliate: 1, status: 1 });
+orderSchema.index({ zrTrackingNumber: 1 }, { sparse: true });
+orderSchema.index({ createdAt: -1 });
+promoCodeUsageSchema.index({ phone: 1, promoCode: 1 });
+
 export const OrderModel = model("Order", orderSchema);
 export const PromoCodeModel = model("PromoCode", promoCodeSchema);
 export const PromoCodeUsageModel = model("PromoCodeUsage", promoCodeUsageSchema);

@@ -450,6 +450,7 @@
   "affiliateReferralBonus": "مكافأة الإحالة",
   "affiliateCouponRequestsTitle": "طلبات الكوبونات",
   "affiliateCouponRequestsDescription": "اطلب كود خصم مخصص من فريق الإدارة.",
+  "affiliateProfile": "الملف الشخصي",
   "affiliateTeamTitle": "فريقي",
   "affiliateTeamDescription": "ادعُ مسوّقين آخرين برابطك واحصل على مكافأة لمرة واحدة عند أول عملية بيع لهم.",
   "affiliateReferralBonusHint": "تحصل على {amount} عن أول عملية بيع لكل مسوّق جديد.",

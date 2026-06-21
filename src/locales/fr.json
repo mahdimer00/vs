@@ -450,6 +450,7 @@
   "affiliateReferralBonus": "Prime de parrainage",
   "affiliateCouponRequestsTitle": "Demandes de coupons",
   "affiliateCouponRequestsDescription": "Demandez un code promo personnalisé à l'équipe admin.",
+  "affiliateProfile": "Profil",
   "affiliateTeamTitle": "Mon équipe",
   "affiliateTeamDescription": "Invitez d'autres affiliés avec votre lien et gagnez une prime unique lors de leur première vente.",
   "affiliateReferralBonusHint": "Vous gagnez {amount} pour la première vente de chaque nouvel affilié.",

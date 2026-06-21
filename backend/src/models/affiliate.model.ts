@@ -83,6 +83,13 @@ const withdrawalRequestSchema = new Schema(
   { timestamps: true },
 );
 
+affiliateClickSchema.index({ affiliate: 1, createdAt: -1 });
+affiliateClickSchema.index({ createdAt: -1 });
+commissionSchema.index({ affiliate: 1, status: 1 });
+commissionSchema.index({ order: 1 }, { sparse: true });
+withdrawalRequestSchema.index({ affiliate: 1, status: 1 });
+couponRequestSchema.index({ affiliate: 1, status: 1 });
+
 export const AffiliateModel = model("Affiliate", affiliateSchema);
 export const AffiliateClickModel = model("AffiliateClick", affiliateClickSchema);
 export const CommissionModel = model("Commission", commissionSchema);

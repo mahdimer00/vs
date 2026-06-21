@@ -20,8 +20,14 @@ export const adminService = {
   getStats(token: string) {
     return apiRequest<DashboardStats>("/api/admin/stats", { token });
   },
-  getOrders(token: string) {
-    return apiRequest<Order[]>("/api/admin/orders", { token });
+  async getOrders(token: string, skip = 0, limit = 100) {
+    const result = await apiRequest<{ orders: Order[]; total: number } | Order[]>(
+      `/api/admin/orders?skip=${skip}&limit=${limit}`,
+      { token },
+    );
+    // Handle both old array response and new paginated response
+    if (Array.isArray(result)) return { orders: result, total: result.length };
+    return result;
   },
   updateOrderStatus(token: string, orderId: string, status: string) {
     return apiRequest<Order>(`/api/admin/orders/${orderId}/status`, {

@@ -450,6 +450,7 @@
   "affiliateReferralBonus": "Referral bonus",
   "affiliateCouponRequestsTitle": "Coupon requests",
   "affiliateCouponRequestsDescription": "Request a custom promo code from the admin team.",
+  "affiliateProfile": "Profile",
   "affiliateTeamTitle": "My team",
   "affiliateTeamDescription": "Invite other affiliates with your link and earn a one-time bonus when they make their first sale.",
   "affiliateReferralBonusHint": "You earn {amount} for each new affiliate's first sale.",

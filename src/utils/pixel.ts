@@ -64,6 +64,15 @@ export function pixelPageView() {
   send("track", "PageView");
 }
 
+// Advanced Matching — call when phone is available to improve event match quality
+export function pixelSetUserPhone(phone: string) {
+  if (!PIXEL_ID || typeof window === "undefined" || !window.fbq) return;
+  // Normalize Algerian number to international format (+213XXXXXXXXX)
+  const normalized = phone.startsWith("0") ? `213${phone.slice(1)}` : phone;
+  // Meta accepts plaintext phone — it hashes client-side automatically
+  window.fbq("init", PIXEL_ID, { ph: normalized, country: "dz" });
+}
+
 export function pixelViewContent(payload: {
   productId: string;
   productName: string;

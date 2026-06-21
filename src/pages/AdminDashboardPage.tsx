@@ -290,6 +290,8 @@ export function AdminDashboardPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersLoadingMore, setOrdersLoadingMore] = useState(false);
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
@@ -454,7 +456,7 @@ export function AdminDashboardPage() {
         adminService.getCategories(),
         adminService.getBrands(),
         safe(adminService.getBanners(token), []),
-        safe(adminService.getOrders(token), []),
+        safe(adminService.getOrders(token, 0, 100), { orders: [], total: 0 } as { orders: Order[]; total: number }),
         adminService.getWilayas(),
         safe(adminService.getPromoCodes(token), []),
         safe(adminService.getAffiliates(token), []),
@@ -471,7 +473,9 @@ export function AdminDashboardPage() {
       setCategories(categoryData);
       setBrands(brandData);
       setBanners(bannerData);
-      setOrders(orderData);
+      const orderResult = orderData as { orders: Order[]; total: number };
+      setOrders(orderResult.orders ?? []);
+      setOrdersTotal(orderResult.total ?? 0);
       setWilayas(wilayaData);
       setPromos(promoData);
       setAffiliates(affiliateData);
@@ -2878,6 +2882,34 @@ export function AdminDashboardPage() {
             </table>
           )}
         </div>
+
+        {/* Load more */}
+        {orders.length < ordersTotal && (
+          <div className="mt-4 flex items-center justify-center gap-4">
+            <span className="text-sm text-slate-400">
+              {language === "ar" ? `${orders.length} من ${ordersTotal} طلب` : language === "fr" ? `${orders.length} sur ${ordersTotal} commandes` : `${orders.length} of ${ordersTotal} orders`}
+            </span>
+            <button
+              type="button"
+              disabled={ordersLoadingMore}
+              onClick={() => {
+                setOrdersLoadingMore(true);
+                adminService.getOrders(token, orders.length, 100)
+                  .then((result) => {
+                    setOrders((prev) => [...prev, ...result.orders]);
+                    setOrdersTotal(result.total);
+                  })
+                  .catch((err: unknown) => pushToast(err instanceof ApiError ? err.message : translate(language, "adminActionError"), "error"))
+                  .finally(() => setOrdersLoadingMore(false));
+              }}
+              className="ghost-button gap-2 px-4 py-2 text-sm"
+            >
+              {ordersLoadingMore
+                ? (language === "ar" ? "جارٍ التحميل..." : language === "fr" ? "Chargement..." : "Loading...")
+                : (language === "ar" ? "تحميل المزيد" : language === "fr" ? "Charger plus" : "Load more")}
+            </button>
+          </div>
+        )}
       </div>
     );
   };

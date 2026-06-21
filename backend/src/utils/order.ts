@@ -43,33 +43,36 @@ export async function validatePromoCode(input: {
 }) {
   const promo = await PromoCodeModel.findOne({ code: input.code.toUpperCase() }).populate("affiliate");
   if (!promo || !promo.isActive) {
-    throw new AppError("Promo code is invalid", 400);
+    throw new AppError("الرمز الترويجي غير صالح | Code promo invalide | Promo code is invalid", 400);
   }
 
   if (promo.expiresAt && promo.expiresAt < new Date()) {
-    throw new AppError("Promo code expired", 400);
+    throw new AppError("انتهت صلاحية الرمز الترويجي | Code promo expiré | Promo code has expired", 400);
   }
 
   if (promo.usageLimit && promo.usedCount >= promo.usageLimit) {
-    throw new AppError("Promo code usage limit reached", 400);
+    throw new AppError("وصل الرمز الترويجي للحد الأقصى من الاستخدامات | Limite d'utilisation atteinte | Promo code usage limit reached", 400);
   }
 
   if (promo.minimumOrderAmount && input.subtotal < promo.minimumOrderAmount) {
-    throw new AppError("Minimum order amount not reached", 400);
+    throw new AppError(
+      `المبلغ الأدنى للطلب هو ${promo.minimumOrderAmount} دج | Montant minimum ${promo.minimumOrderAmount} DA | Minimum order is ${promo.minimumOrderAmount} DZD`,
+      400,
+    );
   }
 
   if (promo.productRestrictions.length && !input.productIds.some((id) => promo.productRestrictions.includes(id))) {
-    throw new AppError("Promo code does not apply to this product", 400);
+    throw new AppError("هذا الرمز لا ينطبق على منتجاتك | Ce code ne s'applique pas à vos articles | Promo code doesn't apply to your items", 400);
   }
 
   if (promo.categoryRestrictions.length && !input.categoryIds.some((id) => promo.categoryRestrictions.includes(id))) {
-    throw new AppError("Promo code does not apply to this category", 400);
+    throw new AppError("هذا الرمز لا ينطبق على هذه الفئة | Ce code ne s'applique pas à cette catégorie | Promo code doesn't apply to this category", 400);
   }
 
   if (promo.oneUsePerPhone) {
     const existingUsage = await PromoCodeUsageModel.findOne({ promoCode: promo._id, phone: input.phone });
     if (existingUsage) {
-      throw new AppError("Promo code already used for this phone", 400);
+      throw new AppError("استُخدم هذا الرمز مسبقاً من هذا الرقم | Code déjà utilisé pour ce numéro | Promo code already used for this phone", 400);
     }
   }
 
