@@ -1,15 +1,22 @@
 import { AlertTriangle } from "lucide-react";
 import { Component, type ReactNode } from "react";
+import { captureError } from "@/utils/sentry";
 
-export class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
+// Re-export so caller doesn't need two imports
+export { captureError as reportError };
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+export class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; errorMessage: string }> {
+  state = { hasError: false, errorMessage: "" };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { hasError: true, errorMessage: error instanceof Error ? error.message : "Unknown error" };
   }
 
   componentDidCatch(error: unknown, info: unknown) {
     console.error("Unhandled application error", error, info);
+    captureError(error, { componentStack: info });
+    // Upgrade session so Clarity records this crash
+    import("@/utils/clarity").then(({ clarityUpgradePriority: up }) => up("react_error")).catch(() => undefined);
   }
 
   render() {

@@ -31,13 +31,18 @@ export function OrderSummaryCard({
             <img
               src={item.product.images[0]}
               alt={getLocalizedText(item.product.name, language)}
-              className="h-16 w-16 rounded-[1.2rem] object-cover"
+              className="h-16 w-16 shrink-0 rounded-[1.2rem] object-cover"
             />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-slate-900">
+              {/* Title: 2 lines max — shows beginning and end of name, not just "..." */}
+              <div className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900">
                 {getLocalizedText(item.product.name, language)}
               </div>
-              <div className="text-xs text-slate-500">{buildVariantLabel(item.variant)}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{buildVariantLabel(item.variant)}</div>
+              {/* Price under the title on its own line */}
+              <div className="mt-1 text-sm font-bold text-slate-900">
+                {formatCurrency(item.quantity * item.variant.price, language)}
+              </div>
               {onUpdateQuantity ? (
                 <div className="mt-2 flex items-center gap-2">
                   <button
@@ -70,11 +75,8 @@ export function OrderSummaryCard({
                   ) : null}
                 </div>
               ) : (
-                <div className="mt-1 text-xs text-slate-400">x{item.quantity}</div>
+                <div className="mt-1 text-xs text-slate-400">×{item.quantity}</div>
               )}
-            </div>
-            <div className="text-sm font-semibold text-slate-900">
-              {formatCurrency(item.quantity * item.variant.price, language)}
             </div>
           </div>
         ))}

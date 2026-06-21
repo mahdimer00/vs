@@ -5,7 +5,13 @@ import { RouterProvider } from "react-router-dom";
 import { AppProvider } from "@/features/app/AppProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { router } from "@/app/router";
+import { initSentry } from "@/utils/sentry";
+import { initClarity } from "@/utils/clarity";
 import "@/styles/index.css";
+
+// Initialize error tracking + session recording
+initSentry();
+initClarity();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

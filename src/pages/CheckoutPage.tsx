@@ -17,6 +17,9 @@ import { translate } from "@/utils/i18n";
 import { pixelInitiateCheckout, pixelLead, pixelPurchase, pixelSetUserPhone } from "@/utils/pixel";
 import { ttqAddPaymentInfo, ttqCompleteRegistration, ttqIdentify, ttqInitiateCheckout, ttqPlaceAnOrder, ttqPurchase } from "@/utils/tiktok";
 import { trackEvent } from "@/utils/tracking";
+import { trackFunnelStep, trackCheckoutError, trackFormValidationError } from "@/utils/checkoutFunnel";
+import { sentrySetUser } from "@/utils/sentry";
+import { clarityTag } from "@/utils/clarity";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
 const checkoutDraftKey = "visastore-checkout-draft";
@@ -130,11 +133,14 @@ export function CheckoutPage() {
     zrShippingService.getTerritories().then(setZrTerritories).catch(() => setZrTerritories([]));
   }, []);
 
-  // Identify user with TikTok + Meta as soon as phone is valid (improves ad event quality)
+  // Identify user with TikTok + Meta + Sentry as soon as phone is valid
   useEffect(() => {
     if (phonePattern.test(phone.trim())) {
       void ttqIdentify(phone.trim());
       pixelSetUserPhone(phone.trim());
+      sentrySetUser(phone.trim());
+      clarityTag("phone_prefix", phone.trim().slice(0, 4));
+      trackFunnelStep("phone_entered");
     }
   }, [phone]);
 
@@ -299,15 +305,19 @@ export function CheckoutPage() {
 
   const validate = () => {
     if (!firstName.trim() || !lastName.trim()) {
+      trackFormValidationError("fullName");
       return translate(language, "checkoutValidationFullName");
     }
     if (!phonePattern.test(phone.trim())) {
+      trackFormValidationError("phone");
       return translate(language, "checkoutValidationPhone");
     }
     if (!commune.trim()) {
+      trackFormValidationError("commune");
       return translate(language, "checkoutValidationCommune");
     }
     if (address.trim().length < 5) {
+      trackFormValidationError("address");
       return language === "ar"
         ? "يرجى إدخال عنوان كامل (5 أحرف على الأقل)"
         : language === "fr"
@@ -967,7 +977,7 @@ export function CheckoutPage() {
     {/* Verification choice / OTP bottom-sheet modal */}
     {showVerifyModal ? (
       <div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+        className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 px-0 backdrop-blur-sm sm:items-center sm:px-4"
         onClick={() => { setShowVerifyModal(false); setVerifyModalStep("choice"); }}
       >
         <div

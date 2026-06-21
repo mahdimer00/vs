@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit && npm --prefix backend run typecheck"
   },
   "dependencies": {
+    "@sentry/react": "^10.59.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^9.2.1",
