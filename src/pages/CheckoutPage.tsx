@@ -1,4 +1,4 @@
-import { BadgeCheck, Building2, Check, CheckCircle2, Clock3, Home, Lock, MapPin, MapPinned, MessageCircle, Phone, PhoneCall, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, CheckCircle2, Clock3, Home, Lock, MapPin, MapPinned, MessageCircle, Phone, PhoneCall, RefreshCw, Send, ShieldCheck, Tag, Truck, UserRound, WalletCards, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -28,8 +28,7 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, affiliateRef, language, rememberConfirmedOrder, rememberPendingOrder, clearCart, pushToast, updateQuantity, removeFromCart, siteSettings } = useApp();
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [phone2, setPhone2] = useState("");
   const [wilayaCode, setWilayaCode] = useState("16");
@@ -80,10 +79,7 @@ export function CheckoutPage() {
         address: string;
         deliveryType: DeliveryType;
       }>;
-      const draftFirstName = draft.firstName || draft.fullName?.trim().split(/\s+/).slice(0, -1).join(" ") || draft.fullName || "";
-      const draftLastName = draft.lastName || draft.fullName?.trim().split(/\s+/).slice(-1).join(" ") || "";
-      setFirstName(draftFirstName);
-      setLastName(draftLastName);
+      setFullName(draft.fullName || [draft.firstName, draft.lastName].filter(Boolean).join(" ").trim() || "");
       setPhone(draft.phone || "");
       setWilayaCode(draft.wilayaCode || "16");
       setCommune(draft.commune || "");
@@ -119,9 +115,9 @@ export function CheckoutPage() {
   useEffect(() => {
     window.localStorage.setItem(
       checkoutDraftKey,
-      JSON.stringify({ firstName, lastName, fullName: [firstName, lastName].filter(Boolean).join(" ").trim(), phone, wilayaCode, commune, communeOther, address, deliveryType }),
+      JSON.stringify({ fullName, phone, wilayaCode, commune, communeOther, address, deliveryType }),
     );
-  }, [address, commune, communeOther, deliveryType, firstName, lastName, phone, wilayaCode]);
+  }, [address, commune, communeOther, deliveryType, fullName, phone, wilayaCode]);
 
   // Load available OTP channels once
   useEffect(() => {
@@ -195,7 +191,6 @@ export function CheckoutPage() {
   const otpRequired = Boolean(otpChannels?.whatsapp);
   const phoneIsValid = phonePattern.test(phone.trim());
   const isPhoneVerified = Boolean(phoneVerificationToken && verifiedPhone === phone);
-  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
   const selectedWilayaZrTerritories = useMemo(
     () => zrTerritories.filter((territory) => territory.wilayaCode === wilayaCode),
     [wilayaCode, zrTerritories],
@@ -304,9 +299,14 @@ export function CheckoutPage() {
   }
 
   const validate = () => {
-    if (!firstName.trim() || !lastName.trim()) {
+    const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (nameParts.length < 2 || nameParts.some((p) => p.length < 2)) {
       trackFormValidationError("fullName");
-      return translate(language, "checkoutValidationFullName");
+      return language === "ar"
+        ? "يرجى إدخال الاسم الكامل — الاسم واللقب معاً (مثال: أحمد محمد)"
+        : language === "fr"
+          ? "Entrez votre nom complet — prénom et nom (ex: Ahmed Mohamed)"
+          : "Enter your full name — first and last name (e.g. Ahmed Mohamed)";
     }
     if (!phonePattern.test(phone.trim())) {
       trackFormValidationError("phone");
@@ -488,60 +488,77 @@ export function CheckoutPage() {
                 <p className="text-sm text-slate-500">{translate(language, "checkoutSecureNote")}</p>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4">
+              {/* Full name — single field, requires 2 words */}
               <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">
+                  {language === "ar" ? "الاسم الكامل" : language === "fr" ? "Nom complet" : "Full name"}
+                  <span className="ms-1 text-rose-500">*</span>
+                </label>
                 <IconField icon={UserRound}>
                   <input
                     required
-                    value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
                     className="field-input field-input-icon"
-                    placeholder={language === "ar" ? "الاسم" : language === "fr" ? "Prénom" : "First name"}
-                  />
-                </IconField>
-              </div>
-              <div className="space-y-1.5">
-                <IconField icon={UserRound}>
-                  <input
-                    required
-                    value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
-                    className="field-input field-input-icon"
-                    placeholder={language === "ar" ? "اللقب" : language === "fr" ? "Nom" : "Last name"}
-                  />
-                </IconField>
-              </div>
-              <div className="space-y-1.5">
-                <IconField icon={Phone}>
-                  <input
-                    required
-                    dir="ltr"
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
-                    className="field-input field-input-icon"
-                    placeholder="0555 12 34 56"
-                  />
-                </IconField>
-                <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
-              </div>
-              <div className="space-y-1.5">
-                <IconField icon={Phone}>
-                  <input
-                    dir="ltr"
-                    inputMode="tel"
-                    value={phone2}
-                    onChange={(event) => setPhone2(event.target.value.replace(/\D/g, "").slice(0, 10))}
-                    className="field-input field-input-icon"
-                    placeholder={language === "ar" ? "رقم بديل (اختياري)" : language === "fr" ? "N° alternatif (optionnel)" : "Alt. phone (optional)"}
+                    placeholder={language === "ar" ? "أحمد محمد" : language === "fr" ? "Ahmed Mohamed" : "Ahmed Mohamed"}
+                    autoComplete="name"
                   />
                 </IconField>
                 <p className="ps-1 text-xs text-slate-400">
-                  {language === "ar" ? "رقم ثاني للتواصل (اختياري)" : language === "fr" ? "Numéro alternatif (optionnel)" : "Backup number (optional)"}
+                  {language === "ar"
+                    ? "يجب كتابة الاسم واللقب معاً — مثال: أحمد محمد"
+                    : language === "fr"
+                      ? "Écrivez prénom et nom — ex: Ahmed Mohamed"
+                      : "Write first and last name — e.g. Ahmed Mohamed"}
                 </p>
               </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* Primary phone */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-700">
+                    {language === "ar" ? "رقم الهاتف" : language === "fr" ? "Numéro de téléphone" : "Phone number"}
+                    <span className="ms-1 text-rose-500">*</span>
+                  </label>
+                  <IconField icon={Phone}>
+                    <input
+                      required
+                      dir="ltr"
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
+                      className="field-input field-input-icon"
+                      placeholder="0555 12 34 56"
+                      autoComplete="tel"
+                    />
+                  </IconField>
+                  <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintPhone")}</p>
+                </div>
+
+                {/* Alternate phone */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-700">
+                    {language === "ar" ? "رقم بديل" : language === "fr" ? "N° alternatif" : "Backup phone"}
+                    <span className="ms-1 text-xs font-normal text-slate-400">({language === "ar" ? "اختياري" : language === "fr" ? "optionnel" : "optional"})</span>
+                  </label>
+                  <IconField icon={Phone}>
+                    <input
+                      dir="ltr"
+                      inputMode="tel"
+                      value={phone2}
+                      onChange={(event) => setPhone2(event.target.value.replace(/\D/g, "").slice(0, 10))}
+                      className="field-input field-input-icon"
+                      placeholder="0666 00 00 00"
+                      autoComplete="tel"
+                    />
+                  </IconField>
+                  <p className="ps-1 text-xs text-slate-400">
+                    {language === "ar" ? "إذا كان الرقم الأول مغلقاً" : language === "fr" ? "Si le premier est injoignable" : "If primary is unreachable"}
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="mt-2 ps-1 text-xs text-slate-400">{translate(language, "checkoutHintFullName")}</p>
             {otpRequired && phoneIsValid ? (
               <div className={`mt-4 overflow-hidden rounded-[1.75rem] border shadow-sm ${
                 isPhoneVerified ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
@@ -703,26 +720,36 @@ export function CheckoutPage() {
               )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <IconField icon={MapPin}>
-                <select
-                  value={wilayaCode}
-                  onChange={(event) => {
-                    setWilayaCode(event.target.value);
-                    setCommune("");
-                    setCommuneOther(false);
-                    setSelectedZrTerritory(null);
-                  }}
-                  className="field-select field-input-icon"
-                >
-                  {wilayas.map((wilaya) => (
-                    <option key={wilaya._id} value={wilaya.code}>
-                      {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
-                    </option>
-                  ))}
-                </select>
-              </IconField>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">
+                  {language === "ar" ? "الولاية" : language === "fr" ? "Wilaya" : "Wilaya"}
+                  <span className="ms-1 text-rose-500">*</span>
+                </label>
+                <IconField icon={MapPin}>
+                  <select
+                    value={wilayaCode}
+                    onChange={(event) => {
+                      setWilayaCode(event.target.value);
+                      setCommune("");
+                      setCommuneOther(false);
+                      setSelectedZrTerritory(null);
+                    }}
+                    className="field-select field-input-icon"
+                  >
+                    {wilayas.map((wilaya) => (
+                      <option key={wilaya._id} value={wilaya.code}>
+                        {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
+                      </option>
+                    ))}
+                  </select>
+                </IconField>
+              </div>
               {useZrCommunes ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    {language === "ar" ? "البلدية" : language === "fr" ? "Commune" : "Commune"}
+                    <span className="ms-1 text-rose-500">*</span>
+                  </label>
                   <IconField icon={MapPinned}>
                     <select
                       value={communeOther ? "__other__" : selectedZrTerritory?.id ?? ""}
@@ -877,8 +904,12 @@ export function CheckoutPage() {
             </div>
 
             <div className="mt-4 space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">
+                {language === "ar" ? "العنوان التفصيلي" : language === "fr" ? "Adresse complète" : "Full address"}
+                <span className="ms-1 text-rose-500">*</span>
+              </label>
               <IconField icon={Home}>
-                <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={4} className={`field-textarea field-input-icon ${address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={translate(language, "address")} />
+                <textarea required value={address} onChange={(event) => setAddress(event.target.value)} rows={3} className={`field-textarea field-input-icon ${address.trim().length > 0 && address.trim().length < 5 ? "border-rose-300 ring-1 ring-rose-200" : ""}`} placeholder={language === "ar" ? "حي النصر، شارع المدينة، رقم 12" : language === "fr" ? "Cité El Nasr, rue principale, n°12" : "El Nasr district, main street, n°12"} />
               </IconField>
               {address.trim().length > 0 && address.trim().length < 5 ? (
                 <p className="ps-1 text-xs font-medium text-rose-500">
@@ -928,7 +959,40 @@ export function CheckoutPage() {
             </section>
           ) : null}
 
-          {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
+          {errorMessage ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+              {errorMessage}
+            </div>
+          ) : null}
+
+          {/* Trust badges — above submit button for max visibility */}
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-4">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
+                <WalletCards className="h-4 w-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "دفع عند الاستلام" : language === "fr" ? "Paiement à la livraison" : "Pay on delivery"}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
+                <Truck className="h-4 w-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "شحن لكل الولايات" : language === "fr" ? "Livraison partout" : "All wilayas"}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
+                <Lock className="h-4 w-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "بياناتك آمنة" : language === "fr" ? "Données sécurisées" : "Secure data"}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-100 text-teal-700">
+                <X className="h-4 w-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700">{language === "ar" ? "الإلغاء مجاني" : language === "fr" ? "Annulation gratuite" : "Free cancellation"}</span>
+            </div>
+          </div>
+
           <button
             disabled={submitting}
             className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 py-4 text-base font-semibold text-white shadow-[0_14px_32px_rgba(20,184,166,0.28)] transition hover:from-teal-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -936,20 +1000,6 @@ export function CheckoutPage() {
             <ShieldCheck className="h-5 w-5" />
             {submitting ? translate(language, "checkoutSubmitting") : translate(language, "checkoutSubmit")}
           </button>
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 text-teal-700" />
-              {translate(language, "checkoutTrustSecure")}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-teal-700" />
-              {translate(language, "checkoutTrustCod")}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Truck className="h-3.5 w-3.5 text-teal-700" />
-              {translate(language, "checkoutTrustDelivery")}
-            </span>
-          </div>
         </form>
 
         <div className="order-1 space-y-4 lg:order-2">

@@ -40,7 +40,10 @@ const RESTOCKABLE_STATUSES = new Set(["CANCELLED", "RETURNED", "FAILED"]);
 
 const createOrderSchema = z.object({
   customer: z.object({
-    fullName: z.string().min(2),
+    fullName: z.string().min(4).refine(
+      (v) => v.trim().split(/\s+/).filter(Boolean).length >= 2,
+      "يجب إدخال الاسم واللقب معاً (مثال: أحمد محمد)",
+    ),
     phone: z.string().regex(/^(05|06|07)\d{8}$/),
     phone2: z.string().regex(/^(05|06|07)\d{8}$/).optional(),
     wilayaCode: z.string(),
