@@ -256,25 +256,68 @@ export function ProductDetailsPage() {
     <div className="space-y-8 pb-24 lg:pb-0">
       <Seo
         title={productName}
-        description={productDescription || `${productName} - ${price.toLocaleString("ar-DZ")} دج. اطلب الآن مع التوصيل لجميع ولايات الجزائر.`}
-        image={selectedImage || undefined}
+        description={
+          productDescription
+            ? `${productDescription.slice(0, 155).trim()}…`
+            : `${productName} — ${price.toLocaleString("ar-DZ")} دج. ${product.condition === "NEW" ? "جديد" : "مستعمل"}. توصيل لجميع ولايات الجزائر، دفع عند الاستلام.`
+        }
+        image={gallery[0] || undefined}
         path={`/products/${product.slug}`}
         type="product"
-        keywords={[productName, brandName, category ? getLocalizedText(category.name, "ar") : "", "شراء", "الجزائر", "توصيل"].filter(Boolean).join(", ")}
+        keywords={[
+          productName,
+          brandName,
+          category ? getLocalizedText(category.name, "ar") : "",
+          category ? getLocalizedText(category.name, "fr") : "",
+          product.condition === "NEW" ? "جديد" : "مستعمل بحالة ممتازة",
+          selectedVariant.ram, selectedVariant.storage, selectedVariant.color,
+          "شراء أون لاين الجزائر", "توصيل لجميع الولايات", "دفع عند الاستلام",
+          "achat en ligne algérie", "livraison algérie",
+        ].filter(Boolean).join(", ")}
+        breadcrumbs={[
+          { name: "الرئيسية", url: "https://visadz.store/" },
+          { name: "المنتجات", url: "https://visadz.store/products" },
+          ...(category ? [{ name: getLocalizedText(category.name, language), url: `https://visadz.store/products?category=${category.slug}` }] : []),
+          { name: productName, url: `https://visadz.store/products/${product.slug}` },
+        ]}
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Product",
           name: productName,
-          description: productDescription,
+          description: productDescription || undefined,
           image: gallery,
           brand: { "@type": "Brand", name: brandName },
           sku: product._id,
+          mpn: product._id,
+          itemCondition: product.condition === "NEW"
+            ? "https://schema.org/NewCondition"
+            : "https://schema.org/UsedCondition",
+          ...(specifications.length > 0 ? {
+            additionalProperty: specifications.map(([name, value]) => ({
+              "@type": "PropertyValue",
+              name,
+              value,
+            })),
+          } : {}),
           offers: {
             "@type": "Offer",
             price: price.toFixed(2),
             priceCurrency: "DZD",
-            availability: selectedVariant.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            availability: selectedVariant.stock > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
             url: `https://visadz.store/products/${product.slug}`,
+            seller: { "@type": "Organization", name: "VisaStore" },
+            shippingDetails: {
+              "@type": "OfferShippingDetails",
+              shippingRate: { "@type": "MonetaryAmount", currency: "DZD" },
+              shippingDestination: { "@type": "DefinedRegion", addressCountry: "DZ" },
+            },
+            hasMerchantReturnPolicy: {
+              "@type": "MerchantReturnPolicy",
+              returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+              merchantReturnLink: "https://visadz.store/return-policy",
+            },
           },
         }}
       />

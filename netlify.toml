@@ -85,6 +85,13 @@
   status = 404
   force = true
 
+# Proxy dynamic sitemap to backend (includes all product URLs)
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "https://api.visadz.store/api/sitemap.xml"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

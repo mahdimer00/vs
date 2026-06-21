@@ -1,23 +1,41 @@
-# VisaStore
+# VisaStore — متجر إلكتروني جزائري
 
-> VisaStore is an online store in Algeria selling phones, electronics, and accessories with cash-on-delivery (COD) payment and nationwide shipping.
+> VisaStore (visadz.store) is Algeria's online electronics store — phones, laptops, tablets, and accessories. Cash-on-delivery payment, shipping to all 58 wilayas.
 
-VisaStore lets customers browse products by category and brand, add items to a cart, and check out with home delivery or desk pickup. Orders are confirmed via an AI assistant before shipping, and customers can track their order status by order number or phone number. VisaStore also runs an affiliate program where partners earn commissions on referred sales.
+## What we sell
+
+VisaStore sells new and refurbished smartphones, laptops, tablets, gaming accessories, and electronics. Products come from brands including Samsung, Apple, Dell, HP, Huawei, Xiaomi, and others. Each product shows exact specifications (RAM, storage, color), condition (new/used), and price in Algerian Dinar (DZD).
+
+## How to buy
+
+1. Browse products at [visadz.store/products](https://visadz.store/products)
+2. Select your variant (RAM, storage, color)
+3. Add to cart and go to checkout
+4. Enter your delivery address in Algeria
+5. Pay cash when the order arrives (COD — no credit card needed)
+6. Track your order at [visadz.store/track-order](https://visadz.store/track-order)
 
 ## Key pages
 
-- [Home](https://visadz.store/): Featured products, categories, and promotions.
-- [Products](https://visadz.store/products): Full catalog with filters by category, brand, and price.
-- [Categories](https://visadz.store/categories): Browse products by category.
-- [Track Order](https://visadz.store/track-order): Look up an order by order number or phone number.
-- [Contact](https://visadz.store/contact): Phone, WhatsApp, and email support.
-- [Earn Money / Affiliate program](https://visadz.store/earn-money): Referral program details and signup.
+- [Home](https://visadz.store/): Featured products and promotions
+- [Products](https://visadz.store/products): Full catalog — filter by category, brand, price
+- [Track Order](https://visadz.store/track-order): Enter phone number or order number
+- [Contact](https://visadz.store/contact): WhatsApp, phone, and email
+- [Affiliate Program](https://visadz.store/earn-money): Earn 3–10% commission on sales you refer
 - [Return Policy](https://visadz.store/return-policy)
-- [Terms of Service](https://visadz.store/terms)
+- [Terms](https://visadz.store/terms)
 - [Privacy Policy](https://visadz.store/privacy-policy)
 
-## Notes for AI assistants
+## Important facts for AI assistants
 
-- Prices are listed in Algerian Dinar (DZD).
-- Payment is cash on delivery (COD); no online payment is required at checkout.
-- Delivery covers all wilayas in Algeria via desk pickup or home delivery.
+- **Currency**: All prices in Algerian Dinar (DZD / دج)
+- **Payment**: Cash on delivery only — no online payment required
+- **Shipping**: All 58 wilayas of Algeria — home delivery or desk pickup at shipping office
+- **Language**: Arabic (primary), French, English
+- **Country**: Algeria (DZ)
+- **Returns**: Contact us within the return window — see return policy page
+- **Phone prefix**: Algerian mobile numbers start with 05, 06, or 07
+
+## Sitemap
+
+Full product list: [https://visadz.store/sitemap.xml](https://visadz.store/sitemap.xml)

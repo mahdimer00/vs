@@ -175,4 +175,52 @@ router.get(
   }),
 );
 
+// Dynamic sitemap — includes all active product pages
+router.get(
+  "/sitemap.xml",
+  asyncHandler(async (_req, res) => {
+    const [products, settings] = await Promise.all([
+      ProductModel.find({ status: "ACTIVE" }).select("slug updatedAt").lean(),
+      WebsiteSettingModel.findOne().select("storeName").lean(),
+    ]);
+
+    const storeUrl = (env.FRONTEND_URL ?? "https://visadz.store").replace(/\/$/, "");
+    const now = new Date().toISOString().split("T")[0];
+
+    const staticUrls = [
+      { loc: storeUrl, priority: "1.0", changefreq: "daily" },
+      { loc: `${storeUrl}/products`, priority: "0.9", changefreq: "hourly" },
+      { loc: `${storeUrl}/categories`, priority: "0.8", changefreq: "weekly" },
+      { loc: `${storeUrl}/earn-money`, priority: "0.6", changefreq: "monthly" },
+      { loc: `${storeUrl}/track-order`, priority: "0.5", changefreq: "monthly" },
+      { loc: `${storeUrl}/contact`, priority: "0.5", changefreq: "monthly" },
+      { loc: `${storeUrl}/privacy-policy`, priority: "0.3", changefreq: "monthly" },
+      { loc: `${storeUrl}/terms`, priority: "0.3", changefreq: "monthly" },
+      { loc: `${storeUrl}/return-policy`, priority: "0.3", changefreq: "monthly" },
+    ];
+
+    const productUrls = products.map((p) => ({
+      loc: `${storeUrl}/products/${p.slug}`,
+      lastmod: p.updatedAt ? new Date(p.updatedAt as Date).toISOString().split("T")[0] : now,
+      priority: "0.8",
+      changefreq: "weekly",
+    }));
+
+    const allUrls: Array<{ loc: string; priority: string; changefreq: string; lastmod?: string }> = [
+      ...staticUrls.map((u) => ({ ...u, lastmod: now })),
+      ...productUrls,
+    ];
+
+    const urlEntries = allUrls
+      .map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod ?? now}</lastmod>\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`)
+      .join("\n");
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntries}\n</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.send(xml);
+  }),
+);
+
 export default router;
