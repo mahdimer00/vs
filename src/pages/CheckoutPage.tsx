@@ -1071,15 +1071,32 @@ export function CheckoutPage() {
                 {!otpSent || otpSecondsLeft === 0 ? (
                   <div className="space-y-4">
                     {!otpSent ? (
-                      <p className="text-sm text-slate-600">
-                        {language === "ar"
-                          ? "سنرسل رمز 6 أرقام إلى واتسابك على الرقم:"
-                          : "We'll send a 6-digit code to your WhatsApp:"}
-                        <span className="ms-1 font-semibold text-slate-900" dir="ltr">{phone}</span>
-                      </p>
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-2">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {language === "ar" ? "كيف يعمل التحقق عبر واتساب؟" : language === "fr" ? "Comment ça marche ?" : "How does it work?"}
+                        </p>
+                        <ol className="space-y-1.5 text-sm text-slate-600 list-none">
+                          <li className="flex items-start gap-2">
+                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">1</span>
+                            {language === "ar"
+                              ? <span>اضغط على الزر أدناه وسيصلك رسالة واتساب على الرقم <span className="font-semibold text-slate-900" dir="ltr">{phone}</span></span>
+                              : language === "fr"
+                                ? <span>Cliquez sur le bouton et vous recevrez un code WhatsApp au <span className="font-semibold" dir="ltr">{phone}</span></span>
+                                : <span>Click the button and you'll receive a WhatsApp message at <span className="font-semibold" dir="ltr">{phone}</span></span>}
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">2</span>
+                            <span>{language === "ar" ? "أدخل الرمز المكوّن من 6 أرقام الذي ستستلمه" : language === "fr" ? "Saisissez le code à 6 chiffres reçu" : "Enter the 6-digit code you receive"}</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">3</span>
+                            <span>{language === "ar" ? "يُثبَّت طلبك تلقائياً بعد التحقق ✓" : language === "fr" ? "Votre commande sera confirmée automatiquement ✓" : "Your order will be placed automatically ✓"}</span>
+                          </li>
+                        </ol>
+                      </div>
                     ) : (
                       <p className="text-sm text-slate-600">
-                        {language === "ar" ? "انتهت صلاحية الرمز. أرسل رمزاً جديداً:" : "Code expired. Send a new code:"}
+                        {language === "ar" ? "انتهت صلاحية الرمز. أرسل رمزاً جديداً:" : language === "fr" ? "Code expiré. Envoyez un nouveau code :" : "Code expired. Send a new code:"}
                       </p>
                     )}
                     <button
@@ -1090,15 +1107,22 @@ export function CheckoutPage() {
                     >
                       {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       {otpSending
-                        ? (language === "ar" ? "جارٍ الإرسال..." : "Sending...")
-                        : (language === "ar" ? "أرسل رمز واتساب" : "Send WhatsApp code")}
+                        ? (language === "ar" ? "جارٍ الإرسال..." : language === "fr" ? "Envoi..." : "Sending...")
+                        : (language === "ar" ? "أرسل لي رمز واتساب" : language === "fr" ? "Envoyer le code WhatsApp" : "Send WhatsApp code")}
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      {language === "ar"
+                        ? <span>✅ تم إرسال رمز واتساب إلى <span className="font-semibold" dir="ltr">{phone}</span> — تحقق من رسائلك</span>
+                        : language === "fr"
+                          ? <span>✅ Code envoyé sur WhatsApp au <span className="font-semibold" dir="ltr">{phone}</span> — vérifiez vos messages</span>
+                          : <span>✅ WhatsApp code sent to <span className="font-semibold" dir="ltr">{phone}</span> — check your messages</span>}
+                    </div>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-slate-800">
-                        {language === "ar" ? "أدخل الرمز الذي وصلك:" : "Enter the code you received:"}
+                        {language === "ar" ? "أدخل الرمز الذي وصلك:" : language === "fr" ? "Entrez le code reçu :" : "Enter the code you received:"}
                       </p>
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         <Clock3 className="h-3 w-3" />
