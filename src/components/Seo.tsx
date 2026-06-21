@@ -73,6 +73,7 @@ export function Seo({ title, description, image, path, type = "website", noindex
     <Helmet>
       <html lang="ar" dir="rtl" />
       <title>{fullTitle}</title>
+      <meta name="google-site-verification" content="ewcLY-cX6iUc1Tgu978_kt9Gf7RHzJXHUud3lrhttuI" />
       {description ? <meta name="description" content={description} /> : null}
       {keywords ? <meta name="keywords" content={keywords} /> : null}
       {canonical ? <link rel="canonical" href={canonical} /> : null}

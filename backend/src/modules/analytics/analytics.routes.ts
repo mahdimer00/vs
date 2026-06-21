@@ -227,4 +227,28 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
   });
 }));
 
+// Client-side error reporting — free self-hosted alternative to Sentry
+router.post(
+  "/client-error",
+  asyncHandler(async (req, res) => {
+    const input = z.object({
+      type: z.string().max(64).default("unknown"),
+      message: z.string().max(2000),
+      source: z.string().max(512).optional(),
+      line: z.number().int().optional(),
+      stack: z.string().max(5000).optional(),
+      url: z.string().max(2048).optional(),
+      userAgent: z.string().max(512).optional(),
+      timestamp: z.string().optional(),
+      context: z.record(z.string(), z.unknown()).optional(),
+    }).parse(req.body);
+
+    // Log to console for VPS log monitoring
+    console.error(`[CLIENT-ERROR] ${input.type}: ${input.message} | url:${input.url ?? "?"} | ua:${(input.userAgent ?? "").slice(0, 80)}`);
+    if (input.stack) console.error(input.stack.slice(0, 1000));
+
+    return res.status(204).end();
+  }),
+);
+
 export default router;

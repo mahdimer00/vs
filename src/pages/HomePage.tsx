@@ -35,7 +35,9 @@ export function HomePage() {
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories(), bannerService.getBanners(), adminService.getBrands()])
       .then(([productData, categoryData, bannerData, brandData]) => {
-        setProducts(productData.filter((product) => product.isFeatured && !product.isSoldOut).slice(0, 6));
+        const featured = productData.filter((product) => product.isFeatured && !product.isSoldOut);
+        // Fall back to most recent active products if none are marked as featured
+        setProducts((featured.length > 0 ? featured : productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE")).slice(0, 6));
         setSoldOutProducts(productData.filter((product) => product.isSoldOut).slice(0, 6));
         setCategories(categoryData.filter((category) => category.isActive).slice(0, 4));
         setBanners(bannerData);
