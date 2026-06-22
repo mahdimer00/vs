@@ -155,6 +155,44 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
   }
 }
 
+// WhatsApp notification when a new order is created
+export async function sendWhatsAppOrderCreated(order: {
+  customer: { fullName: string; phone: string };
+  orderNumber: string;
+  items: { productName: { ar?: string; en?: string }; variantLabel?: string; quantity: number; unitPrice: number }[];
+  total: number;
+  deliveryType: string;
+  storeName?: string;
+}): Promise<void> {
+  if (!isWhatsAppConfigured()) return;
+  const storeName = order.storeName || "المتجر";
+  const itemsText = order.items
+    .map((item) => `• ${item.productName.ar || item.productName.en || "منتج"}${item.variantLabel ? ` (${item.variantLabel})` : ""} × ${item.quantity}`)
+    .join("\n");
+  const delivery = order.deliveryType === "HOME_DELIVERY" ? "توصيل للمنزل" : "استلام من مكتب الشحن";
+
+  const message = [
+    `🛍️ *${storeName}*`,
+    ``,
+    `مرحباً *${order.customer.fullName}*! 👋`,
+    ``,
+    `تم استلام طلبك بنجاح ✅`,
+    `📦 رقم الطلب: *${order.orderNumber}*`,
+    ``,
+    `*الطلبية:*`,
+    itemsText,
+    ``,
+    `💰 المجموع: *${order.total.toLocaleString("ar-DZ")} دج*`,
+    `🚚 ${delivery}`,
+    ``,
+    `⏳ سيتصل بك فريقنا قريباً لتأكيد الطلب وتحديد موعد التسليم.`,
+    ``,
+    `للتأكيد أو الاستفسار: ردّ على هذه الرسالة أو تواصل معنا مباشرة. 📞`,
+  ].join("\n");
+
+  await sendWhatsAppMessage(order.customer.phone, message);
+}
+
 // Arabic status labels for WhatsApp notifications
 const ZR_STATUS_AR: Record<string, string> = {
   SHIPPED:    "شحنتك في الطريق 🚚",

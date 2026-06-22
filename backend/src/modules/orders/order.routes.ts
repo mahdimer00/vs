@@ -15,7 +15,7 @@ import { sendCapiEvent } from "../../utils/capi.js";
 import { sendTikTokEvent } from "../../utils/tiktokEvents.js";
 import { env } from "../../config/env.js";
 import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook, setZRParcelState, ZR_SUPPLIER_STATES } from "../../utils/zrexpress.js";
-import { isWhatsAppConfigured, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
+import { isWhatsAppConfigured, sendWhatsAppOrderCreated, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
 import { emitOrderUpdate } from "../../utils/sse.js";
 
 const router = Router();
@@ -308,6 +308,21 @@ router.post(
     };
     void sendTikTokEvent({ event: "PlaceAnOrder", eventId: input.capiEventId, ...ttqBase });
     void sendTikTokEvent({ event: "Purchase", eventId: input.capiEventId ? `${input.capiEventId}_ttq_purchase` : undefined, ...ttqBase });
+
+    // Send WhatsApp confirmation to customer (best-effort, includes product summary)
+    if (isWhatsAppConfigured()) {
+      const storeSettings = await import("../../models/catalog.model.js").then(
+        (m) => m.WebsiteSettingModel.findOne().select("storeName").lean().catch(() => null),
+      );
+      void sendWhatsAppOrderCreated({
+        customer: { fullName: input.customer.fullName, phone: input.customer.phone },
+        orderNumber: order.orderNumber,
+        items: order.items,
+        total: order.total,
+        deliveryType: order.deliveryType,
+        storeName: storeSettings?.storeName || "VisaStore",
+      }).catch((err) => console.error("[WhatsApp] Order notification failed:", err));
+    }
 
     return res.status(201).json({
       ...populatedOrder,

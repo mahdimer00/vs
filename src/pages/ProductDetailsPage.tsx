@@ -211,20 +211,36 @@ export function ProductDetailsPage() {
     selected: string | undefined,
     keyName: "ram" | "storage" | "color",
   ) => {
-    if (!options.length) {
-      return null;
-    }
+    if (!options.length) return null;
 
     return (
       <div>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <label className="block text-sm font-semibold text-slate-700">{label}</label>
-          {selected ? <span className="text-sm font-medium text-slate-500">{selected}</span> : null}
+        {/* Label with required selection indicator */}
+        <div className="mb-2 flex items-center gap-2">
+          <label className="text-sm font-bold text-slate-800">{label}</label>
+          {selected ? (
+            <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-800">
+              ✓ {selected}
+            </span>
+          ) : (
+            <span className="animate-pulse rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+              {language === "ar" ? "← اختر" : language === "fr" ? "← Choisir" : "← Choose"}
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap gap-3">
+
+        <div className="flex flex-wrap gap-2">
           {options.map((option) => {
             const active = selected === option;
             const available = isOptionAvailable({ [keyName]: option });
+            // Find price for this option (if variants have different prices)
+            const variantForOption = product.variants.find((v) =>
+              keyName === "ram" ? v.ram === option :
+              keyName === "storage" ? v.storage === option :
+              v.color === option
+            );
+            const optionPrice = variantForOption?.price;
+            const showPrice = optionPrice && optionPrice !== price;
 
             return (
               <button
@@ -233,9 +249,30 @@ export function ProductDetailsPage() {
                 disabled={!available}
                 onClick={() => selectVariantBy({ [keyName]: option })}
                 aria-pressed={active}
-                className={`option-chip ${active ? "option-chip-active" : ""} ${!available ? "option-chip-disabled" : ""}`}
+                className={`relative flex min-w-[72px] flex-col items-center justify-center gap-0.5 rounded-2xl border-2 px-4 py-3 text-sm font-bold transition active:scale-95 ${
+                  active
+                    ? "border-teal-500 bg-teal-50 text-teal-900 shadow-[0_0_0_3px_rgba(20,184,166,0.15)]"
+                    : available
+                      ? "border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50/50"
+                      : "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
+                }`}
               >
-                {option}
+                {active && (
+                  <span className="absolute -end-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-[10px] text-white">
+                    ✓
+                  </span>
+                )}
+                <span>{option}</span>
+                {showPrice ? (
+                  <span className={`text-[10px] font-semibold ${active ? "text-teal-700" : "text-slate-400"}`}>
+                    {optionPrice.toLocaleString("ar-DZ")} دج
+                  </span>
+                ) : null}
+                {!available ? (
+                  <span className="text-[10px] font-normal text-rose-400">
+                    {language === "ar" ? "نفد" : language === "fr" ? "Épuisé" : "Out"}
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -476,9 +513,15 @@ export function ProductDetailsPage() {
           ) : null}
 
           {hasVariantOptions ? (
-            <div className="mt-5 flex items-center justify-between rounded-[1.2rem] bg-slate-50 px-4 py-3 text-sm">
-              <span className="text-slate-500">{translate(language, "productVariant")}</span>
-              <span className="font-semibold text-slate-900">{buildVariantLabel(selectedVariant)}</span>
+            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-emerald-50 px-4 py-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-500 text-white text-sm font-bold">✓</div>
+              <div>
+                <div className="text-xs font-semibold text-teal-700 uppercase tracking-wide">
+                  {language === "ar" ? "الخيار المحدد" : language === "fr" ? "Option choisie" : "Selected option"}
+                </div>
+                <div className="mt-0.5 font-bold text-slate-900">{buildVariantLabel(selectedVariant)}</div>
+              </div>
+              <div className="ms-auto text-lg font-extrabold text-teal-700">{price.toLocaleString("ar-DZ")} <span className="text-sm font-semibold">دج</span></div>
             </div>
           ) : null}
 
