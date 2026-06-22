@@ -20,6 +20,7 @@ import { trackEvent } from "@/utils/tracking";
 import { trackFunnelStep, trackCheckoutError, trackFormValidationError } from "@/utils/checkoutFunnel";
 import { sentrySetUser } from "@/utils/sentry";
 import { clarityTag } from "@/utils/clarity";
+import { getOrCreateExternalId } from "@/utils/externalId";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
 const checkoutDraftKey = "visastore-checkout-draft";
@@ -44,6 +45,7 @@ export function CheckoutPage() {
   const [promoApplying, setPromoApplying] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [invalidField, setInvalidField] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
   const [zrTerritories, setZrTerritories] = useState<ZRTerritory[]>([]);
   const [selectedZrTerritory, setSelectedZrTerritory] = useState<ZRTerritory | null>(null);
 
@@ -134,7 +136,7 @@ export function CheckoutPage() {
   useEffect(() => {
     if (phonePattern.test(phone.trim())) {
       void ttqIdentify(phone.trim());
-      pixelSetUserPhone(phone.trim());
+      pixelSetUserPhone(phone.trim(), email.trim() || undefined);
       sentrySetUser(phone.trim());
       clarityTag("phone_prefix", phone.trim().slice(0, 4));
       trackFunnelStep("phone_entered");
@@ -412,7 +414,8 @@ export function CheckoutPage() {
     const fbp = getCookie("_fbp");
     const fbc = getCookie("_fbc");
 
-    pixelSetUserPhone(phone); // Refresh advanced matching before Lead/Purchase
+    pixelSetUserPhone(phone, email.trim() || undefined); // Refresh advanced matching before Lead/Purchase
+    const externalId = getOrCreateExternalId();
     pixelLead(capiEventId);
     const _placeContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
     void ttqIdentify(phone);
@@ -441,6 +444,8 @@ export function CheckoutPage() {
         phoneVerificationToken: phoneVerificationToken ?? undefined,
         manualConfirm: effectiveManualConfirm || undefined,
         zrTerritoryId: selectedZrTerritory?.id,
+        email: email.trim() || undefined,
+        externalId: externalId || undefined,
         fbp,
         fbc,
         clientUserAgent: navigator.userAgent,
@@ -606,6 +611,26 @@ export function CheckoutPage() {
                   </IconField>
                   <p className="ps-1 text-xs text-slate-400">{language === "ar" ? "اختياري" : language === "fr" ? "Optionnel" : "Optional"}</p>
                 </div>
+              </div>
+
+              {/* Email — optional, improves ad matching quality significantly */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">
+                  {language === "ar" ? "البريد الإلكتروني" : language === "fr" ? "Email" : "Email"}
+                  <span className="ms-1 text-xs font-normal text-slate-400">({language === "ar" ? "اختياري — يحسّن دقة الإعلانات" : language === "fr" ? "optionnel" : "optional"})</span>
+                </label>
+                <IconField icon={BadgeCheck}>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="field-input field-input-icon"
+                    placeholder={language === "ar" ? "example@gmail.com" : "example@gmail.com"}
+                    autoComplete="email"
+                    dir="ltr"
+                  />
+                </IconField>
               </div>
             </div>
             {/* Show verified badge if already confirmed — popup modal handles the rest */}

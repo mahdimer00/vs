@@ -1,3 +1,5 @@
+import { getOrCreateExternalId } from "./externalId";
+
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void;
@@ -45,7 +47,9 @@ export function initPixel() {
   script.src = "https://connect.facebook.net/en_US/fbevents.js";
   document.head.appendChild(script);
 
-  window.fbq("init", PIXEL_ID);
+  // Init with external_id for Advanced Matching — boosts EMQ significantly
+  const externalId = getOrCreateExternalId();
+  window.fbq("init", PIXEL_ID, externalId ? { external_id: externalId } : {});
 }
 
 function send(event: string, name: string, params?: Record<string, unknown>, options?: { eventID?: string }) {
@@ -65,12 +69,18 @@ export function pixelPageView() {
 }
 
 // Advanced Matching — call when phone is available to improve event match quality
-export function pixelSetUserPhone(phone: string) {
+// Also enriches external_id so Meta can link this session to future visits
+export function pixelSetUserPhone(phone: string, email?: string) {
   if (!PIXEL_ID || typeof window === "undefined" || !window.fbq) return;
-  // Normalize Algerian number to international format (+213XXXXXXXXX)
   const normalized = phone.startsWith("0") ? `213${phone.slice(1)}` : phone;
-  // Meta accepts plaintext phone — it hashes client-side automatically
-  window.fbq("init", PIXEL_ID, { ph: normalized, country: "dz" });
+  const externalId = getOrCreateExternalId();
+  const userData: Record<string, string> = {
+    ph: normalized,
+    country: "dz",
+    ...(externalId ? { external_id: externalId } : {}),
+    ...(email?.trim() ? { em: email.trim().toLowerCase() } : {}),
+  };
+  window.fbq("init", PIXEL_ID, userData);
 }
 
 export function pixelViewContent(payload: {

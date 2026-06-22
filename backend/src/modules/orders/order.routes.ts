@@ -69,6 +69,8 @@ const createOrderSchema = z.object({
   phoneVerificationToken: z.string().optional(),
   zrTerritoryId: z.string().uuid().optional(),
   manualConfirm: z.boolean().optional(),
+  email: z.string().email().max(256).optional(),
+  externalId: z.string().max(256).optional(),
 });
 
 function isOtpEnforced(): boolean {
@@ -277,6 +279,9 @@ router.post(
       clientUserAgent: input.clientUserAgent ?? String(req.headers["user-agent"] ?? ""),
       fbp: input.fbp,
       fbc: input.fbc,
+      // Advanced Matching — improves EMQ from 6→9
+      email: input.email,
+      externalId: input.externalId,
       currency: "DZD",
       value: order.total,
       contentIds: [String(order._id)],

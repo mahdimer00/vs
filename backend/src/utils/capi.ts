@@ -38,6 +38,9 @@ export interface CapiEventOptions {
   clientUserAgent?: string;
   fbp?: string;
   fbc?: string;
+  // Advanced matching identifiers
+  email?: string;
+  externalId?: string;
   // Custom data
   currency?: string;
   value?: number;
@@ -63,6 +66,10 @@ export async function sendCapiEvent(options: CapiEventOptions): Promise<void> {
   if (options.city) userData["ct"] = [sha256(options.city)];
   if (options.state) userData["st"] = [sha256(options.state)];
   if (options.country) userData["country"] = [sha256(options.country)];
+
+  // email and external_id — both must be SHA-256 hashed
+  if (options.email?.trim()) userData["em"] = [sha256(options.email)];
+  if (options.externalId?.trim()) userData["external_id"] = [sha256(options.externalId)];
 
   // These three must NOT be hashed
   if (options.clientIp) userData["client_ip_address"] = options.clientIp;
