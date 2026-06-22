@@ -1,8 +1,8 @@
-import { Flame, Heart, ShieldCheck, Zap } from "lucide-react";
+import { Heart, ShieldCheck, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useApp } from "@/hooks/useApp";
 import type { Locale, Product } from "@/types";
-import { formatCurrency, getLocalizedText, hashSeed } from "@/utils/format";
+import { formatCurrency, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
 export function ProductCard({ product, language }: { product: Product; language: Locale }) {
@@ -14,7 +14,6 @@ export function ProductCard({ product, language }: { product: Product; language:
   const wishlisted = isWishlisted(product._id);
   const soldOut = product.stock <= 0 || !!product.isSoldOut;
   const lowStock = !soldOut && product.stock > 0 && product.stock <= 5;
-  const boughtToday = 3 + hashSeed(product._id) % 18;
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-[1.6rem] bg-white shadow-[0_2px_12px_rgba(15,23,42,0.07)] border border-slate-100 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(15,23,42,0.13)]">
@@ -79,11 +78,18 @@ export function ProductCard({ product, language }: { product: Product; language:
             {getLocalizedText(product.name, language)}
           </h3>
 
-          {/* Social proof */}
-          {!soldOut ? (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-              <Flame className="h-3.5 w-3.5" />
-              {translate(language, "productBoughtToday").replace("{count}", String(boughtToday))}
+          {/* Real stock urgency — no fake numbers */}
+          {product.stock === 1 ? (
+            <div className="flex items-center gap-1 text-xs font-bold text-rose-600">
+              🔴 {language === "ar" ? "آخر قطعة!" : language === "fr" ? "Dernière pièce!" : "Last one!"}
+            </div>
+          ) : product.stock === 2 ? (
+            <div className="flex items-center gap-1 text-xs font-bold text-orange-600">
+              🟠 {language === "ar" ? "قطعتان فقط" : language === "fr" ? "2 restantes" : "Only 2 left"}
+            </div>
+          ) : lowStock ? (
+            <div className="flex items-center gap-1 text-xs font-bold text-amber-600">
+              ⚡ {language === "ar" ? `${product.stock} قطع فقط` : language === "fr" ? `Plus que ${product.stock}` : `${product.stock} left`}
             </div>
           ) : null}
 
