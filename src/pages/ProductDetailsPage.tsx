@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Eye, Flame, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -9,7 +9,7 @@ import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
-import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText, hashSeed } from "@/utils/format";
+import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { pixelViewContent } from "@/utils/pixel";
 import { ttqAddToWishlist, ttqViewContent } from "@/utils/tiktok";
@@ -179,9 +179,8 @@ export function ProductDetailsPage() {
   const saving = Math.max(0, product.basePrice - price);
   const adminSoldOut = !!product.isSoldOut;
   const localPickupOnly = !!product.localPickupOnly;
-  const lowStock = !adminSoldOut && selectedVariant.stock <= 5;
-  const viewerCount = 8 + hashSeed(product._id);
-  const boughtToday = 3 + hashSeed(product._id) % 12;
+  const stock = selectedVariant.stock;
+  const lowStock = !adminSoldOut && stock > 0 && stock <= 5;
   const pad = (value: number) => String(value).padStart(2, "0");
 
   const selectVariantBy = (change: { ram?: string; storage?: string; color?: string }) => {
@@ -478,14 +477,20 @@ export function ProductDetailsPage() {
                 🏪 {language === "ar" ? "متوفر في المتجر فقط" : language === "fr" ? "En magasin uniquement" : "In-store only"}
               </span>
             ) : null}
-            <span className="inline-flex items-center gap-1.5 text-slate-500">
-              <Eye className="h-4 w-4" />
-              {viewerCount} {translate(language, "productViewingNow")}
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-slate-500">
-              <Flame className="h-4 w-4" />
-              {translate(language, "productBoughtToday").replace("{count}", String(boughtToday))}
-            </span>
+            {/* Real stock urgency — only shows when stock is genuinely low */}
+            {stock === 1 ? (
+              <span className="inline-flex animate-pulse items-center gap-1.5 rounded-full border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                🔴 {language === "ar" ? "آخر قطعة!" : language === "fr" ? "Dernière pièce !" : "Last one!"}
+              </span>
+            ) : stock === 2 ? (
+              <span className="inline-flex animate-pulse items-center gap-1.5 rounded-full border border-orange-300 bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
+                🟠 {language === "ar" ? "قطعتان فقط" : language === "fr" ? "2 pièces restantes" : "Only 2 left"}
+              </span>
+            ) : stock <= 5 && stock > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                ⚡ {language === "ar" ? `${stock} قطع فقط` : language === "fr" ? `Plus que ${stock}` : `Only ${stock} left`}
+              </span>
+            ) : null}
           </div>
 
           {saving > 0 ? (
