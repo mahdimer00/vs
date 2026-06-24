@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, KeyRound, Mail, Phone, RefreshCw, Share2, ShoppingBag, Sparkles, User, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { IconField } from "@/components/IconField";
 import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
@@ -50,6 +50,7 @@ const SHARE_METHODS: ShareMethod[] = [
 
 export function AffiliateRegisterPage() {
   const { language, setAffiliateSession } = useApp();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get("ref")?.trim().toUpperCase() || "";
 
@@ -102,6 +103,7 @@ export function AffiliateRegisterPage() {
     try {
       const res = await authService.affiliateVerifyOtp({ email: registeredEmail, code: otpCode });
       setAffiliateSession({ token: res.token, user: { id: String((res.affiliate as any)._id), name: res.affiliate.name, email: res.affiliate.email, role: "AFFILIATE" } });
+      navigate("/affiliate");
     } catch (e) {
       setError(e instanceof Error ? e.message : "رمز التحقق غير صحيح");
     } finally {
