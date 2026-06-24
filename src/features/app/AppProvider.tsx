@@ -37,6 +37,7 @@ interface AppContextValue {
   dismissToast: (id: number) => void;
   toasts: Toast[];
   siteSettings: WebsiteSetting | null;
+  refreshSiteSettings: () => void;
 }
 
 export const AppContext = createContext<AppContextValue | null>(null);
@@ -63,11 +64,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [siteSettings, setSiteSettings] = useState<WebsiteSetting | null>(null);
 
-  useEffect(() => {
+  const refreshSiteSettings = () => {
     void settingsService
       .getSettings()
       .then((data) => setSiteSettings(data))
       .catch(() => setSiteSettings(null));
+  };
+
+  useEffect(() => {
+    refreshSiteSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -169,7 +175,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dismissToast: (id) => setToasts((current) => current.filter((toast) => toast.id !== id)),
       toasts,
       siteSettings,
+      refreshSiteSettings,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [adminSession, affiliateRef, affiliateSession, cart, confirmedOrder, language, pendingOrder, siteSettings, toasts, wishlist],
   );
 

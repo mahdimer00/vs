@@ -279,7 +279,7 @@ function Panel({
 export function AdminDashboardPage() {
   const location = useLocation();
   const tab = location.pathname.replace("/gestion", "").replace(/^\//, "") || "dashboard";
-  const { adminSession, setAdminSession, language, pushToast } = useApp();
+  const { adminSession, setAdminSession, language, pushToast, refreshSiteSettings } = useApp();
   const token = adminSession?.token ?? "";
 
   const [loading, setLoading] = useState(true);
@@ -3700,7 +3700,20 @@ export function AdminDashboardPage() {
             <button onClick={() => setSettings({ ...settings, promoCodeEnabled: !settings.promoCodeEnabled })} className="ghost-button">
               {translate(language, "adminPromoCodeFieldToggle")}: {settings.promoCodeEnabled !== false ? translate(language, "on") : translate(language, "off")}
             </button>
-            <button onClick={() => void adminService.updateSettings(token, settings).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button">
+            <button
+              onClick={() => setSettings({ ...settings, directOrderMode: !settings.directOrderMode })}
+              className={`ghost-button gap-2 ${settings.directOrderMode ? "border-teal-400 bg-teal-50 text-teal-800" : ""}`}
+            >
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.directOrderMode ? "bg-teal-500" : "bg-slate-300"}`} />
+              {language === "ar" ? "الطلب المباشر من صفحة المنتج" : language === "fr" ? "Commande directe depuis la fiche produit" : "Direct order on product page"}:
+              <strong>{settings.directOrderMode ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+            </button>
+            <button
+              onClick={() => void adminService.updateSettings(token, settings)
+                .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "تم الحفظ ✓" : "Saved ✓", "success"); })
+                .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+              className="primary-button"
+            >
               {translate(language, "adminSave")}
             </button>
           </div>

@@ -238,6 +238,7 @@ export interface WebsiteSetting {
   aiEnabled: boolean;
   maintenanceMode: boolean;
   promoCodeEnabled: boolean;
+  directOrderMode?: boolean;
   affiliateLevels?: AffiliateLevelSettings;
 }
 

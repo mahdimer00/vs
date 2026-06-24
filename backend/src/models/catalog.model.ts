@@ -74,6 +74,7 @@ const websiteSettingSchema = new Schema(
     aiEnabled: { type: Boolean, default: true },
     maintenanceMode: { type: Boolean, default: false },
     promoCodeEnabled: { type: Boolean, default: true },
+    directOrderMode: { type: Boolean, default: false },
     affiliateLevels: {
       type: Schema.Types.Mixed,
       default: {

@@ -10,6 +10,7 @@ import { useApp } from "@/hooks/useApp";
 import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
 import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
+import { DirectOrderForm } from "@/components/DirectOrderForm";
 import { translate } from "@/utils/i18n";
 import { pixelViewContent } from "@/utils/pixel";
 import { ttqAddToWishlist, ttqViewContent } from "@/utils/tiktok";
@@ -563,6 +564,20 @@ export function ProductDetailsPage() {
                 {language === "ar" ? "تواصل معنا لمعرفة طريقة الحصول عليه" : "Contact us for more details"}
               </div>
             </div>
+          ) : siteSettings?.directOrderMode ? (
+            /* DIRECT ORDER MODE — inline checkout form on product page */
+            !adminSoldOut && selectedVariant.stock > 0 ? (
+              <DirectOrderForm
+                product={product}
+                variant={selectedVariant}
+                quantity={quantity}
+                shippingFee={0}
+              />
+            ) : (
+              <div className="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center text-sm font-semibold text-slate-400">
+                {translate(language, "productSoldOut")}
+              </div>
+            )
           ) : (
           <button
             disabled={adminSoldOut || selectedVariant.stock <= 0}
@@ -577,6 +592,8 @@ export function ProductDetailsPage() {
           </button>
           )}
 
+          {/* Add to cart — hidden in direct order mode */}
+          {!siteSettings?.directOrderMode ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
             <button
               disabled={adminSoldOut || localPickupOnly || selectedVariant.stock <= 0}
@@ -607,6 +624,7 @@ export function ProductDetailsPage() {
               <span className="sm:hidden">{translate(language, isWishlisted(product._id) ? "wishlistRemove" : "wishlistAdd")}</span>
             </button>
           </div>
+          ) : null /* end !directOrderMode */}
 
           {(siteSettings?.whatsapp || siteSettings?.phone || siteSettings?.socialLinks?.facebook || siteSettings?.socialLinks?.tiktok) ? (
             <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
