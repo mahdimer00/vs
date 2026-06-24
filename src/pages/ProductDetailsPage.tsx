@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -627,6 +627,31 @@ export function ProductDetailsPage() {
             </button>
           </div>
           ) : null /* end !directOrderMode */}
+
+          {/* Affiliate earnings hint — shown when product has affiliate commission */}
+          {product.affiliateEnabled && product.commissionValue > 0 ? (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+              <div className="flex items-start gap-3 p-4">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-400 text-slate-900">
+                  <BadgePercent className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-amber-900 text-sm">
+                    {language === "ar" ? "اربح من مشاركة هذا المنتج 💰" : language === "fr" ? "Gagnez en partageant ce produit 💰" : "Earn by sharing this product 💰"}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-amber-700">
+                    {language === "ar"
+                      ? `شارك رابطك الخاص لهذا المنتج — تكسب ${product.commissionType === "PERCENTAGE" ? product.commissionValue + "%" : formatCurrency(product.commissionValue, language)} على كل طلب يكتمل عبر رابطك.`
+                      : `Share your affiliate link for this product — earn ${product.commissionType === "PERCENTAGE" ? product.commissionValue + "%" : formatCurrency(product.commissionValue, language)} on every completed order.`}
+                  </p>
+                  <Link to="/earn-money" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-900 underline underline-offset-2">
+                    {language === "ar" ? "انضم مجاناً وابدأ الكسب" : "Join free and start earning"}
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {(siteSettings?.whatsapp || siteSettings?.phone || siteSettings?.socialLinks?.facebook || siteSettings?.socialLinks?.tiktok) ? (
             <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">

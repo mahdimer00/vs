@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { BackToTopButton } from "@/components/BackToTopButton";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
+import { EarnMoneyFloat } from "@/components/EarnMoneyFloat";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { LoadingState } from "@/components/LoadingState";
@@ -24,6 +25,7 @@ export function MainLayout() {
       {!isDashboard ? <Footer /> : null}
       {!isDashboard ? <BackToTopButton /> : null}
       {!isDashboard ? <WhatsAppFloat /> : null}
+      {!isDashboard ? <EarnMoneyFloat /> : null}
       <div className="fixed bottom-4 end-4 z-50 max-w-[calc(100vw-2rem)] space-y-3">
         {toasts.map((toast) => (
           <button

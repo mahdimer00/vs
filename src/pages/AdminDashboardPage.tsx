@@ -3171,160 +3171,167 @@ export function AdminDashboardPage() {
 
   const renderAffiliates = () => {
     const pendingAffiliates = affiliates.filter((a) => a.status === "PENDING");
+    const activeAffiliates = affiliates.filter((a) => a.status === "ACTIVE");
     const filteredAffiliates = affiliates.filter((affiliate) => {
       const q = affiliateSearch.toLowerCase();
       if (affiliateStatusFilter !== "all" && affiliate.status !== affiliateStatusFilter) return false;
       return !q || affiliate.name.toLowerCase().includes(q) || affiliate.email.toLowerCase().includes(q) || affiliate.phone?.includes(q) || affiliate.referralCode.toLowerCase().includes(q);
     });
+
+    const levelColors: Record<string, string> = {
+      BRONZE: "border-amber-300 bg-amber-50 text-amber-800",
+      SILVER: "border-slate-300 bg-slate-100 text-slate-700",
+      GOLD: "border-yellow-400 bg-yellow-50 text-yellow-800",
+      PLATINUM: "border-teal-400 bg-teal-50 text-teal-800",
+    };
+
     return (
     <div className="space-y-4">
-      {/* Search + filter + bulk actions */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Summary stat cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="surface-card p-4 text-center">
+          <div className="text-2xl font-bold text-teal-600">{activeAffiliates.length}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "نشط" : "Active"}</div>
+        </div>
+        <div className="surface-card p-4 text-center">
+          <div className="text-2xl font-bold text-amber-600">{pendingAffiliates.length}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "في الانتظار" : "Pending"}</div>
+        </div>
+        <div className="surface-card p-4 text-center">
+          <div className="text-2xl font-bold text-slate-800">{affiliates.length}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "إجمالي" : "Total"}</div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="admin-panel flex flex-wrap items-center gap-3 py-3 px-4">
         <input
           value={affiliateSearch}
           onChange={(event) => setAffiliateSearch(event.target.value)}
-          className="field-input max-w-xs"
-          placeholder="بحث بالاسم أو البريد أو الهاتف..."
+          className="field-input min-w-[200px] flex-1 py-2 text-sm"
+          placeholder={language === "ar" ? "بحث بالاسم أو البريد أو الكود..." : "Search name, email, code..."}
         />
-        <select value={affiliateStatusFilter} onChange={(event) => setAffiliateStatusFilter(event.target.value)} className="field-select max-w-[10rem]">
-          <option value="all">جميع الحالات</option>
-          <option value="PENDING">في الانتظار</option>
-          <option value="ACTIVE">نشط</option>
-          <option value="BLOCKED">محظور</option>
+        <select value={affiliateStatusFilter} onChange={(event) => setAffiliateStatusFilter(event.target.value)} className="field-select py-2 text-sm max-w-[130px]">
+          <option value="all">{language === "ar" ? "الكل" : "All"}</option>
+          <option value="PENDING">{language === "ar" ? "انتظار" : "Pending"}</option>
+          <option value="ACTIVE">{language === "ar" ? "نشط" : "Active"}</option>
+          <option value="BLOCKED">{language === "ar" ? "محظور" : "Blocked"}</option>
         </select>
-        {pendingAffiliates.length > 0 ? (
+        {pendingAffiliates.length > 0 && (
           <button
-            onClick={() => {
-              void Promise.all(
-                pendingAffiliates.map((a) =>
-                  adminService.updateAffiliate(token, a._id, { status: "ACTIVE", commissionRate: a.commissionRate, level: a.level || "BRONZE" })
-                )
-              ).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
-            }}
-            className="primary-button gap-2"
+            onClick={() => void Promise.all(
+              pendingAffiliates.map((a) => adminService.updateAffiliate(token, a._id, { status: "ACTIVE", commissionRate: a.commissionRate, level: a.level || "BRONZE" }))
+            ).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+            className="inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
           >
             <Check className="h-4 w-4" />
-            قبول الكل ({pendingAffiliates.length})
+            {language === "ar" ? `قبول الكل (${pendingAffiliates.length})` : `Approve all (${pendingAffiliates.length})`}
           </button>
-        ) : null}
-        <span className="text-sm text-slate-500">{filteredAffiliates.length} مسوّق</span>
+        )}
+        <span className="text-sm text-slate-400">{filteredAffiliates.length} {language === "ar" ? "مسوّق" : "affiliates"}</span>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-      {filteredAffiliates.map((affiliate) => {
-        const draft = affiliateDrafts[affiliate._id];
-        const LevelIcon = levelIcons[draft?.level || affiliate.level || "BRONZE"];
-        const referrer = typeof affiliate.referredBy === "string" ? null : affiliate.referredBy;
-        return (
-          <div key={affiliate._id} className={`surface-card p-6 ${affiliate.status === "PENDING" ? "ring-2 ring-amber-300" : ""}`}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-lg font-semibold text-slate-950">{affiliate.name}</div>
-              <div className="flex items-center gap-2">
-                {affiliate.status === "PENDING" ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
-                    <BellRing className="h-3.5 w-3.5" />
-                    {translate(language, "adminWaitingApproval")}
-                  </span>
-                ) : null}
-                <StatusBadge label={affiliate.status} language={language} />
-              </div>
-            </div>
-            <div className="mt-2 grid gap-1 text-sm text-slate-500">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 shrink-0" />
-                {affiliate.email}
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 shrink-0" />
-                {affiliate.phone}
-              </div>
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 shrink-0" />
-                {affiliate.referralCode}
-              </div>
-              {referrer ? (
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 shrink-0" />
-                  {translate(language, "adminReferredBy")}: {referrer.name}
-                </div>
-              ) : null}
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <select
-                value={draft?.status || affiliate.status}
-                onChange={(event) =>
-                  setAffiliateDrafts((current) => ({
-                    ...current,
-                    [affiliate._id]: {
-                      status: event.target.value as Affiliate["status"],
-                      commissionRate: current[affiliate._id]?.commissionRate || String(affiliate.commissionRate),
-                      level: current[affiliate._id]?.level || affiliate.level || "BRONZE",
-                    },
-                  }))
-                }
-                className="field-select"
-              >
-                {["PENDING", "ACTIVE", "BLOCKED"].map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-              <input
-                value={draft?.commissionRate || ""}
-                onChange={(event) =>
-                  setAffiliateDrafts((current) => ({
-                    ...current,
-                    [affiliate._id]: {
-                      status: current[affiliate._id]?.status || affiliate.status,
-                      commissionRate: event.target.value,
-                      level: current[affiliate._id]?.level || affiliate.level || "BRONZE",
-                    },
-                  }))
-                }
-                className="field-input"
-                placeholder="%"
-              />
-              <select
-                value={draft?.level || affiliate.level || "BRONZE"}
-                onChange={(event) =>
-                  setAffiliateDrafts((current) => ({
-                    ...current,
-                    [affiliate._id]: {
-                      status: current[affiliate._id]?.status || affiliate.status,
-                      commissionRate: current[affiliate._id]?.commissionRate || String(affiliate.commissionRate),
-                      level: event.target.value as AffiliateLevel,
-                    },
-                  }))
-                }
-                className="field-select"
-              >
-                {affiliateLevelOrder.map((level) => (
-                  <option key={level} value={level}>
-                    {translate(language, `affiliateLevel${level}` as TranslationKey)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-              <LevelIcon className="h-3.5 w-3.5 text-amber-500" />
-              {translate(language, `affiliateLevel${draft?.level || affiliate.level || "BRONZE"}` as TranslationKey)}
-            </div>
-            <button
-              onClick={() =>
-                void adminService
-                  .updateAffiliate(token, affiliate._id, {
-                    status: draft?.status || affiliate.status,
-                    commissionRate: Number(draft?.commissionRate || affiliate.commissionRate),
-                    level: draft?.level || affiliate.level || "BRONZE",
-                  })
-                  .then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
-              }
-              className="primary-button mt-4"
-            >
-              {translate(language, "adminSave")}
-            </button>
-          </div>
-        );
-      })}
+      {/* Table */}
+      <div className="table-wrap">
+        <table className="table-base">
+          <thead>
+            <tr>
+              <th className="ps-5">{language === "ar" ? "المسوّق" : "Affiliate"}</th>
+              <th>{language === "ar" ? "المستوى" : "Level"}</th>
+              <th>{language === "ar" ? "الرصيد" : "Balance"}</th>
+              <th className="hidden md:table-cell">{language === "ar" ? "الكود" : "Code"}</th>
+              <th className="hidden lg:table-cell">{language === "ar" ? "المحوِّل" : "Referred by"}</th>
+              <th>{language === "ar" ? "الحالة" : "Status"}</th>
+              <th>{language === "ar" ? "إجراء" : "Actions"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAffiliates.map((affiliate) => {
+              const draft = affiliateDrafts[affiliate._id];
+              const level = draft?.level || affiliate.level || "BRONZE";
+              const LevelIcon = levelIcons[level];
+              const referrer = typeof affiliate.referredBy === "string" ? null : affiliate.referredBy;
+              const totalBalance = affiliate.balancePending + affiliate.balanceApproved;
+              return (
+                <tr key={affiliate._id} className={affiliate.status === "PENDING" ? "bg-amber-50/60" : ""}>
+                  {/* Name + contact */}
+                  <td className="ps-5">
+                    <div className="font-semibold text-slate-950">{affiliate.name}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{affiliate.email}</div>
+                    <div className="text-xs text-slate-400" dir="ltr">{affiliate.phone}</div>
+                  </td>
+
+                  {/* Level selector */}
+                  <td>
+                    <div className="flex flex-col gap-1.5">
+                      <span className={`inline-flex items-center gap-1 self-start rounded-full border px-2 py-0.5 text-[10px] font-bold ${levelColors[level] || ""}`}>
+                        <LevelIcon className="h-3 w-3" />
+                        {level}
+                      </span>
+                      <select
+                        value={level}
+                        onChange={(e) => setAffiliateDrafts((c) => ({ ...c, [affiliate._id]: { status: c[affiliate._id]?.status || affiliate.status, commissionRate: c[affiliate._id]?.commissionRate || String(affiliate.commissionRate), level: e.target.value as AffiliateLevel } }))}
+                        className="field-select py-1 text-xs max-w-[90px]"
+                      >
+                        {affiliateLevelOrder.map((l) => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                  </td>
+
+                  {/* Balance */}
+                  <td>
+                    <div className="text-sm font-bold text-slate-950">{formatCurrency(totalBalance, language)}</div>
+                    {affiliate.balancePaid > 0 && (
+                      <div className="text-[10px] text-slate-400">{language === "ar" ? "مدفوع:" : "Paid:"} {formatCurrency(affiliate.balancePaid, language)}</div>
+                    )}
+                  </td>
+
+                  {/* Code */}
+                  <td className="hidden md:table-cell">
+                    <code className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-mono font-bold text-slate-700">{affiliate.referralCode}</code>
+                  </td>
+
+                  {/* Referred by */}
+                  <td className="hidden lg:table-cell">
+                    {referrer ? (
+                      <span className="text-xs text-teal-700 font-medium">↑ {referrer.name}</span>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  {/* Status selector */}
+                  <td>
+                    <select
+                      value={draft?.status || affiliate.status}
+                      onChange={(e) => setAffiliateDrafts((c) => ({ ...c, [affiliate._id]: { status: e.target.value as Affiliate["status"], commissionRate: c[affiliate._id]?.commissionRate || String(affiliate.commissionRate), level: c[affiliate._id]?.level || affiliate.level || "BRONZE" } }))}
+                      className="field-select py-1 text-xs max-w-[100px]"
+                    >
+                      {["PENDING", "ACTIVE", "BLOCKED"].map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </td>
+
+                  {/* Save button */}
+                  <td>
+                    <button
+                      onClick={() => void adminService.updateAffiliate(token, affiliate._id, {
+                        status: draft?.status || affiliate.status,
+                        commissionRate: Number(draft?.commissionRate || affiliate.commissionRate),
+                        level: draft?.level || affiliate.level || "BRONZE",
+                      }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+                      className="ghost-button px-3 py-1.5 text-xs"
+                    >
+                      {translate(language, "adminSave")}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {filteredAffiliates.length === 0 && (
+          <div className="py-12 text-center text-sm text-slate-400">{language === "ar" ? "لا يوجد مسوّقون" : "No affiliates found"}</div>
+        )}
       </div>
     </div>
     );
