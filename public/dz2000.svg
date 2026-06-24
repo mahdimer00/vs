@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 72" role="img" aria-label="2000 DA">
+  <!-- Banknote base -->
+  <rect width="120" height="72" rx="6" fill="#e8f5e9"/>
+  <!-- Security strip -->
+  <rect x="42" y="0" width="5" height="72" fill="#64b5f6" opacity="0.6"/>
+  <!-- Border pattern -->
+  <rect x="2" y="2" width="116" height="68" rx="5" fill="none" stroke="#2e7d32" stroke-width="1.5"/>
+  <rect x="4" y="4" width="112" height="64" rx="4" fill="none" stroke="#388e3c" stroke-width="0.5" stroke-dasharray="2,2"/>
+
+  <!-- Left side guilloche circle -->
+  <circle cx="20" cy="36" r="14" fill="none" stroke="#43a047" stroke-width="1.2"/>
+  <circle cx="20" cy="36" r="10" fill="none" stroke="#388e3c" stroke-width="0.8"/>
+  <circle cx="20" cy="36" r="6" fill="#c8e6c9"/>
+  <text x="20" y="40" text-anchor="middle" font-size="8" font-weight="900" font-family="Georgia,serif" fill="#1b5e20">2</text>
+
+  <!-- بنك الجزائر header -->
+  <text x="85" y="16" text-anchor="middle" font-size="7" font-weight="700" font-family="Arial,sans-serif" fill="#1b5e20">بنك الجزائر</text>
+
+  <!-- Big 2000 number -->
+  <text x="86" y="42" text-anchor="middle" font-size="28" font-weight="900" font-family="Georgia,serif" fill="#2e7d32" opacity="0.9">2000</text>
+
+  <!-- ألفا دينار -->
+  <text x="86" y="58" text-anchor="middle" font-size="9" font-weight="700" font-family="Arial,sans-serif" fill="#1b5e20">ألفا دينار</text>
+
+  <!-- Serial number line -->
+  <text x="8" y="66" font-size="5" font-family="monospace" fill="#2e7d32" opacity="0.7">48128</text>
+  <text x="75" y="66" font-size="5" font-family="monospace" fill="#2e7d32" opacity="0.7">2680866428</text>
+
+  <!-- Right decorative circles -->
+  <circle cx="113" cy="20" r="5" fill="none" stroke="#43a047" stroke-width="1"/>
+  <circle cx="113" cy="52" r="5" fill="none" stroke="#43a047" stroke-width="1"/>
+
+  <!-- DNA helix hint (simplified) -->
+  <path d="M50 10 Q55 25 50 36 Q45 47 50 62" fill="none" stroke="#81c784" stroke-width="1.2"/>
+  <path d="M56 10 Q51 25 56 36 Q61 47 56 62" fill="none" stroke="#66bb6a" stroke-width="1.2"/>
+</svg>

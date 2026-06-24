@@ -1,4 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#0f172a"/>
-  <text x="50" y="66" font-size="56" font-family="serif" fill="#99f6e4" text-anchor="middle">V</text>
+  <!-- Background rounded square -->
+  <rect width="100" height="100" rx="22" fill="#0f172a"/>
+
+  <!-- Teal accent bar bottom-left -->
+  <rect x="0" y="78" width="100" height="22" rx="0" fill="#0d9488" opacity="0.15"/>
+  <rect x="0" y="90" width="100" height="10" rx="0" fill="#0d9488" opacity="0.2"/>
+  <rect x="0" y="90" width="100" height="10" rx="0" ry="0"/>
+  <rect x="0" y="78" width="100" height="22" rx="22"/>
+
+  <!-- Clean dark background reapply after clips -->
+  <rect width="100" height="100" rx="22" fill="#0f172a"/>
+
+  <!-- V shape — geometric, bold -->
+  <polygon points="18,22 34,22 50,60 66,22 82,22 50,78" fill="#0d9488"/>
+  <!-- V inner highlight -->
+  <polygon points="24,22 34,22 50,55 66,22 76,22 50,70" fill="#0f172a"/>
+  <polygon points="30,22 34,22 50,50 66,22 70,22 50,62" fill="#14b8a6"/>
+
+  <!-- DZ small text bottom -->
+  <text x="50" y="94" text-anchor="middle" font-size="11" font-weight="800" font-family="Arial Black, Arial" letter-spacing="4" fill="#99f6e4" opacity="0.9">DZ</text>
 </svg>

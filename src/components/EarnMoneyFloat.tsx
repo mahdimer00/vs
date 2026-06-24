@@ -13,26 +13,14 @@ const DISMISSED_KEY = "vs_earn_dismissed";
 // Pages where we should NOT show (user is in buying flow)
 const HIDDEN_PATHS = ["/checkout", "/cart", "/order/"];
 
-function DzdCoinIcon() {
+function BanknoteIcon() {
   return (
-    <svg viewBox="0 0 32 32" className="h-6 w-6 shrink-0" aria-hidden="true">
-      {/* Coin circle */}
-      <circle cx="16" cy="16" r="14" fill="#F59E0B" />
-      <circle cx="16" cy="16" r="11" fill="#FCD34D" />
-      {/* Inner ring detail */}
-      <circle cx="16" cy="16" r="8.5" fill="none" stroke="#D97706" strokeWidth="0.8" />
-      {/* DZD text */}
-      <text
-        x="16" y="20"
-        textAnchor="middle"
-        fontSize="8"
-        fontWeight="900"
-        fontFamily="Arial, sans-serif"
-        fill="#92400E"
-      >
-        دج
-      </text>
-    </svg>
+    <img
+      src="/dz2000.svg"
+      alt="2000 DA"
+      className="h-8 w-14 shrink-0 rounded-md object-cover shadow-sm"
+      style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.15))" }}
+    />
   );
 }
 
@@ -62,26 +50,26 @@ export function EarnMoneyFloat() {
     // Uses bottom-6 lg to stay above nothing on desktop
     // Uses bottom-24 on mobile to clear sticky bars
     <div className="fixed bottom-20 start-4 z-30 lg:bottom-[4.5rem]">
-      <div className="flex items-center overflow-hidden rounded-2xl border border-amber-300 bg-white shadow-[0_4px_20px_rgba(251,191,36,0.3)]">
+      <div className="flex items-center overflow-hidden rounded-2xl border border-green-300/60 bg-white shadow-[0_4px_20px_rgba(34,197,94,0.2)]">
         <Link
           to="/earn-money"
-          className="flex items-center gap-2 px-3 py-2.5 transition hover:bg-amber-50"
+          className="flex items-center gap-2 px-2.5 py-2 transition hover:bg-green-50"
           aria-label={language === "ar" ? "اربح معنا" : "Earn with us"}
         >
-          <DzdCoinIcon />
+          <BanknoteIcon />
           <div className="hidden sm:block">
-            <div className="text-[11px] font-extrabold text-amber-700 leading-tight">
-              {language === "ar" ? "اربح دج" : language === "fr" ? "Gagnez DA" : "Earn DZD"}
+            <div className="text-[11px] font-extrabold text-green-800 leading-tight">
+              {language === "ar" ? "اربح 2000 دج" : language === "fr" ? "Gagnez 2000 DA" : "Earn 2000 DZD"}
             </div>
-            <div className="text-[10px] text-amber-500 leading-tight">
-              {language === "ar" ? "شارك واكسب" : "Share & earn"}
+            <div className="text-[10px] text-green-600 leading-tight">
+              {language === "ar" ? "شارك واكسب الآن" : "Share & earn now"}
             </div>
           </div>
         </Link>
         <button
           type="button"
           onClick={dismiss}
-          className="flex h-full items-center border-s border-amber-200 px-2 py-2.5 text-amber-400 hover:bg-amber-50 hover:text-amber-600 transition"
+          className="flex h-full items-center border-s border-green-200 px-2 py-2 text-green-400 hover:bg-green-50 hover:text-green-700 transition"
           aria-label="Dismiss"
         >
           <X className="h-3 w-3" />
