@@ -10,6 +10,7 @@ const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage").then((module)
 const AffiliateDashboardPage = lazy(() => import("@/pages/AffiliateDashboardPage").then((module) => ({ default: module.AffiliateDashboardPage })));
 const AffiliateLoginPage = lazy(() => import("@/pages/AffiliateLoginPage").then((module) => ({ default: module.AffiliateLoginPage })));
 const AffiliateRegisterPage = lazy(() => import("@/pages/AffiliateRegisterPage").then((module) => ({ default: module.AffiliateRegisterPage })));
+const AffiliateForgotPasswordPage = lazy(() => import("@/pages/AffiliateForgotPasswordPage").then((module) => ({ default: module.AffiliateForgotPasswordPage })));
 const CartPage = lazy(() => import("@/pages/CartPage").then((module) => ({ default: module.CartPage })));
 const CategoriesPage = lazy(() => import("@/pages/CategoriesPage").then((module) => ({ default: module.CategoriesPage })));
 const CheckoutPage = lazy(() => import("@/pages/CheckoutPage").then((module) => ({ default: module.CheckoutPage })));
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
       },
       { path: "affiliate/login", element: <AffiliateLoginPage /> },
       { path: "affiliate/register", element: <AffiliateRegisterPage /> },
+      { path: "affiliate/forgot-password", element: <AffiliateForgotPasswordPage /> },
       {
         path: "affiliate",
         element: (

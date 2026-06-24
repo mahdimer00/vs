@@ -107,10 +107,17 @@ export function AffiliateLoginPage() {
               autoComplete="current-password"
             />
           </IconField>
-          {error ? <div className="text-sm text-rose-600">{error}</div> : null}
+          {error ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">⚠️ {error}</div>
+          ) : null}
           <button disabled={submitting} className="primary-button flex w-full justify-center py-4">
             {submitting ? translate(language, "loading") : translate(language, "authLogin")}
           </button>
+          <div className="text-center">
+            <Link to="/affiliate/forgot-password" className="text-sm text-slate-400 hover:text-rose-600 hover:underline">
+              {language === "ar" ? "نسيت كلمة المرور؟" : language === "fr" ? "Mot de passe oublié ?" : "Forgot password?"}
+            </Link>
+          </div>
         </form>
         <div className="mt-6 text-sm text-slate-500">
           {translate(language, "authNoAccount")}{" "}

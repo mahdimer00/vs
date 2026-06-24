@@ -265,4 +265,105 @@ router.get(
   }),
 );
 
+// ─── Affiliate Password Reset ────────────────────────────────────────────────
+
+// Step 1: Request password reset — sends OTP to email
+router.post(
+  "/affiliate/forgot-password",
+  registerRateLimitMiddleware,
+  asyncHandler(async (req, res) => {
+    const input = z.object({ email: z.string().email() }).parse(req.body);
+    const email = input.email.toLowerCase();
+
+    const affiliate = await AffiliateModel.findOne({ email });
+    // Always return the same response (security: don't reveal if email exists)
+    if (!affiliate) {
+      return res.json({ message: "otpSent" });
+    }
+
+    const code = generateCode();
+    await EmailOtpModel.deleteMany({ email, "payload.type": "reset" });
+    await EmailOtpModel.create({
+      email,
+      codeHash: hashCode(code),
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      payload: { type: "reset", email },
+    });
+
+    // Send OTP email
+    try {
+      const { Resend } = await import("resend");
+      const { env: e } = await import("../../config/env.js");
+      if (e.RESEND_API_KEY) {
+        const resend = new Resend(e.RESEND_API_KEY);
+        await resend.emails.send({
+          from: "VisaDZ <noreply@visadz.store>",
+          to: [email],
+          subject: `إعادة تعيين كلمة المرور — VisaDZ (${code})`,
+          html: `
+            <div dir="rtl" style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:16px">
+              <div style="text-align:center;margin-bottom:24px">
+                <div style="background:#0f172a;display:inline-block;padding:12px 24px;border-radius:12px;color:#99f6e4;font-size:22px;font-weight:700">VisaDZ</div>
+              </div>
+              <h2 style="color:#0f172a;margin:0 0 8px">إعادة تعيين كلمة المرور</h2>
+              <p style="color:#475569;margin:0 0 24px;line-height:1.7">
+                طلبت إعادة تعيين كلمة المرور لحسابك في VisaDZ. استخدم الرمز التالي:
+              </p>
+              <div style="background:#fff;border:2px solid #f43f5e;border-radius:16px;padding:24px;text-align:center;margin:0 0 24px">
+                <div style="font-size:42px;font-weight:900;letter-spacing:10px;color:#0f172a;font-family:monospace">${code}</div>
+                <div style="color:#94a3b8;font-size:13px;margin-top:8px">صالح لمدة 15 دقيقة</div>
+              </div>
+              <p style="color:#94a3b8;font-size:12px">إذا لم تطلب ذلك، تجاهل هذا البريد — حسابك آمن.</p>
+            </div>
+          `,
+        });
+      }
+    } catch (err) {
+      console.error("[Resend] Reset password email failed:", err);
+    }
+
+    return res.json({ message: "otpSent" });
+  }),
+);
+
+// Step 2: Verify OTP + set new password
+router.post(
+  "/affiliate/reset-password",
+  asyncHandler(async (req, res) => {
+    const input = z.object({
+      email: z.string().email(),
+      code: z.string().regex(/^\d{6}$/),
+      newPassword: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+    }).parse(req.body);
+
+    const email = input.email.toLowerCase();
+    const record = await EmailOtpModel.findOne({
+      email,
+      usedAt: null,
+      expiresAt: { $gte: new Date() },
+      "payload.type": "reset",
+    });
+
+    if (!record) throw new AppError("الرمز منتهي الصلاحية أو غير صحيح. اطلب رمزاً جديداً.", 400);
+    if (record.attempts >= 5) throw new AppError("تجاوزت عدد المحاولات. اطلب رمزاً جديداً.", 429);
+
+    record.attempts += 1;
+    if (hashCode(input.code) !== record.codeHash) {
+      await record.save();
+      throw new AppError(`رمز التحقق غير صحيح. ${5 - record.attempts} محاولات متبقية.`, 400);
+    }
+
+    record.usedAt = new Date();
+    await record.save();
+
+    const affiliate = await AffiliateModel.findOne({ email });
+    if (!affiliate) throw new AppError("الحساب غير موجود.", 404);
+
+    affiliate.passwordHash = await hashPassword(input.newPassword);
+    await affiliate.save();
+
+    return res.json({ message: "تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن." });
+  }),
+);
+
 export default router;

@@ -26,6 +26,18 @@ export const authService = {
       body: JSON.stringify(payload),
     });
   },
+  affiliateForgotPassword(email: string) {
+    return apiRequest<{ message: string }>("/api/auth/affiliate/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+  affiliateResetPassword(payload: { email: string; code: string; newPassword: string }) {
+    return apiRequest<{ message: string }>("/api/auth/affiliate/reset-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   me(token: string) {
     return apiRequest<{ user: { id: string; name: string; email: string; role: string } }>("/api/auth/me", {
       token,
