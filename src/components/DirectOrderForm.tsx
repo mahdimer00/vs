@@ -382,9 +382,6 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
               <strong className="ms-1">{formatCurrency(shippingFee, language)}</strong>
             </span>
           </div>
-          <div className="text-[11px] font-semibold text-teal-700">
-            {language === "ar" ? "⚡ 2–5 أيام عمل" : "⚡ 2–5 business days"}
-          </div>
         </div>
       ) : (
         <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500">
