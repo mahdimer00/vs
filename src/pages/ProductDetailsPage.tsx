@@ -779,8 +779,14 @@ export function ProductDetailsPage() {
               type="button"
               onClick={() => {
                 if (siteSettings?.directOrderMode) {
-                  // Scroll to inline form
-                  document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  const submitBtn = document.getElementById("dof-submit-btn") as HTMLButtonElement | null;
+                  if (submitBtn && !submitBtn.disabled) {
+                    // Form complete — submit directly
+                    submitBtn.click();
+                  } else {
+                    // Form not complete — scroll to form so user sees the fields
+                    document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
                 } else {
                   addToCart({ product, variant: selectedVariant, quantity });
                   navigate("/checkout");

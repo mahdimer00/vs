@@ -44,6 +44,41 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [invalidField, setInvalidField] = useState<string | null>(null);
+  // Track which fields the user has touched (to show errors only after interaction)
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+
+  const touch = (field: string) => setTouched((prev) => { const s = new Set(prev); s.add(field); return s; });
+
+  // Live per-field error messages (shown after touch)
+  const nameError = (() => {
+    if (!touched.has("name")) return "";
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (!fullName.trim()) return language === "ar" ? "هذا الحقل مطلوب" : "Required";
+    if (parts.length < 2 || parts.some(p => p.length < 2)) return language === "ar" ? "أدخل الاسم واللقب معاً — مثال: أحمد محمد" : "Enter first AND last name";
+    return "";
+  })();
+  const phoneError = (() => {
+    if (!touched.has("phone")) return "";
+    if (!phone.trim()) return language === "ar" ? "هذا الحقل مطلوب" : "Required";
+    if (!phonePattern.test(phone.trim())) return language === "ar" ? "رقم غير صحيح — يبدأ بـ 05 أو 06 أو 07" : "Invalid — must start with 05/06/07";
+    return "";
+  })();
+  const communeError = (!touched.has("commune") || commune.trim()) ? "" : (language === "ar" ? "يرجى اختيار البلدية" : "Please select commune");
+  const addressError = (() => {
+    if (!touched.has("address")) return "";
+    if (address.trim().length < 5) return language === "ar" ? "أدخل العنوان بالتفصيل (على الأقل 5 أحرف)" : "Enter full address (5+ chars)";
+    return "";
+  })();
+
+  // Is every field valid — used for the floating submit button
+  const isFormComplete = (() => {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    return parts.length >= 2 &&
+      parts.every(p => p.length >= 2) &&
+      phonePattern.test(phone.trim()) &&
+      commune.trim().length > 0 &&
+      address.trim().length >= 5;
+  })();
 
   const price = variant.price * quantity;
   const total = Math.max(0, price + shippingFee);
@@ -83,6 +118,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
 
   const scrollToField = (id: string) => {
     setInvalidField(id);
+    touch(id);
     setTimeout(() => {
       const el = document.getElementById(`dof-${id}`);
       if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
@@ -90,6 +126,8 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   };
 
   const validate = () => {
+    // Touch all fields so errors show
+    setTouched(new Set(["name", "phone", "commune", "address"]));
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
     if (parts.length < 2 || parts.some((p) => p.length < 2)) {
       scrollToField("name");
@@ -238,14 +276,17 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
             id="dof-name"
             value={fullName}
             onChange={(e) => { setFullName(e.target.value); if (invalidField === "name") { setInvalidField(null); setErrorMessage(""); } }}
+            onBlur={() => touch("name")}
             className={fieldClass("name")}
             placeholder={language === "ar" ? "أحمد محمد" : "Ahmed Mohamed"}
             autoComplete="name"
           />
         </IconField>
-        <p className="ps-1 text-[11px] text-slate-400">
-          {language === "ar" ? "الاسم واللقب معاً — مثال: أحمد محمد" : "First and last name required"}
-        </p>
+        {nameError ? (
+          <p className="flex items-center gap-1 ps-1 text-xs font-semibold text-rose-600">⚠️ {nameError}</p>
+        ) : (
+          <p className="ps-1 text-[11px] text-slate-400">{language === "ar" ? "الاسم واللقب معاً — مثال: أحمد محمد" : "First and last name"}</p>
+        )}
       </div>
 
       {/* Phone */}
@@ -261,11 +302,13 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
             inputMode="tel"
             value={phone}
             onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); if (invalidField === "phone") { setInvalidField(null); setErrorMessage(""); } }}
+            onBlur={() => touch("phone")}
             className={fieldClass("phone")}
             placeholder="0555 12 34 56"
             autoComplete="tel"
           />
         </IconField>
+        {phoneError ? <p className="flex items-center gap-1 ps-1 text-xs font-semibold text-rose-600">⚠️ {phoneError}</p> : null}
       </div>
 
 
@@ -301,10 +344,12 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
                 value={selectedZrTerritory?.id ?? ""}
                 onChange={(e) => {
                   if (invalidField === "commune") { setInvalidField(null); setErrorMessage(""); }
+                  touch("commune");
                   const t = selectedWilayaZrTerritories.find((x) => x.id === e.target.value) ?? null;
                   setSelectedZrTerritory(t);
                   setCommune(t?.name ?? "");
                 }}
+                onBlur={() => touch("commune")}
                 className={selectClass("commune")}
               >
                 <option value="">{language === "ar" ? "اختر البلدية" : "Choose commune"}</option>
@@ -320,11 +365,13 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
                 id="dof-commune"
                 value={commune}
                 onChange={(e) => { setCommune(e.target.value); if (invalidField === "commune") { setInvalidField(null); setErrorMessage(""); } }}
+                onBlur={() => touch("commune")}
                 className={fieldClass("commune")}
                 placeholder={language === "ar" ? "البلدية" : "Commune"}
               />
             )}
           </IconField>
+          {communeError ? <p className="flex items-center gap-1 text-xs font-semibold text-rose-600">⚠️ {communeError}</p> : null}
         </div>
       </div>
 
@@ -363,13 +410,15 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
             id="dof-address"
             value={address}
             onChange={(e) => { setAddress(e.target.value); if (invalidField === "address") { setInvalidField(null); setErrorMessage(""); } }}
+            onBlur={() => touch("address")}
             rows={2}
-            className={`field-textarea field-input-icon transition ${invalidField === "address" ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
+            className={`field-textarea field-input-icon transition ${invalidField === "address" || addressError ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
             placeholder={language === "ar"
               ? deliveryType === "HOME_DELIVERY" ? "حي النصر، شارع المدينة، رقم 12" : "قريب من مكتب الشحن، الحي، المدينة"
               : "El Nasr district, street 20, n°5"}
           />
         </IconField>
+        {addressError ? <p className="flex items-center gap-1 ps-1 text-xs font-semibold text-rose-600">⚠️ {addressError}</p> : null}
       </div>
 
       {/* Shipping fee + delivery time */}
@@ -392,6 +441,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
 
       {/* Submit */}
       <button
+        id="dof-submit-btn"
         type="button"
         disabled={submitting}
         onClick={() => void submit()}
