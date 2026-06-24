@@ -16,10 +16,10 @@ const HIDDEN_PATHS = ["/checkout", "/cart", "/order/"];
 function BanknoteIcon() {
   return (
     <img
-      src="/dz2000.svg"
+      src="/dz2000.jpg"
       alt="2000 DA"
       className="h-8 w-14 shrink-0 rounded-md object-cover shadow-sm"
-      style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.15))" }}
+      style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.2))" }}
     />
   );
 }
