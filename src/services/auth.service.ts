@@ -8,8 +8,14 @@ export const authService = {
       body: JSON.stringify(payload),
     });
   },
-  affiliateRegister(payload: { name: string; email: string; password: string; phone: string; ref?: string }) {
-    return apiRequest<{ message: string; affiliate: Affiliate }>("/api/auth/affiliate/register", {
+  affiliateRegister(payload: { name: string; email: string; password: string; phone: string; ref?: string; shareMethod?: string }) {
+    return apiRequest<{ message: string; email: string }>("/api/auth/affiliate/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  affiliateVerifyOtp(payload: { email: string; code: string }) {
+    return apiRequest<{ token: string; affiliate: Affiliate }>("/api/auth/affiliate/verify-otp", {
       method: "POST",
       body: JSON.stringify(payload),
     });

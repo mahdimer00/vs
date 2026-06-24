@@ -117,10 +117,32 @@ router.get("/affiliate/withdrawals", authMiddleware, roleMiddleware(["AFFILIATE"
 
 router.get("/affiliate/team", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {
   const team = await AffiliateModel.find({ referredBy: req.user?.sub })
-    .select("name email status level createdAt referralCode")
+    .select("name email status level createdAt referralCode shareMethod")
     .sort({ createdAt: -1 })
     .lean();
-  return res.json(team);
+
+  // For each team member, get their order count + total sales + commission earned for me
+  const teamWithStats = await Promise.all(
+    team.map(async (member) => {
+      const ordersCount = await OrderModel.countDocuments({ affiliate: member._id });
+      const deliveredOrders = await OrderModel.countDocuments({
+        affiliate: member._id,
+        status: { $in: ["DELIVERED", "PICKED_UP"] },
+      });
+      const myEarnings = await CommissionModel.aggregate([
+        { $match: { affiliate: req.user?.sub as unknown, sourceAffiliate: member._id, type: "REFERRAL_BONUS", status: { $in: ["APPROVED", "PAID"] } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]);
+      return {
+        ...member,
+        ordersCount,
+        deliveredOrders,
+        myEarningsFromThem: myEarnings[0]?.total ?? 0,
+      };
+    }),
+  );
+
+  return res.json(teamWithStats);
 }));
 
 router.post("/affiliate/coupon-requests", authMiddleware, roleMiddleware(["AFFILIATE"]), asyncHandler(async (req: AuthedRequest, res) => {

@@ -3705,8 +3705,16 @@ export function AdminDashboardPage() {
               className={`ghost-button gap-2 ${settings.directOrderMode ? "border-teal-400 bg-teal-50 text-teal-800" : ""}`}
             >
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.directOrderMode ? "bg-teal-500" : "bg-slate-300"}`} />
-              {language === "ar" ? "الطلب المباشر من صفحة المنتج" : language === "fr" ? "Commande directe depuis la fiche produit" : "Direct order on product page"}:
+              {language === "ar" ? "الطلب المباشر من صفحة المنتج" : "Direct order on product page"}:
               <strong>{settings.directOrderMode ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+            </button>
+            <button
+              onClick={() => setSettings({ ...settings, whatsappFloat: settings.whatsappFloat !== false ? false : true })}
+              className={`ghost-button gap-2 ${settings.whatsappFloat !== false ? "border-green-400 bg-green-50 text-green-800" : ""}`}
+            >
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.whatsappFloat !== false ? "bg-green-500" : "bg-slate-300"}`} />
+              {language === "ar" ? "زر واتساب العائم" : "Floating WhatsApp button"}:
+              <strong>{settings.whatsappFloat !== false ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
             </button>
             <button
               onClick={() => void adminService.updateSettings(token, settings)

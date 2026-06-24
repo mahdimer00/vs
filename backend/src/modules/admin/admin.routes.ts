@@ -164,6 +164,7 @@ const websiteSettingsSchema = z.object({
   maintenanceMode: z.boolean().optional(),
   promoCodeEnabled: z.boolean().optional(),
   directOrderMode: z.boolean().optional(),
+  whatsappFloat: z.boolean().optional(),
   affiliateLevels: z.record(
     z.string().max(20),
     z.object({ commissionRate: z.number().min(0).max(100), referralBonus: z.number().min(0) }),

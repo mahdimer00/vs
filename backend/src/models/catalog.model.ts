@@ -75,6 +75,7 @@ const websiteSettingSchema = new Schema(
     maintenanceMode: { type: Boolean, default: false },
     promoCodeEnabled: { type: Boolean, default: true },
     directOrderMode: { type: Boolean, default: false },
+    whatsappFloat: { type: Boolean, default: true },
     affiliateLevels: {
       type: Schema.Types.Mixed,
       default: {

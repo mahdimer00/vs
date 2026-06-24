@@ -36,6 +36,8 @@ const schema = z.object({
   BAILEYS_API_KEY: z.string().optional(),
   // OTP signing secret (HMAC for verification tokens)
   OTP_SECRET: z.string().transform((v) => v || "change-this-otp-secret-32chars").pipe(z.string().min(16)),
+  // Resend email API (affiliate OTP)
+  RESEND_API_KEY: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

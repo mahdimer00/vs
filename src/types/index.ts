@@ -239,6 +239,7 @@ export interface WebsiteSetting {
   maintenanceMode: boolean;
   promoCodeEnabled: boolean;
   directOrderMode?: boolean;
+  whatsappFloat?: boolean;
   affiliateLevels?: AffiliateLevelSettings;
 }
 

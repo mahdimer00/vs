@@ -82,6 +82,42 @@ async function maybeAwardReferralBonus(affiliate: InstanceType<typeof AffiliateM
   await affiliate.save();
 }
 
+// When affiliate B (referredBy A) earns a sale commission, A gets 10% of it
+async function maybeAwardReferralSaleCommission(
+  affiliate: InstanceType<typeof AffiliateModel>,
+  saleCommissionAmount: number,
+  orderId: string,
+) {
+  if (!affiliate.referredBy || saleCommissionAmount <= 0) return;
+
+  // Check referrer already got a referral-sale commission for this order
+  const alreadyPaid = await CommissionModel.findOne({
+    order: orderId,
+    type: "REFERRAL_BONUS",
+    sourceAffiliate: affiliate._id,
+  });
+  if (alreadyPaid) return;
+
+  const referrer = await AffiliateModel.findById(affiliate.referredBy);
+  if (!referrer || referrer.status !== "ACTIVE") return;
+
+  const referralCut = Math.round(saleCommissionAmount * 0.1); // 10% of B's commission
+  if (referralCut < 1) return;
+
+  await CommissionModel.create({
+    affiliate: referrer._id,
+    order: orderId,
+    type: "REFERRAL_BONUS",
+    sourceAffiliate: affiliate._id,
+    rate: 10,
+    amount: referralCut,
+    status: "APPROVED",
+    approvedAt: new Date(),
+  });
+  referrer.balanceApproved += referralCut;
+  await referrer.save();
+}
+
 export async function syncCommissionForOrder(orderId: string, createdBy = "system") {
   const order = await OrderModel.findById(orderId);
   if (!order || !order.affiliate) {
@@ -112,6 +148,8 @@ export async function syncCommissionForOrder(orderId: string, createdBy = "syste
       affiliate.balanceApproved += amount;
       await affiliate.save();
       await maybeAwardReferralBonus(affiliate);
+      // Ongoing referral commission: if affiliate was referred by someone, referrer gets 10% of this commission
+      await maybeAwardReferralSaleCommission(affiliate, amount, String(order._id));
     } else if (commission.status !== "PAID" && commission.status !== "APPROVED") {
       const previous = commission.status;
       commission.status = "APPROVED";
@@ -122,6 +160,7 @@ export async function syncCommissionForOrder(orderId: string, createdBy = "syste
       await affiliate.save();
       await CommissionLogModel.create({ commission: commission._id, oldStatus: previous, newStatus: "APPROVED", createdBy });
       await maybeAwardReferralBonus(affiliate);
+      await maybeAwardReferralSaleCommission(affiliate, amount, String(order._id));
     }
   } else if (rejected) {
     if (!commission) {

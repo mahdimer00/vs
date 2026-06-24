@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
+import { promoService } from "@/services/promo.service";
 import { shippingService } from "@/services/shipping.service";
 import { type ZRTerritory, zrShippingService } from "@/services/shipping.zr.service";
 import type { DeliveryType, Product, ProductVariant, Wilaya } from "@/types";
@@ -29,7 +30,7 @@ interface DirectOrderFormProps {
 
 export function DirectOrderForm({ product, variant, quantity, shippingFee: initialFee }: DirectOrderFormProps) {
   const navigate = useNavigate();
-  const { language, affiliateRef, rememberConfirmedOrder, pushToast } = useApp();
+  const { language, affiliateRef, rememberConfirmedOrder, pushToast, siteSettings } = useApp();
 
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [zrTerritories, setZrTerritories] = useState<ZRTerritory[]>([]);
@@ -44,6 +45,10 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [invalidField, setInvalidField] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoApplying, setPromoApplying] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState("");
+  const [discount, setDiscount] = useState(0);
   // Track which fields the user has touched (to show errors only after interaction)
   const [touched, setTouched] = useState<Set<string>>(new Set());
 
@@ -81,7 +86,29 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   })();
 
   const price = variant.price * quantity;
-  const total = Math.max(0, price + shippingFee);
+  const total = Math.max(0, price + shippingFee - discount);
+
+  const applyPromo = async () => {
+    if (!promoCode.trim() || !phonePattern.test(phone.trim())) return;
+    setPromoApplying(true);
+    try {
+      const res = await promoService.validate({
+        code: promoCode,
+        phone: phone.trim(),
+        subtotal: price,
+        productIds: [product._id],
+        categoryIds: [],
+        shippingFee,
+      });
+      setDiscount(res.discount);
+      setAppliedPromo(promoCode.toUpperCase());
+      pushToast(language === "ar" ? "تم تطبيق كود الخصم ✓" : "Promo applied ✓", "success");
+    } catch (e) {
+      pushToast(e instanceof Error ? e.message : translate(language, "promoRejected"), "error");
+    } finally {
+      setPromoApplying(false);
+    }
+  };
 
   // Fire AddPaymentInfo pixel when phone becomes valid (strong purchase intent signal)
   const phoneValid = phonePattern.test(phone.trim());
@@ -179,10 +206,11 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         },
         items: [{ productId: product._id, variantId: variant._id, quantity }],
         deliveryType,
+        promoCode: appliedPromo || undefined,
         affiliateRef: affiliateRef || undefined,
         capiEventId,
         clientUserAgent: navigator.userAgent,
-        manualConfirm: true, // bypass OTP in direct mode
+        manualConfirm: true,
         zrTerritoryId: selectedZrTerritory?.id,
         externalId: externalId || undefined,
       });
@@ -438,6 +466,35 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
           {language === "ar" ? "اختر الولاية والبلدية لعرض سعر التوصيل" : "Select wilaya and commune to see delivery fee"}
         </div>
       )}
+
+      {/* Promo code — shown when promoCodeEnabled in settings */}
+      {siteSettings?.promoCodeEnabled !== false ? (
+        appliedPromo ? (
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <span className="text-sm font-semibold text-emerald-700">
+              🎉 {appliedPromo} — {language === "ar" ? "خصم" : "Discount"} {formatCurrency(discount, language)}
+            </span>
+            <button type="button" onClick={() => { setAppliedPromo(""); setPromoCode(""); setDiscount(0); }} className="text-xs text-rose-500 hover:text-rose-700">✕</button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              className="field-input flex-1 uppercase text-sm"
+              placeholder={language === "ar" ? "كود الخصم (اختياري)" : "Promo code (optional)"}
+            />
+            <button
+              type="button"
+              onClick={() => void applyPromo()}
+              disabled={promoApplying || !promoCode.trim()}
+              className="shrink-0 rounded-2xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 transition hover:bg-teal-100 disabled:opacity-50"
+            >
+              {promoApplying ? "..." : (language === "ar" ? "تطبيق" : "Apply")}
+            </button>
+          </div>
+        )
+      ) : null}
 
       {/* Submit */}
       <button

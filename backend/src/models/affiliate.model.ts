@@ -12,6 +12,7 @@ const affiliateSchema = new Schema(
     level: { type: String, enum: ["BRONZE", "SILVER", "GOLD", "PLATINUM"], default: "BRONZE" },
     referredBy: { type: Schema.Types.ObjectId, ref: "Affiliate" },
     referralBonusPaid: { type: Boolean, default: false },
+    shareMethod: { type: String, default: "" },
     balancePending: { type: Number, default: 0 },
     balanceApproved: { type: Number, default: 0 },
     balancePaid: { type: Number, default: 0 },
