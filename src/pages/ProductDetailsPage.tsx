@@ -567,12 +567,14 @@ export function ProductDetailsPage() {
           ) : siteSettings?.directOrderMode ? (
             /* DIRECT ORDER MODE — inline checkout form on product page */
             !adminSoldOut && selectedVariant.stock > 0 ? (
+              <div id="direct-order-form">
               <DirectOrderForm
                 product={product}
                 variant={selectedVariant}
                 quantity={quantity}
                 shippingFee={0}
               />
+              </div>
             ) : (
               <div className="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center text-sm font-semibold text-slate-400">
                 {translate(language, "productSoldOut")}
@@ -776,13 +778,20 @@ export function ProductDetailsPage() {
             <button
               type="button"
               onClick={() => {
-                addToCart({ product, variant: selectedVariant, quantity });
-                navigate("/checkout");
+                if (siteSettings?.directOrderMode) {
+                  // Scroll to inline form
+                  document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                  addToCart({ product, variant: selectedVariant, quantity });
+                  navigate("/checkout");
+                }
               }}
               className="inline-flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(16,185,129,0.35)] transition active:scale-95"
             >
               <Zap className="h-4 w-4 fill-current" />
-              {translate(language, "productBuyNow")}
+              {siteSettings?.directOrderMode
+                ? (language === "ar" ? "أتمم الطلب" : language === "fr" ? "Commander" : "Order now")
+                : translate(language, "productBuyNow")}
             </button>
           </div>
         </div>
