@@ -3,7 +3,7 @@
  * Enabled by siteSettings.directOrderMode toggle in admin.
  * No cart, no OTP, no navigation — order placed directly on product page.
  */
-import { Building2, Check, Home, Lock, MapPin, MapPinned, Phone, ShieldCheck, Truck, UserRound } from "lucide-react";
+import { Building2, Check, CheckCircle2, Home, Lock, MapPin, MapPinned, Phone, PhoneCall, ShieldCheck, Truck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
@@ -15,7 +15,7 @@ import type { DeliveryType, Product, ProductVariant, Wilaya } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { getOrCreateExternalId } from "@/utils/externalId";
-import { pixelLead, pixelPurchase, pixelSetUserPhone } from "@/utils/pixel";
+import { pixelAddToCart, pixelLead, pixelPurchase, pixelSetUserPhone } from "@/utils/pixel";
 import { trackEvent } from "@/utils/tracking";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
@@ -47,6 +47,17 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
 
   const price = variant.price * quantity;
   const total = Math.max(0, price + shippingFee);
+
+  // Fire AddPaymentInfo pixel when phone becomes valid (strong purchase intent signal)
+  const phoneValid = phonePattern.test(phone.trim());
+  const firedPaymentInfoRef = useRef(false);
+  useEffect(() => {
+    if (phoneValid && !firedPaymentInfoRef.current) {
+      firedPaymentInfoRef.current = true;
+      pixelSetUserPhone(phone.trim());
+      pixelAddToCart({ productId: product._id, productName: product.name.fr || product.name.ar || product.name.en || "", value: price });
+    }
+  }, [phoneValid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load wilayas + ZR territories once
   useEffect(() => {
@@ -159,7 +170,38 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
     `field-select field-input-icon transition ${invalidField === id ? "border-rose-500 ring-2 ring-rose-200" : ""}`;
 
   return (
-    <div className="mt-6 space-y-4 rounded-[2rem] border-2 border-teal-200 bg-gradient-to-b from-teal-50/60 to-white p-5 shadow-[0_8px_32px_rgba(20,184,166,0.12)]">
+    <div className="mt-6 space-y-4 overflow-hidden rounded-[2rem] border-2 border-teal-200 bg-gradient-to-b from-teal-50/60 to-white shadow-[0_8px_32px_rgba(20,184,166,0.14)]">
+
+      {/* Top banner — ZR Express + cash on delivery */}
+      <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-teal-700 to-emerald-700 px-5 py-3">
+        <div className="flex items-center gap-2 text-white">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
+            <svg viewBox="0 0 40 40" fill="none" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
+              <rect width="40" height="40" rx="8" fill="#0CAF60"/>
+              <text x="20" y="27" textAnchor="middle" fontFamily="Arial Black,Arial" fontWeight="900" fontSize="16" fill="white">ZR</text>
+            </svg>
+          </div>
+          <div>
+            <div className="text-xs font-bold">
+              {language === "ar" ? "الشحن عبر ZR Express" : language === "fr" ? "Livraison par ZR Express" : "Shipped via ZR Express"}
+            </div>
+            <div className="text-[10px] text-white/80">
+              {language === "ar" ? "توصيل سريع لجميع الولايات الـ 58" : "Fast delivery to all 58 wilayas"}
+            </div>
+          </div>
+        </div>
+        <div className="shrink-0 rounded-xl bg-white/15 px-3 py-1.5 text-center">
+          <div className="text-[10px] font-semibold text-white/80">
+            {language === "ar" ? "الدفع" : "Payment"}
+          </div>
+          <div className="text-xs font-extrabold text-white">
+            {language === "ar" ? "عند الاستلام" : "On delivery"}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 p-5">
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-teal-600 text-white">
@@ -169,8 +211,9 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
           <div className="font-bold text-slate-950">
             {language === "ar" ? "أتمم طلبك الآن" : language === "fr" ? "Finalisez votre commande" : "Complete your order"}
           </div>
-          <div className="text-xs text-slate-500">
-            {language === "ar" ? "الدفع عند الاستلام — توصيل لجميع الولايات" : language === "fr" ? "Paiement à la livraison" : "Cash on delivery"}
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <PhoneCall className="h-3 w-3" />
+            {language === "ar" ? "سنتصل بك لتأكيد الطلب" : language === "fr" ? "On vous appellera pour confirmer" : "We'll call to confirm"}
           </div>
         </div>
         <div className="ms-auto text-xl font-extrabold text-teal-700">{formatCurrency(total, language)}</div>
@@ -329,13 +372,26 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         </IconField>
       </div>
 
-      {/* Shipping fee info */}
+      {/* Shipping fee + delivery time */}
       {selectedZrTerritory ? (
-        <div className="rounded-xl border border-teal-100 bg-teal-50 px-3 py-2 text-xs text-teal-700">
-          <Truck className="me-1.5 inline h-3.5 w-3.5" />
-          {language === "ar" ? "رسوم التوصيل:" : "Delivery:"} <strong>{formatCurrency(shippingFee, language)}</strong>
+        <div className="flex items-center justify-between rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-teal-800">
+            <Truck className="h-4 w-4 shrink-0 text-teal-600" />
+            <span>
+              {language === "ar" ? "رسوم التوصيل:" : "Delivery fee:"}
+              <strong className="ms-1">{formatCurrency(shippingFee, language)}</strong>
+            </span>
+          </div>
+          <div className="text-[11px] font-semibold text-teal-700">
+            {language === "ar" ? "⚡ 2–5 أيام عمل" : "⚡ 2–5 business days"}
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+          <Truck className="h-4 w-4 shrink-0 text-teal-500" />
+          {language === "ar" ? "اختر الولاية والبلدية لعرض سعر التوصيل" : "Select wilaya and commune to see delivery fee"}
+        </div>
+      )}
 
       {/* Submit */}
       <button
@@ -348,19 +404,30 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
           <ShieldCheck className="h-5 w-5" />
           {submitting
             ? (language === "ar" ? "جارٍ الإرسال..." : "Sending...")
-            : (language === "ar" ? "أتمم الطلب" : language === "fr" ? "Confirmer la commande" : "Place order")}
+            : (language === "ar" ? "أتمم الطلب الآن" : language === "fr" ? "Confirmer la commande" : "Place order now")}
         </span>
         <span className="rounded-xl bg-white/20 px-3 py-1.5 text-sm font-extrabold">
           {formatCurrency(total, language)}
         </span>
       </button>
 
-      {/* Trust */}
-      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-1 text-[11px] text-slate-400">
-        <span className="flex items-center gap-1"><Lock className="h-3 w-3 text-teal-600" />{language === "ar" ? "دفع عند الاستلام" : "Pay on delivery"}</span>
-        <span className="flex items-center gap-1"><Truck className="h-3 w-3 text-teal-600" />{language === "ar" ? "شحن لكل الولايات" : "All wilayas"}</span>
-        <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-teal-600" />{language === "ar" ? "الإلغاء مجاني" : "Free cancellation"}</span>
+      {/* Final trust row */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="flex flex-col items-center gap-1 rounded-xl bg-slate-50 px-2 py-2">
+          <Lock className="h-4 w-4 text-teal-600" />
+          <span className="text-[10px] font-semibold text-slate-600">{language === "ar" ? "دفع عند الاستلام" : "Pay on delivery"}</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 rounded-xl bg-slate-50 px-2 py-2">
+          <CheckCircle2 className="h-4 w-4 text-teal-600" />
+          <span className="text-[10px] font-semibold text-slate-600">{language === "ar" ? "إلغاء مجاني" : "Free cancel"}</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 rounded-xl bg-slate-50 px-2 py-2">
+          <PhoneCall className="h-4 w-4 text-teal-600" />
+          <span className="text-[10px] font-semibold text-slate-600">{language === "ar" ? "تأكيد هاتفي" : "Call confirm"}</span>
+        </div>
       </div>
+
+      </div>{/* end p-5 */}
     </div>
   );
 }
