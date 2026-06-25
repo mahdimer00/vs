@@ -11,6 +11,7 @@ import { EmailOtpModel } from "../../models/email-otp.model.js";
 import { AppError } from "../../utils/app-error.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendAffiliateOtpEmail } from "../../utils/email.js";
+import { isIpAllowed } from "../../utils/geoip.js";
 import type { AdminPermission } from "../../constants/permissions.js";
 import type { AuthPayload } from "../../middleware/auth.middleware.js";
 
@@ -19,6 +20,14 @@ function hashCode(code: string): string {
 }
 function generateCode(): string {
   return String(crypto.randomInt(100000, 999999));
+}
+
+async function requireAlgeriaIp(req: import("express").Request): Promise<void> {
+  const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
+  const { allowed } = await isIpAllowed(ip);
+  if (!allowed) {
+    throw new AppError("الوصول متاح فقط من داخل الجزائر.", 403);
+  }
 }
 
 const router = Router();
@@ -77,6 +86,7 @@ router.post(
   "/affiliate/register",
   registerRateLimitMiddleware,
   asyncHandler(async (req, res) => {
+    await requireAlgeriaIp(req);
     const input = affiliateRegisterSchema.parse(req.body);
     const email = input.email.toLowerCase();
 
@@ -205,6 +215,7 @@ router.post(
   "/affiliate/login",
   loginRateLimitMiddleware,
   asyncHandler(async (req, res) => {
+    await requireAlgeriaIp(req);
     const input = affiliateAuthSchema.parse(req.body);
     const affiliate = await AffiliateModel.findOne({ email: input.email.toLowerCase() });
     if (!affiliate || !(await comparePassword(input.password, affiliate.passwordHash))) {
@@ -272,6 +283,7 @@ router.post(
   "/affiliate/forgot-password",
   registerRateLimitMiddleware,
   asyncHandler(async (req, res) => {
+    await requireAlgeriaIp(req);
     const input = z.object({ email: z.string().email() }).parse(req.body);
     const email = input.email.toLowerCase();
 
