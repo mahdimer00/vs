@@ -51,10 +51,11 @@ export function CheckoutPage() {
 
   const [manualConfirm, setManualConfirm] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verifyModalStep, setVerifyModalStep] = useState<"choice" | "whatsapp">("choice");
+  const [verifyModalStep, setVerifyModalStep] = useState<"choice" | "whatsapp" | "sms">("choice");
+  const [otpActiveChannel, setOtpActiveChannel] = useState<"whatsapp" | "sms">("whatsapp");
 
   // OTP verification state
-  const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean } | null>(null);
+  const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean; sms: boolean } | null>(null);
   const [otpSending, setOtpSending] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -124,7 +125,7 @@ export function CheckoutPage() {
 
   // Load available OTP channels once
   useEffect(() => {
-    otpService.getChannels().then(setOtpChannels).catch(() => setOtpChannels({ whatsapp: false }));
+    otpService.getChannels().then(setOtpChannels).catch(() => setOtpChannels({ whatsapp: false, sms: false }));
   }, []);
 
   // Load ZR territories once
@@ -191,7 +192,7 @@ export function CheckoutPage() {
     };
   }, []);
 
-  const otpRequired = Boolean(otpChannels?.whatsapp);
+  const otpRequired = Boolean(otpChannels?.whatsapp || otpChannels?.sms);
   const phoneIsValid = phonePattern.test(phone.trim());
   const isPhoneVerified = Boolean(phoneVerificationToken && verifiedPhone === phone);
   const selectedWilayaZrTerritories = useMemo(
@@ -203,12 +204,13 @@ export function CheckoutPage() {
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-rose-200 bg-rose-50 text-rose-700";
 
-  const sendOtp = async () => {
+  const sendOtp = async (channel: "whatsapp" | "sms" = otpActiveChannel) => {
     if (!phoneIsValid || otpSending) return;
     setOtpSending(true);
+    setOtpActiveChannel(channel);
     setOtpNotice(null);
     try {
-      const result = await otpService.sendOtp(phone.trim(), "whatsapp");
+      const result = await otpService.sendOtp(phone.trim(), channel);
       void ttqIdentify(phone.trim());
       const _ttqContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
       ttqAddPaymentInfo(_ttqContents, subtotal);
@@ -249,7 +251,7 @@ export function CheckoutPage() {
     setOtpVerifying(true);
     setOtpNotice(null);
     try {
-      const result = await otpService.verifyOtp(phone.trim(), otpCode);
+      const result = await otpService.verifyOtp(phone.trim(), otpCode, otpActiveChannel);
       ttqCompleteRegistration();
       setPhoneVerificationToken(result.verificationToken);
       setVerifiedPhone(phone.trim());
@@ -1003,60 +1005,56 @@ export function CheckoutPage() {
               </div>
 
               <div className="space-y-3">
-                {/* WhatsApp option — RECOMMENDED */}
+                {/* WhatsApp option */}
+                {otpChannels?.whatsapp !== false && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setVerifyModalStep("whatsapp");
-                    void sendOtp();
-                  }}
+                  onClick={() => { setVerifyModalStep("whatsapp"); void sendOtp("whatsapp"); }}
                   className="relative flex w-full items-center gap-4 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50 px-5 py-4 text-start shadow-sm transition hover:border-emerald-400 hover:from-emerald-100 active:scale-[0.98]"
                 >
                   <span className="absolute end-3 top-3 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                    {language === "ar" ? "أسرع" : language === "fr" ? "RAPIDE" : "FASTEST"}
+                    {language === "ar" ? "موصى به" : "RECOMMENDED"}
                   </span>
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#25D366] shadow-md shadow-green-200">
                     <svg viewBox="0 0 24 24" fill="white" className="h-6 w-6" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-emerald-900">
-                      {language === "ar" ? "تأكيد عبر واتساب" : language === "fr" ? "Confirmer via WhatsApp" : "Confirm via WhatsApp"}
-                    </div>
-                    <div className="mt-1 text-xs text-emerald-700 leading-relaxed">
-                      {language === "ar"
-                        ? "ستصلك رسالة واتساب برمز 6 أرقام → أدخله → يُسجَّل طلبك فوراً ✓"
-                        : language === "fr"
-                          ? "Vous recevrez un code à 6 chiffres → saisissez-le → commande confirmée ✓"
-                          : "You get a 6-digit code → enter it → order confirmed instantly ✓"}
-                    </div>
+                    <div className="font-bold text-emerald-900">{language === "ar" ? "رمز واتساب" : "WhatsApp OTP"}</div>
+                    <div className="mt-1 text-xs text-emerald-700">{language === "ar" ? "رمز 6 أرقام على واتسابك ← أدخله ← طلبك مؤكد ✓" : "6-digit code on WhatsApp → enter → confirmed ✓"}</div>
                   </div>
                 </button>
+                )}
 
-                {/* Phone call option */}
+                {/* SMS option — 1 SMS max per phone */}
+                {otpChannels?.sms !== false && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setManualConfirm(true);
-                    setShowVerifyModal(false);
-                    setVerifyModalStep("choice");
-                    void placeOrder({ manualConfirmOverride: true });
-                  }}
-                  className="flex w-full items-center gap-4 rounded-2xl border-2 border-slate-200 bg-slate-50 px-5 py-4 text-start transition hover:border-blue-200 hover:bg-blue-50 active:scale-[0.98]"
+                  onClick={() => { setVerifyModalStep("sms"); void sendOtp("sms"); }}
+                  className="relative flex w-full items-center gap-4 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 px-5 py-4 text-start transition hover:border-blue-400 hover:from-blue-100 active:scale-[0.98]"
                 >
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-200">
-                    <PhoneCall className="h-6 w-6" />
+                  <span className="absolute end-3 top-3 rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold text-white">SMS</span>
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-600 shadow-md shadow-blue-200 text-white">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-slate-800">
-                      {language === "ar" ? "أفضّل مكالمة هاتفية" : language === "fr" ? "Je préfère un appel" : "I prefer a phone call"}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500 leading-relaxed">
-                      {language === "ar"
-                        ? "سيُسجَّل طلبك الآن وسيتصل بك فريقنا خلال دقائق أو ساعات للتأكيد"
-                        : language === "fr"
-                          ? "Commande enregistrée maintenant, notre équipe vous appellera dans quelques heures"
-                          : "Order saved now, our team will call you within minutes or hours to confirm"}
-                    </div>
+                    <div className="font-bold text-blue-900">{language === "ar" ? "رمز SMS" : "SMS OTP"}</div>
+                    <div className="mt-1 text-xs text-blue-600">{language === "ar" ? "رمز 6 أرقام عبر رسالة نصية على هاتفك" : "6-digit code via text message"}</div>
+                  </div>
+                </button>
+                )}
+
+                {/* Phone call fallback */}
+                <button
+                  type="button"
+                  onClick={() => { setManualConfirm(true); setShowVerifyModal(false); setVerifyModalStep("choice"); void placeOrder({ manualConfirmOverride: true }); }}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start transition hover:bg-slate-50 active:scale-[0.98]"
+                >
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500">
+                    <PhoneCall className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700">{language === "ar" ? "أفضّل مكالمة هاتفية" : "I prefer a phone call"}</div>
+                    <div className="text-xs text-slate-400">{language === "ar" ? "سيتصل بك فريقنا لتأكيد الطلب" : "Our team will call you to confirm"}</div>
                   </div>
                 </button>
               </div>
@@ -1070,9 +1068,9 @@ export function CheckoutPage() {
               </button>
             </div>
           ) : (
-            /* WhatsApp OTP step inside modal */
+            /* OTP code entry — same UI for both WhatsApp and SMS */
             <div>
-              <div className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-4 text-white">
+              <div className={`flex items-center gap-3 px-5 py-4 text-white ${verifyModalStep === "sms" ? "bg-gradient-to-r from-blue-600 to-indigo-600" : "bg-gradient-to-r from-green-600 to-emerald-600"}`}>
                 <button
                   type="button"
                   onClick={() => setVerifyModalStep("choice")}
@@ -1086,7 +1084,9 @@ export function CheckoutPage() {
                 </div>
                 <div>
                   <div className="font-semibold">
-                    {language === "ar" ? "تأكيد رقم الهاتف" : language === "fr" ? "Vérification WhatsApp" : "Phone Verification"}
+                    {verifyModalStep === "sms"
+                    ? (language === "ar" ? "تأكيد عبر SMS" : "SMS Verification")
+                    : (language === "ar" ? "تأكيد عبر واتساب" : language === "fr" ? "Vérification WhatsApp" : "WhatsApp Verification")}
                   </div>
                   <div className="text-sm text-white/80" dir="ltr">{phone}</div>
                 </div>
@@ -1139,11 +1139,13 @@ export function CheckoutPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                      {language === "ar"
-                        ? <span>✅ تم إرسال رمز واتساب إلى <span className="font-semibold" dir="ltr">{phone}</span> — تحقق من رسائلك</span>
-                        : language === "fr"
-                          ? <span>✅ Code envoyé sur WhatsApp au <span className="font-semibold" dir="ltr">{phone}</span> — vérifiez vos messages</span>
-                          : <span>✅ WhatsApp code sent to <span className="font-semibold" dir="ltr">{phone}</span> — check your messages</span>}
+                      {verifyModalStep === "sms"
+                        ? (language === "ar"
+                          ? <span>✅ تم إرسال رمز SMS إلى <span className="font-semibold" dir="ltr">{phone}</span> — تحقق من رسائلك</span>
+                          : <span>✅ SMS code sent to <span className="font-semibold" dir="ltr">{phone}</span> — check your messages</span>)
+                        : (language === "ar"
+                          ? <span>✅ تم إرسال رمز واتساب إلى <span className="font-semibold" dir="ltr">{phone}</span> — تحقق من رسائلك</span>
+                          : <span>✅ WhatsApp code sent to <span className="font-semibold" dir="ltr">{phone}</span> — check your messages</span>)}
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-slate-800">

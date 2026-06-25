@@ -38,6 +38,8 @@ const schema = z.object({
   OTP_SECRET: z.string().transform((v) => v || "change-this-otp-secret-32chars").pipe(z.string().min(16)),
   // Resend email API (affiliate OTP)
   RESEND_API_KEY: z.string().optional(),
+  // Prelude SMS OTP
+  PRELUDE_API_KEY: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

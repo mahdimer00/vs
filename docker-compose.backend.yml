@@ -32,6 +32,7 @@ services:
       BAILEYS_API_KEY: ${BAILEYS_API_KEY}
       OTP_SECRET: ${OTP_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
+      PRELUDE_API_KEY: ${PRELUDE_API_KEY}
     volumes:
       - backend_uploads:/app/uploads
     depends_on:

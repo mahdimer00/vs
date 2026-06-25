@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { env } from "../config/env.js";
 import { WebsiteSettingModel } from "../models/catalog.model.js";
 
-export type OtpChannel = "whatsapp";
+export type OtpChannel = "whatsapp" | "sms";
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
 
@@ -131,6 +131,61 @@ export async function sendWhatsAppOtp(phone: string, code: string): Promise<void
 
 export function isWhatsAppConfigured(): boolean {
   return Boolean(env.BAILEYS_API_URL);
+}
+
+export function isSmsConfigured(): boolean {
+  return Boolean(env.PRELUDE_API_KEY);
+}
+
+const PRELUDE_BASE = "https://api.prelude.dev";
+
+function toE164(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("213")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+213${digits.slice(1)}`;
+  return `+213${digits}`;
+}
+
+// Send SMS OTP via Prelude — Prelude manages OTP code internally
+export async function sendSmsOtp(phone: string): Promise<void> {
+  if (!env.PRELUDE_API_KEY) throw new Error("SMS (Prelude) not configured");
+  const res = await fetch(`${PRELUDE_BASE}/v2/verification`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.PRELUDE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ target: { type: "phone_number", value: toE164(phone) } }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Prelude SMS send failed (${res.status}): ${err}`);
+  }
+  const data = await res.json() as { status: string };
+  if (data.status !== "success") {
+    throw new Error(`Prelude returned status: ${data.status}`);
+  }
+}
+
+// Verify SMS OTP via Prelude — returns true if code is correct
+export async function verifySmsOtp(phone: string, code: string): Promise<boolean> {
+  if (!env.PRELUDE_API_KEY) return false;
+  const res = await fetch(`${PRELUDE_BASE}/v2/verification/check`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.PRELUDE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      target: { type: "phone_number", value: toE164(phone) },
+      code,
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) return false;
+  const data = await res.json() as { status: string };
+  return data.status === "success";
 }
 
 // General-purpose WhatsApp message sender (used for abandoned cart recovery etc.)
