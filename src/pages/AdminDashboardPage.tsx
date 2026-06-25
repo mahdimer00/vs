@@ -312,6 +312,10 @@ export function AdminDashboardPage() {
   const [zrHistoryLoading, setZrHistoryLoading] = useState<string | null>(null);
   const [zrSyncingId, setZrSyncingId] = useState<string | null>(null);
   const [telegramLabelId, setTelegramLabelId] = useState<string | null>(null);
+  const [blacklist, setBlacklist] = useState<Array<{ _id: string; phone: string; reason: string; createdAt: string }>>([]);
+  const [blacklistPhone, setBlacklistPhone] = useState("");
+  const [blacklistReason, setBlacklistReason] = useState("");
+  const [blacklistLoading, setBlacklistLoading] = useState(false);
   const [zrStateChangingId, setZrStateChangingId] = useState<string | null>(null);
   const [zrCancellingId, setZrCancellingId] = useState<string | null>(null);
   const [orderNoteEditing, setOrderNoteEditing] = useState<string | null>(null);
@@ -4132,11 +4136,6 @@ export function AdminDashboardPage() {
     </div>
     );
   };
-
-  const [blacklist, setBlacklist] = useState<Array<{ _id: string; phone: string; reason: string; createdAt: string }>>([]);
-  const [blacklistPhone, setBlacklistPhone] = useState("");
-  const [blacklistReason, setBlacklistReason] = useState("");
-  const [blacklistLoading, setBlacklistLoading] = useState(false);
 
   const renderBlacklist = () => (
     <div className="space-y-6">
