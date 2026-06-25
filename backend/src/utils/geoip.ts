@@ -67,6 +67,16 @@ export async function lookupIp(rawIp: string): Promise<IpApiResponse | null> {
  * In production: only Algeria (DZ).
  * Local/dev IPs are always allowed.
  */
+export function getRealIp(req: { ip?: string; headers: Record<string, string | string[] | undefined> }): string {
+  // Cloudflare sends the real client IP in CF-Connecting-IP
+  const cfIp = String(req.headers["cf-connecting-ip"] ?? "").trim();
+  if (cfIp) return cfIp;
+  // Fallback: X-Forwarded-For
+  const xff = String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim();
+  if (xff) return xff;
+  return String(req.ip ?? "");
+}
+
 export async function isIpAllowed(rawIp: string): Promise<{ allowed: boolean; country: string; isProxy: boolean }> {
   const ip = normalizeIp(rawIp ?? "");
 

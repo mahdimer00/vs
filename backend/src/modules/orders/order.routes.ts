@@ -17,7 +17,7 @@ import { env } from "../../config/env.js";
 import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook, setZRParcelState, ZR_SUPPLIER_STATES } from "../../utils/zrexpress.js";
 import { isWhatsAppConfigured, sendWhatsAppOrderCreated, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
 import { emitOrderUpdate } from "../../utils/sse.js";
-import { isIpAllowed, lookupIp } from "../../utils/geoip.js";
+import { isIpAllowed, lookupIp, getRealIp } from "../../utils/geoip.js";
 import { PhoneBlacklistModel } from "../../models/blacklist.model.js";
 
 const router = Router();
@@ -188,7 +188,7 @@ router.post(
     }
 
     // ── GEO-BLOCK: Algeria (DZ) only ──
-    const clientIp = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
+    const clientIp = getRealIp(req);
     const geoCheck = await isIpAllowed(clientIp);
     if (!geoCheck.allowed) {
       console.warn(`[GEO-BLOCK] Order blocked from ${clientIp} (${geoCheck.country})`);

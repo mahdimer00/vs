@@ -11,7 +11,7 @@ import { EmailOtpModel } from "../../models/email-otp.model.js";
 import { AppError } from "../../utils/app-error.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
 import { sendAffiliateOtpEmail } from "../../utils/email.js";
-import { isIpAllowed } from "../../utils/geoip.js";
+import { isIpAllowed, getRealIp } from "../../utils/geoip.js";
 import type { AdminPermission } from "../../constants/permissions.js";
 import type { AuthPayload } from "../../middleware/auth.middleware.js";
 
@@ -23,7 +23,7 @@ function generateCode(): string {
 }
 
 async function requireAlgeriaIp(req: import("express").Request): Promise<void> {
-  const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
+  const ip = getRealIp(req);
   const { allowed } = await isIpAllowed(ip);
   if (!allowed) {
     throw new AppError("الوصول متاح فقط من داخل الجزائر.", 403);

@@ -15,7 +15,7 @@ import {
   verifyOtpCode,
 } from "../../utils/otp.js";
 import { sendTikTokEvent } from "../../utils/tiktokEvents.js";
-import { isIpAllowed } from "../../utils/geoip.js";
+import { isIpAllowed, getRealIp } from "../../utils/geoip.js";
 
 const router = Router();
 
@@ -58,7 +58,7 @@ router.post(
   "/otp/send",
   asyncHandler(async (req, res) => {
     // Algeria-only
-    const clientIp = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
+    const clientIp = getRealIp(req);
     const { allowed } = await isIpAllowed(clientIp);
     if (!allowed) throw new AppError("الوصول متاح فقط من داخل الجزائر.", 403);
 

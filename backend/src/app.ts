@@ -99,6 +99,7 @@ app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "A
 // 🔥 HACKER HELL — فخ الهاكرز مع رسائل ساخرة
 // ──────────────────────────────────────────────────────────────────
 import { getHoneypotMessage, tarpit, CANARY_TOKEN, checkCanaryToken } from "./utils/hacker-hell.js";
+import { getRealIp } from "./utils/geoip.js";
 
 const HONEYPOT_PATHS = [
   "/.env", "/.env.local", "/.env.production", "/.env.backup",
@@ -119,7 +120,7 @@ const HONEYPOT_PATHS = [
 const SAFE_PATHS = ["/api/", "/uploads/"];
 
 app.use(async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "unknown");
+  const ip = getRealIp(req) || "unknown";
   const path = req.path.toLowerCase();
 
   // Check canary token in any auth header
