@@ -25,6 +25,7 @@ export const orderService = {
     email?: string;
     externalId?: string;
     manualConfirm?: boolean;
+    honeypot?: string;
   }) {
     return apiRequest<Order>("/api/orders", {
       method: "POST",

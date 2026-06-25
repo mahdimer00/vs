@@ -59,6 +59,10 @@ const orderSchema = new Schema(
     zrTrackingNumber: { type: String, default: null },
     zrTerritoryId: { type: String, default: null },
     adminNote: { type: String, default: null },
+    customerIp: { type: String, default: null },
+    ipCountry: { type: String, default: null },
+    userAgent: { type: String, default: null },
+    honeypot: { type: String, default: null },
   },
   { timestamps: true },
 );

@@ -2797,6 +2797,25 @@ export function AdminDashboardPage() {
                               </div>
                             ) : null}
 
+                            {/* IP + device info */}
+                            {(order as Order & { customerIp?: string; ipCountry?: string; userAgent?: string }).customerIp ? (
+                              <div className="mb-3 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 font-mono text-[10px] text-slate-600">
+                                  🌐 {(order as Order & { customerIp?: string }).customerIp}
+                                  {(order as Order & { ipCountry?: string }).ipCountry && (
+                                    <span className={`ms-1 font-bold ${(order as Order & { ipCountry?: string }).ipCountry !== "DZ" ? "text-rose-600" : "text-emerald-600"}`}>
+                                      ({(order as Order & { ipCountry?: string }).ipCountry})
+                                    </span>
+                                  )}
+                                </span>
+                                {(order as Order & { userAgent?: string }).userAgent ? (
+                                  <span className="text-[10px] text-slate-400 truncate max-w-[200px]" title={(order as Order & { userAgent?: string }).userAgent}>
+                                    📱 {(order as Order & { userAgent?: string }).userAgent?.slice(0, 50)}...
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+
                             {/* Admin note */}
                             <div className="mb-3" onClick={(e) => e.stopPropagation()}>
                               {orderNoteEditing === order._id ? (

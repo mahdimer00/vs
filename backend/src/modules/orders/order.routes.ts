@@ -17,6 +17,7 @@ import { env } from "../../config/env.js";
 import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabelPdf, getZRParcel, getZRParcelHistory, getZRTerritories, isZRConfigured, listZRWebhooks, registerZRWebhook, setZRParcelState, ZR_SUPPLIER_STATES } from "../../utils/zrexpress.js";
 import { isWhatsAppConfigured, sendWhatsAppOrderCreated, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
 import { emitOrderUpdate } from "../../utils/sse.js";
+import { isIpAllowed, lookupIp } from "../../utils/geoip.js";
 
 const router = Router();
 
@@ -71,6 +72,7 @@ const createOrderSchema = z.object({
   manualConfirm: z.boolean().optional(),
   email: z.string().email().max(256).optional(),
   externalId: z.string().max(256).optional(),
+  honeypot: z.string().max(0).optional(), // must be empty — bots fill this
 });
 
 function isOtpEnforced(): boolean {
@@ -170,6 +172,28 @@ router.post(
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
 
+    // ── HONEYPOT: bots fill hidden fields, humans leave them empty ──
+    if (input.honeypot && input.honeypot.trim().length > 0) {
+      // Silent reject — return 201 but don't save
+      return res.status(201).json({ _id: "bot", orderNumber: "BOT", status: "PENDING" });
+    }
+
+    // ── GEO-BLOCK: Algeria (DZ) only ──
+    const clientIp = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
+    const geoCheck = await isIpAllowed(clientIp);
+    if (!geoCheck.allowed) {
+      console.warn(`[GEO-BLOCK] Order blocked from ${clientIp} (${geoCheck.country})`);
+      throw new AppError("عذراً، الطلبات متاحة فقط داخل الجزائر.", 403);
+    }
+
+    // ── RATE LIMIT: max 5 orders per IP per 24h (anti-spam) ──
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const ipOrderCount = await OrderModel.countDocuments({ customerIp: clientIp, createdAt: { $gte: yesterday } });
+    if (ipOrderCount >= 5) {
+      console.warn(`[RATE-LIMIT] Too many orders from IP ${clientIp} (${ipOrderCount} in 24h)`);
+      throw new AppError("تم تجاوز الحد المسموح به للطلبات. حاول مجدداً لاحقاً.", 429);
+    }
+
     // Verify phone OTP token when OTP is enforced (skip if customer chose manual phone-call confirmation)
     if (isOtpEnforced() && !input.manualConfirm) {
       if (!input.phoneVerificationToken) {
@@ -230,6 +254,9 @@ router.post(
       aiConfirmed: false,
       stockReserved: false,
       zrTerritoryId: input.zrTerritoryId ?? null,
+      customerIp: clientIp || null,
+      ipCountry: geoCheck.country || null,
+      userAgent: String(req.headers["user-agent"] ?? "").slice(0, 300) || null,
     });
 
     if (promoDocumentId) {
@@ -252,19 +279,32 @@ router.post(
         : "";
     const itemsList = order.items.map((item) => `- ${item.productName.en} (${item.variantLabel}) x${item.quantity}`).join("\n");
 
+    // Check for duplicate phone (same phone ordered in last 24h) — flag in Telegram
+    const recentSamePhone = await OrderModel.countDocuments({
+      "customer.phone": input.customer.phone,
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      _id: { $ne: order._id },
+    });
+
+    // Get full geo info for Telegram
+    const geoDetail = await lookupIp(clientIp).catch(() => null);
+    const ipLine = clientIp
+      ? `🌐 IP: <code>${clientIp}</code> (${geoCheck.country}${geoDetail?.city ? ` — ${geoDetail.city}` : ""}${geoCheck.isProxy ? " ⚠️ VPN/Proxy" : ""})`
+      : null;
+
     void sendTelegramMessage(
       [
-        `🛒 <b>New order received</b>`,
-        `Order: ${order.orderNumber}`,
-        `Customer: ${customer?.fullName}`,
-        `Phone: ${customer?.phone}`,
-        `Wilaya: ${wilayaName}, ${customer?.commune}`,
-        `Delivery: ${order.deliveryType}`,
-        `Items:\n${itemsList}`,
-        `Total: ${order.total} DZD`,
-        `Status: Awaiting phone confirmation`,
-        `Action: Call customer before processing`,
-      ].join("\n"),
+        `🛒 <b>طلب جديد</b>`,
+        `📦 رقم الطلب: ${order.orderNumber}`,
+        `👤 الزبون: ${customer?.fullName}`,
+        `📞 الهاتف: ${customer?.phone}${recentSamePhone > 0 ? ` ⚠️ <b>${recentSamePhone} طلب آخر بنفس الرقم خلال 24h</b>` : ""}`,
+        `📍 الولاية: ${wilayaName}, ${customer?.commune}`,
+        `🚚 التوصيل: ${order.deliveryType === "HOME_DELIVERY" ? "توصيل للمنزل" : "استلام من المكتب"}`,
+        `🛍 المنتجات:\n${itemsList}`,
+        `💰 المجموع: ${order.total} دج`,
+        ipLine,
+        `⏳ الحالة: في انتظار التأكيد الهاتفي`,
+      ].filter(Boolean).join("\n"),
     );
 
     const nameParts = input.customer.fullName.trim().split(/\s+/);

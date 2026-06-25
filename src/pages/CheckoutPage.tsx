@@ -446,6 +446,7 @@ export function CheckoutPage() {
         zrTerritoryId: selectedZrTerritory?.id,
         email: email.trim() || undefined,
         externalId: externalId || undefined,
+        honeypot: "", // bots fill this, humans leave it empty
         fbp,
         fbc,
         clientUserAgent: navigator.userAgent,
@@ -500,6 +501,8 @@ export function CheckoutPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <form id="checkout-form" onSubmit={submit} className="surface-card min-w-0 space-y-5 overflow-hidden p-4 sm:p-6">
+          {/* Honeypot — hidden from humans, visible to bots. Do NOT fill. */}
+          <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0, width: 0 }} />
 
           {/* Error banner — top of form, scrolled to automatically on validation fail */}
           {errorMessage ? (
