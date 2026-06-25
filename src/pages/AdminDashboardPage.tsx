@@ -32,12 +32,39 @@ import {
   X,
   Youtube,
 } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { IconField } from "@/components/IconField";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { TikTokIcon } from "@/components/TikTokIcon";
+
+// WhatsApp status widget — polls every 30s
+function WaStatusWidget({ token, language }: { token: string; language: string }) {
+  const [status, setStatus] = React.useState<{ connected: boolean; warmingUp?: boolean; pendingOtps?: number; error?: string } | null>(null);
+  React.useEffect(() => {
+    const fetch = () => adminService.getWaStatus(token).then(setStatus).catch(() => setStatus({ connected: false, error: "offline" }));
+    fetch();
+    const interval = setInterval(fetch, 30_000);
+    return () => clearInterval(interval);
+  }, [token]);
+  const isAr = language === "ar";
+  const color = status?.connected && !status?.warmingUp ? "border-green-100 bg-green-50" : status?.warmingUp ? "border-amber-100 bg-amber-50" : "border-rose-100 bg-rose-50";
+  const dot = status?.connected && !status?.warmingUp ? "bg-green-500 animate-pulse" : status?.warmingUp ? "bg-amber-400 animate-pulse" : "bg-rose-400";
+  const label = status === null ? "..." : status.connected && !status.warmingUp ? (isAr ? "متصل ✓" : "Connected ✓") : status.warmingUp ? (isAr ? "جاري التشغيل..." : "Warming up...") : (isAr ? "غير متصل ✗" : "Offline ✗");
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 ${color}`}>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-600">{isAr ? "واتساب" : "WhatsApp"}</span>
+        <div className="flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${dot}`} />
+          <span className="font-semibold text-slate-700">{label}</span>
+          {status?.pendingOtps ? <span className="ms-1 rounded-full bg-white px-1.5 text-[10px] font-bold text-slate-600">{status.pendingOtps} OTP</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
 import { LoadingState } from "@/components/LoadingState";
 import { Seo } from "@/components/Seo";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -1305,59 +1332,160 @@ export function AdminDashboardPage() {
         : null,
     ].filter((alert): alert is NonNullable<typeof alert> => alert !== null);
 
+    const isAr = language === "ar";
+
     return (
-      <div className="space-y-6">
-        {alerts.length > 0 ? (
-          <Panel title={translate(language, "adminAlertsTitle")}>
-            <div className="grid gap-3 md:grid-cols-3">
-              {alerts.map((alert) => (
-                <Link key={alert.key} to={alert.href} className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition hover:-translate-y-0.5 ${alert.tone}`}>
-                  <alert.icon className="h-5 w-5 shrink-0" />
-                  <span>{alert.label}</span>
-                </Link>
-              ))}
-            </div>
-          </Panel>
-        ) : (
-          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-            <AlertTriangle className="h-5 w-5 shrink-0" />
-            <span>{translate(language, "adminAlertsNone")}</span>
+      <div className="space-y-5">
+
+        {/* ── URGENT ALERTS ROW ── */}
+        {(stats.abandonedOrders > 0 || stats.awaitingCallOrders > 0 || alerts.length > 0) && (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {/* Abandoned orders — most urgent */}
+            {stats.abandonedOrders > 0 && (
+              <Link to="/gestion/orders" className="flex items-center gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 px-4 py-3.5 transition hover:-translate-y-0.5">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500 text-white">
+                  <Phone className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-rose-900">{isAr ? `${stats.abandonedOrders} طلب منتهية الصلاحية` : `${stats.abandonedOrders} abandoned`}</div>
+                  <div className="text-xs text-rose-600">{isAr ? "تنتظر مكالمتك أكثر من 24 ساعة ⚠️" : "waiting call >24h ⚠️"}</div>
+                </div>
+              </Link>
+            )}
+            {/* Awaiting call */}
+            {stats.awaitingCallOrders > 0 && (
+              <Link to="/gestion/orders" className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-3.5 transition hover:-translate-y-0.5">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-500 text-white">
+                  <BellRing className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-amber-900">{isAr ? `${stats.awaitingCallOrders} طلب يتانتظر` : `${stats.awaitingCallOrders} need call`}</div>
+                  <div className="text-xs text-amber-600">{isAr ? "اتصل بهم الآن" : "Call them now"}</div>
+                </div>
+              </Link>
+            )}
+            {alerts.map((alert) => (
+              <Link key={alert.key} to={alert.href} className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-sm font-medium transition hover:-translate-y-0.5 ${alert.tone}`}>
+                <alert.icon className="h-5 w-5 shrink-0" />
+                <span>{alert.label}</span>
+              </Link>
+            ))}
           </div>
         )}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            [translate(language, "orders"), String(stats.totalOrders)],
-            [translate(language, "dashboardPending"), String(stats.pendingOrders)],
-            [translate(language, "dashboardDelivered"), String(stats.deliveredOrders)],
-            [translate(language, "dashboardRevenue"), formatCurrency(stats.revenue, language)],
-          ].map(([label, value]) => (
-            <div key={label} className="stat-card">
-              <div className="text-sm text-slate-500">{label}</div>
-              <div className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">{value}</div>
-            </div>
-          ))}
+
+        {/* ── TODAY + TOTAL STATS ── */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Today's orders */}
+          <div className="stat-card border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-white">
+            <div className="text-xs font-bold uppercase tracking-wider text-teal-600">{isAr ? "اليوم" : "Today"}</div>
+            <div className="mt-2 text-3xl font-black text-teal-700">{stats.todayOrders}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب جديد" : "new orders"}</div>
+            {stats.todayRevenue > 0 && <div className="mt-1 text-xs font-semibold text-teal-600">{formatCurrency(stats.todayRevenue, language)}</div>}
+          </div>
+          {/* This week */}
+          <div className="stat-card">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "هذا الأسبوع" : "This week"}</div>
+            <div className="mt-2 text-3xl font-black text-slate-800">{stats.weekOrders}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب" : "orders"}</div>
+            {stats.weekRevenue > 0 && <div className="mt-1 text-xs font-semibold text-slate-500">{formatCurrency(stats.weekRevenue, language)}</div>}
+          </div>
+          {/* Total delivered */}
+          <div className="stat-card">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "مُسلَّم" : "Delivered"}</div>
+            <div className="mt-2 text-3xl font-black text-emerald-700">{stats.deliveredOrders}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب مكتمل" : "completed"}</div>
+          </div>
+          {/* Total revenue */}
+          <div className="stat-card">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "الإيرادات" : "Revenue"}</div>
+            <div className="mt-2 break-words text-2xl font-black text-slate-900">{formatCurrency(stats.revenue, language)}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "إجمالي" : "total"}</div>
+          </div>
         </div>
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Panel title={translate(language, "dashboardLowStock")}>
-            <div className="space-y-3">
-              {stats.lowStockProducts.map((product) => (
-                <div key={product._id} className="muted-card flex items-center justify-between px-4 py-3 text-sm">
-                  <span>{getLocalizedText(product.name, language)}</span>
-                  <span className="font-semibold text-slate-900">{product.stock}</span>
+
+        {/* ── ABANDONED ORDERS DETAIL ── */}
+        {stats.abandonedOrderDetails.length > 0 && (
+          <div className="surface-card overflow-hidden p-0">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <div className="flex items-center gap-2 font-bold text-rose-800">
+                <Phone className="h-4 w-4" />
+                {isAr ? `طلبات تنتظر مكالمتك (${stats.abandonedOrders})` : `Orders waiting your call (${stats.abandonedOrders})`}
+              </div>
+              <Link to="/gestion/orders" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "عرض الكل" : "View all"}</Link>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {stats.abandonedOrderDetails.map((o) => (
+                <div key={o._id} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-950">{o.customerName}</div>
+                    <div className="mt-0.5 text-xs text-slate-400" dir="ltr">{o.phone}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-slate-900">{formatCurrency(o.total, language)}</div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-rose-500">{isAr ? `منذ ${o.hoursAgo} ساعة` : `${o.hoursAgo}h ago`}</div>
+                  </div>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── BOTTOM GRID ── */}
+        <div className="grid gap-5 xl:grid-cols-3">
+          {/* Low stock */}
+          <Panel title={`${translate(language, "dashboardLowStock")}${stats.outOfStockProducts > 0 ? ` — ${stats.outOfStockProducts} ${isAr ? "نفد" : "out of stock"}` : ""}`}>
+            {stats.lowStockProducts.length === 0 ? (
+              <div className="py-4 text-center text-sm text-emerald-600">✓ {isAr ? "كل المخزون جيد" : "All stock is healthy"}</div>
+            ) : (
+              <div className="space-y-2">
+                {stats.lowStockProducts.map((product) => (
+                  <div key={product._id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm">
+                    <span className="min-w-0 truncate text-slate-700">{getLocalizedText(product.name, language)}</span>
+                    <span className={`ms-2 shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${product.stock <= 2 ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
+                      {product.stock}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Panel>
+
+          {/* Top products by actual orders */}
           <Panel title={translate(language, "dashboardTopProducts")}>
-            <div className="space-y-3">
-              {stats.topProducts.map((product) => (
-                <div key={product._id} className="muted-card flex items-center justify-between px-4 py-3 text-sm">
-                  <span>{getLocalizedText(product.name, language)}</span>
-                  <span className="font-semibold text-slate-900">{formatCurrency(product.basePrice, language)}</span>
-                </div>
-              ))}
-            </div>
+            {stats.topProducts.length === 0 ? (
+              <div className="py-4 text-center text-sm text-slate-400">{isAr ? "لا توجد بيانات بعد" : "No data yet"}</div>
+            ) : (
+              <div className="space-y-2">
+                {stats.topProducts.map((product, i) => (
+                  <div key={product._id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-600">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-slate-700">{getLocalizedText(product.name, language)}</span>
+                    <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-700">
+                      {product.orderCount} {isAr ? "طلب" : "sold"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Panel>
+
+          {/* WhatsApp status */}
+          <div className="surface-card p-5 space-y-3">
+            <div className="text-sm font-bold text-slate-700">{isAr ? "حالة النظام" : "System Status"}</div>
+            <WaStatusWidget token={token} language={language} />
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">{isAr ? "ZR Express" : "ZR Express"}</span>
+                <span className="font-semibold text-emerald-700">{zrStatus?.configured ? "✓ متصل" : "غير مفعّل"}</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">{isAr ? "منتجات نفد مخزونها" : "Out of stock"}</span>
+                <span className={`font-bold ${stats.outOfStockProducts > 0 ? "text-rose-600" : "text-emerald-600"}`}>{stats.outOfStockProducts}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

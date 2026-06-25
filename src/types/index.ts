@@ -282,13 +282,21 @@ export interface SubAdmin {
 export interface DashboardStats {
   totalOrders: number;
   pendingOrders: number;
+  awaitingCallOrders: number;
   deliveredOrders: number;
   cancelledOrders: number;
   revenue: number;
-  topProducts: Product[];
+  todayOrders: number;
+  todayRevenue: number;
+  weekOrders: number;
+  weekRevenue: number;
+  abandonedOrders: number;
+  abandonedOrderDetails: Array<{ _id: string; orderNumber: string; customerName: string; phone: string; total: number; hoursAgo: number }>;
+  topProducts: Array<Product & { orderCount: number }>;
   affiliateSales: Array<{ affiliate: string; total: number }>;
   promoUsage: Array<{ code: string; count: number }>;
   lowStockProducts: Product[];
+  outOfStockProducts: number;
 }
 
 export interface CartItem {

@@ -82,6 +82,10 @@ router.delete("/admin/admins/:id", authMiddleware, roleMiddleware(["SUPER_ADMIN"
 }));
 
 router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const abandonedThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
   const [orders, promos, affiliates, products] = await Promise.all([
     OrderModel.find().lean(),
     PromoCodeModel.find().lean(),
@@ -92,17 +96,71 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const deliveredStatuses = new Set(["DELIVERED", "PICKED_UP"]);
   const cancelledStatuses = new Set(["CANCELLED", "RETURNED", "FAILED"]);
 
+  const deliveredOrders = orders.filter((o) => deliveredStatuses.has(o.status));
+  const todayOrders = orders.filter((o) => new Date(o.createdAt as Date) >= todayStart);
+  const weekOrders = orders.filter((o) => new Date(o.createdAt as Date) >= weekStart);
+  const abandonedOrders = orders.filter((o) =>
+    o.status === "AWAITING_CALL_CONFIRMATION" && new Date(o.createdAt as Date) < abandonedThreshold
+  );
+
+  // Top products by actual order count (not just slice)
+  const productOrderCount = new Map<string, number>();
+  for (const order of deliveredOrders) {
+    for (const item of order.items) {
+      const pid = String(item.productId);
+      productOrderCount.set(pid, (productOrderCount.get(pid) ?? 0) + item.quantity);
+    }
+  }
+  const topProductsSorted = products
+    .map((p) => ({ ...p, orderCount: productOrderCount.get(String(p._id)) ?? 0 }))
+    .filter((p) => p.orderCount > 0)
+    .sort((a, b) => b.orderCount - a.orderCount)
+    .slice(0, 5);
+
   return res.json({
     totalOrders: orders.length,
-    pendingOrders: orders.filter((order) => order.status === "PENDING_AI_CONFIRMATION" || order.status === "AWAITING_CALL_CONFIRMATION").length,
-    deliveredOrders: orders.filter((order) => deliveredStatuses.has(order.status)).length,
-    cancelledOrders: orders.filter((order) => cancelledStatuses.has(order.status)).length,
-    revenue: orders.filter((order) => deliveredStatuses.has(order.status)).reduce((sum, order) => sum + order.total, 0),
-    topProducts: products.slice(0, 5),
-    affiliateSales: affiliates.map((affiliate) => ({ affiliate: affiliate.name, total: affiliate.balancePaid + affiliate.balanceApproved })),
-    promoUsage: promos.map((promo) => ({ code: promo.code, count: promo.usedCount })),
-    lowStockProducts: products.filter((product) => product.stock <= 5),
+    pendingOrders: orders.filter((o) => o.status === "PENDING_AI_CONFIRMATION" || o.status === "AWAITING_CALL_CONFIRMATION").length,
+    awaitingCallOrders: orders.filter((o) => o.status === "AWAITING_CALL_CONFIRMATION").length,
+    deliveredOrders: deliveredOrders.length,
+    cancelledOrders: orders.filter((o) => cancelledStatuses.has(o.status)).length,
+    revenue: deliveredOrders.reduce((sum, o) => sum + o.total, 0),
+    // Today
+    todayOrders: todayOrders.length,
+    todayRevenue: todayOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((sum, o) => sum + o.total, 0),
+    // This week
+    weekOrders: weekOrders.length,
+    weekRevenue: weekOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((sum, o) => sum + o.total, 0),
+    // Abandoned (waiting for call > 24h)
+    abandonedOrders: abandonedOrders.length,
+    abandonedOrderDetails: abandonedOrders.slice(0, 5).map((o) => ({
+      _id: o._id, orderNumber: o.orderNumber,
+      customerName: o.customer?.fullName, phone: o.customer?.phone,
+      total: o.total, hoursAgo: Math.round((Date.now() - new Date(o.createdAt as Date).getTime()) / 3600000),
+    })),
+    // Real top products by order count
+    topProducts: topProductsSorted,
+    affiliateSales: affiliates.map((a) => ({ affiliate: a.name, total: a.balancePaid + a.balanceApproved })),
+    promoUsage: promos.map((p) => ({ code: p.code, count: p.usedCount })),
+    lowStockProducts: products.filter((p) => p.stock > 0 && p.stock <= 5 && !p.isSoldOut),
+    outOfStockProducts: products.filter((p) => p.stock === 0 && !p.isSoldOut).length,
   });
+}));
+
+// WhatsApp Baileys status for dashboard widget
+router.get("/admin/wa-status", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
+  try {
+    const waUrl = process.env.BAILEYS_API_URL ?? "http://172.18.0.1:3010";
+    const waKey = process.env.BAILEYS_API_KEY ?? "";
+    const response = await fetch(`${waUrl}/health`, {
+      headers: waKey ? { "X-Api-Key": waKey } : {},
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return res.json({ connected: false, error: "unreachable" });
+    const data = await response.json() as Record<string, unknown>;
+    return res.json({ connected: data.connected, warmingUp: data.warmingUp, pendingOtps: data.pendingOtps });
+  } catch {
+    return res.json({ connected: false, error: "offline" });
+  }
 }));
 
 router.get("/admin/affiliates", authMiddleware, permissionMiddleware("affiliates"), asyncHandler(async (_req, res) => {

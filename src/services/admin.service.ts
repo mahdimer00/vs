@@ -20,6 +20,9 @@ export const adminService = {
   getStats(token: string) {
     return apiRequest<DashboardStats>("/api/admin/stats", { token });
   },
+  getWaStatus(token: string) {
+    return apiRequest<{ connected: boolean; warmingUp?: boolean; pendingOtps?: number; error?: string }>("/api/admin/wa-status", { token });
+  },
   async getOrders(token: string, skip = 0, limit = 100) {
     const result = await apiRequest<{ orders: Order[]; total: number } | Order[]>(
       `/api/admin/orders?skip=${skip}&limit=${limit}`,
