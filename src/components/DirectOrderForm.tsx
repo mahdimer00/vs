@@ -7,6 +7,7 @@ import { Building2, Check, CheckCircle2, Home, Lock, MapPin, MapPinned, Phone, P
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
+import { OtpVerifyModal } from "@/components/OtpVerifyModal";
 import { useApp } from "@/hooks/useApp";
 import { orderService } from "@/services/order.service";
 import { promoService } from "@/services/promo.service";
@@ -44,6 +45,8 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const [shippingFee, setShippingFee] = useState(initialFee);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [phoneVerificationToken, setPhoneVerificationToken] = useState<string | null>(null);
   const [invalidField, setInvalidField] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [promoApplying, setPromoApplying] = useState(false);
@@ -176,13 +179,22 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
     return "";
   };
 
-  const submit = async () => {
+  const otpRequired = siteSettings?.otpEnabled !== false;
+
+  const submit = async (opts: { manualConfirmOverride?: boolean; token?: string | null } = {}) => {
     const err = validate();
     if (err) {
       setErrorMessage(err);
       setTimeout(() => {
         document.getElementById("dof-error")?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 80);
+      return;
+    }
+
+    // Show OTP modal if required and not yet verified
+    const verToken = opts.token ?? phoneVerificationToken;
+    if (otpRequired && !opts.manualConfirmOverride && !verToken) {
+      setShowOtpModal(true);
       return;
     }
 
@@ -210,7 +222,8 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         affiliateRef: affiliateRef || undefined,
         capiEventId,
         clientUserAgent: navigator.userAgent,
-        manualConfirm: true,
+        manualConfirm: opts.manualConfirmOverride ?? false,
+        phoneVerificationToken: (opts.token ?? phoneVerificationToken) || undefined,
         zrTerritoryId: selectedZrTerritory?.id,
         externalId: externalId || undefined,
       });
@@ -236,6 +249,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
     `field-select field-input-icon transition ${invalidField === id ? "border-rose-500 ring-2 ring-rose-200" : ""}`;
 
   return (
+    <>
     <div className="mt-6 space-y-4 overflow-hidden rounded-[2rem] border-2 border-teal-200 bg-gradient-to-b from-teal-50/60 to-white shadow-[0_8px_32px_rgba(20,184,166,0.14)]">
 
       {/* Top banner — ZR Express + cash on delivery */}
@@ -533,5 +547,25 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
 
       </div>{/* end p-5 */}
     </div>
+
+    {/* OTP verification modal */}
+    {showOtpModal && (
+      <OtpVerifyModal
+        phone={phone}
+        language={language}
+        siteSettings={siteSettings}
+        onVerified={(token) => {
+          setPhoneVerificationToken(token);
+          setShowOtpModal(false);
+          void submit({ token });
+        }}
+        onManualConfirm={() => {
+          setShowOtpModal(false);
+          void submit({ manualConfirmOverride: true });
+        }}
+        onClose={() => setShowOtpModal(false)}
+      />
+    )}
+    </>
   );
 }

@@ -292,6 +292,16 @@ router.post(
       ? `🌐 IP: <code>${clientIp}</code> (${geoCheck.country}${geoDetail?.city ? ` — ${geoDetail.city}` : ""}${geoCheck.isProxy ? " ⚠️ VPN/Proxy" : ""})`
       : null;
 
+    // IP vs delivery location mismatch check
+    const ipCity = (geoDetail?.city ?? geoDetail?.regionName ?? "").toLowerCase();
+    const orderWilayaLower = wilayaName.toLowerCase();
+    const locationMismatch = ipCity && orderWilayaLower &&
+      !ipCity.includes(orderWilayaLower.slice(0, 5)) &&
+      !orderWilayaLower.includes(ipCity.slice(0, 5));
+    const mismatchLine = locationMismatch
+      ? `⚠️ <b>تحذير: موقع IP (${geoDetail?.city}) لا يتطابق مع ولاية التوصيل (${wilayaName})</b>`
+      : null;
+
     void sendTelegramMessage(
       [
         `🛒 <b>طلب جديد</b>`,
@@ -303,6 +313,7 @@ router.post(
         `🛍 المنتجات:\n${itemsList}`,
         `💰 المجموع: ${order.total} دج`,
         ipLine,
+        mismatchLine,
         `⏳ الحالة: في انتظار التأكيد الهاتفي`,
       ].filter(Boolean).join("\n"),
     );

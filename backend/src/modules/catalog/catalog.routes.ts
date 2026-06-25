@@ -153,7 +153,7 @@ router.get(
   "/settings",
   asyncHandler(async (_req, res) => {
     const settings = await WebsiteSettingModel.findOne()
-      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode promoCodeEnabled directOrderMode whatsappFloat")
+      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode promoCodeEnabled directOrderMode whatsappFloat otpEnabled otpWhatsappEnabled otpEmailEnabled")
       .lean();
     return res.json(settings);
   }),

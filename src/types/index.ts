@@ -240,6 +240,9 @@ export interface WebsiteSetting {
   promoCodeEnabled: boolean;
   directOrderMode?: boolean;
   whatsappFloat?: boolean;
+  otpEnabled?: boolean;
+  otpWhatsappEnabled?: boolean;
+  otpEmailEnabled?: boolean;
   affiliateLevels?: AffiliateLevelSettings;
 }
 

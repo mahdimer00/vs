@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { env } from "../config/env.js";
 import { WebsiteSettingModel } from "../models/catalog.model.js";
 
-export type OtpChannel = "whatsapp" | "sms";
+export type OtpChannel = "whatsapp" | "email";
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
 
@@ -133,59 +133,35 @@ export function isWhatsAppConfigured(): boolean {
   return Boolean(env.BAILEYS_API_URL);
 }
 
-export function isSmsConfigured(): boolean {
-  return Boolean(env.PRELUDE_API_KEY);
+export function isEmailOtpConfigured(): boolean {
+  return Boolean(env.RESEND_API_KEY);
 }
 
-const PRELUDE_BASE = "https://api.prelude.dev";
-
-function toE164(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("213")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+213${digits.slice(1)}`;
-  return `+213${digits}`;
-}
-
-// Send SMS OTP via Prelude — Prelude manages OTP code internally
-export async function sendSmsOtp(phone: string): Promise<void> {
-  if (!env.PRELUDE_API_KEY) throw new Error("SMS (Prelude) not configured");
-  const res = await fetch(`${PRELUDE_BASE}/v2/verification`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${env.PRELUDE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ target: { type: "phone_number", value: toE164(phone) } }),
-    signal: AbortSignal.timeout(8000),
+// Send OTP via email (used at checkout when user picks email verification)
+export async function sendCheckoutEmailOtp(email: string, code: string, phone: string): Promise<void> {
+  if (!env.RESEND_API_KEY) throw new Error("Email (Resend) not configured");
+  const { Resend } = await import("resend");
+  const resend = new Resend(env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: "VisaDZ <noreply@visadz.store>",
+    to: [email],
+    subject: `رمز تأكيد طلبك — VisaDZ (${code})`,
+    html: `
+      <div dir="rtl" style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:16px">
+        <div style="text-align:center;margin-bottom:24px">
+          <div style="background:#0f172a;display:inline-block;padding:12px 24px;border-radius:12px;color:#99f6e4;font-size:22px;font-weight:700">VisaDZ</div>
+        </div>
+        <h2 style="color:#0f172a;margin:0 0 8px">تأكيد طلبك 🛒</h2>
+        <p style="color:#475569;margin:0 0 8px;line-height:1.7">أدخل الرمز التالي لإتمام طلبك:</p>
+        <p style="color:#94a3b8;font-size:12px;margin:0 0 24px">الرقم: ${phone}</p>
+        <div style="background:#fff;border:2px solid #14b8a6;border-radius:16px;padding:24px;text-align:center;margin:0 0 24px">
+          <div style="font-size:42px;font-weight:900;letter-spacing:10px;color:#0f172a;font-family:monospace">${code}</div>
+          <div style="color:#94a3b8;font-size:13px;margin-top:8px">صالح لمدة 5 دقائق</div>
+        </div>
+        <p style="color:#94a3b8;font-size:12px">إذا لم تطلب هذا الرمز، تجاهل هذا البريد.</p>
+      </div>
+    `,
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Prelude SMS send failed (${res.status}): ${err}`);
-  }
-  const data = await res.json() as { status: string };
-  if (data.status !== "success") {
-    throw new Error(`Prelude returned status: ${data.status}`);
-  }
-}
-
-// Verify SMS OTP via Prelude — returns true if code is correct
-export async function verifySmsOtp(phone: string, code: string): Promise<boolean> {
-  if (!env.PRELUDE_API_KEY) return false;
-  const res = await fetch(`${PRELUDE_BASE}/v2/verification/check`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${env.PRELUDE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      target: { type: "phone_number", value: toE164(phone) },
-      code,
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) return false;
-  const data = await res.json() as { status: string };
-  return data.status === "success";
 }
 
 // General-purpose WhatsApp message sender (used for abandoned cart recovery etc.)

@@ -21,6 +21,7 @@ import { trackFunnelStep, trackCheckoutError, trackFormValidationError } from "@
 import { sentrySetUser } from "@/utils/sentry";
 import { clarityTag } from "@/utils/clarity";
 import { getOrCreateExternalId } from "@/utils/externalId";
+import { OtpVerifyModal } from "@/components/OtpVerifyModal";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
 const checkoutDraftKey = "visastore-checkout-draft";
@@ -51,11 +52,9 @@ export function CheckoutPage() {
 
   const [manualConfirm, setManualConfirm] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verifyModalStep, setVerifyModalStep] = useState<"choice" | "whatsapp" | "sms">("choice");
-  const [otpActiveChannel, setOtpActiveChannel] = useState<"whatsapp" | "sms">("whatsapp");
 
   // OTP verification state
-  const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean; sms: boolean } | null>(null);
+  const [otpChannels, setOtpChannels] = useState<{ whatsapp: boolean; email: boolean } | null>(null);
   const [otpSending, setOtpSending] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -125,7 +124,7 @@ export function CheckoutPage() {
 
   // Load available OTP channels once
   useEffect(() => {
-    otpService.getChannels().then(setOtpChannels).catch(() => setOtpChannels({ whatsapp: false, sms: false }));
+    otpService.getChannels().then(setOtpChannels).catch(() => setOtpChannels({ whatsapp: false, email: false }));
   }, []);
 
   // Load ZR territories once
@@ -192,90 +191,13 @@ export function CheckoutPage() {
     };
   }, []);
 
-  const otpRequired = Boolean(otpChannels?.whatsapp || otpChannels?.sms);
+  const otpRequired = siteSettings?.otpEnabled !== false && Boolean(otpChannels?.whatsapp || otpChannels?.email);
   const phoneIsValid = phonePattern.test(phone.trim());
   const isPhoneVerified = Boolean(phoneVerificationToken && verifiedPhone === phone);
   const selectedWilayaZrTerritories = useMemo(
     () => zrTerritories.filter((territory) => territory.wilayaCode === wilayaCode),
     [wilayaCode, zrTerritories],
   );
-  const otpTimerLabel = `${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, "0")}`;
-  const otpNoticeClassName = otpNotice?.tone === "success"
-    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-    : "border-rose-200 bg-rose-50 text-rose-700";
-
-  const sendOtp = async (channel: "whatsapp" | "sms" = otpActiveChannel) => {
-    if (!phoneIsValid || otpSending) return;
-    setOtpSending(true);
-    setOtpActiveChannel(channel);
-    setOtpNotice(null);
-    try {
-      const result = await otpService.sendOtp(phone.trim(), channel);
-      void ttqIdentify(phone.trim());
-      const _ttqContents = cart.map((i) => ({ content_id: i.product._id, content_type: "product", content_name: i.product.name.en || i.product.name.ar || i.product.name.fr }));
-      ttqAddPaymentInfo(_ttqContents, subtotal);
-      setOtpSent(true);
-      setOtpCode("");
-      const ttl = result.expiresIn ?? 300;
-      setOtpSecondsLeft(ttl);
-      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
-      otpTimerRef.current = setInterval(() => {
-        setOtpSecondsLeft((s) => {
-          if (s <= 1) { clearInterval(otpTimerRef.current!); return 0; }
-          return s - 1;
-        });
-      }, 1000);
-      setOtpNotice({
-        tone: "success",
-        text: language === "ar"
-          ? "تم إرسال رمز التحقق عبر واتساب."
-          : language === "fr"
-            ? "Le code WhatsApp a ete envoye."
-            : "The WhatsApp verification code was sent.",
-      });
-      pushToast(language === "ar" ? "تم إرسال رمز التحقق" : language === "fr" ? "Code envoyé" : "Code sent", "success");
-    } catch (err) {
-      setOtpSent(false);
-      setOtpNotice({
-        tone: "error",
-        text: err instanceof Error ? err.message : translate(language, "adminActionError"),
-      });
-      pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
-    } finally {
-      setOtpSending(false);
-    }
-  };
-
-  const verifyOtp = async () => {
-    if (otpCode.length !== 6 || otpVerifying) return;
-    setOtpVerifying(true);
-    setOtpNotice(null);
-    try {
-      const result = await otpService.verifyOtp(phone.trim(), otpCode, otpActiveChannel);
-      ttqCompleteRegistration();
-      setPhoneVerificationToken(result.verificationToken);
-      setVerifiedPhone(phone.trim());
-      if (otpTimerRef.current) clearInterval(otpTimerRef.current);
-      setOtpSecondsLeft(0);
-      setOtpNotice({
-        tone: "success",
-        text: language === "ar"
-          ? "تم التحقق من رقم الهاتف بنجاح."
-          : language === "fr"
-            ? "Le numero a ete verifie."
-            : "The phone number was verified.",
-      });
-      pushToast(language === "ar" ? "تم التحقق من رقم الهاتف ✓" : language === "fr" ? "Numéro vérifié ✓" : "Phone verified ✓", "success");
-    } catch (err) {
-      setOtpNotice({
-        tone: "error",
-        text: err instanceof Error ? err.message : translate(language, "adminActionError"),
-      });
-      pushToast(err instanceof Error ? err.message : translate(language, "adminActionError"), "error");
-    } finally {
-      setOtpVerifying(false);
-    }
-  };
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.variant.price * item.quantity, 0), [cart]);
   const total = Math.max(0, subtotal + shippingFee - discount);
@@ -618,25 +540,6 @@ export function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Email — optional, improves ad matching quality significantly */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">
-                  {language === "ar" ? "البريد الإلكتروني" : language === "fr" ? "Email" : "Email"}
-                  <span className="ms-1 text-xs font-normal text-slate-400">({language === "ar" ? "اختياري — يحسّن دقة الإعلانات" : language === "fr" ? "optionnel" : "optional"})</span>
-                </label>
-                <IconField icon={BadgeCheck}>
-                  <input
-                    type="email"
-                    inputMode="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="field-input field-input-icon"
-                    placeholder={language === "ar" ? "example@gmail.com" : "example@gmail.com"}
-                    autoComplete="email"
-                    dir="ltr"
-                  />
-                </IconField>
-              </div>
             </div>
             {/* Show verified badge if already confirmed — popup modal handles the rest */}
             {otpRequired && phoneIsValid && isPhoneVerified ? (
@@ -963,234 +866,25 @@ export function CheckoutPage() {
       </div>
     </div>
 
-    {/* Verification choice / OTP bottom-sheet modal */}
+
+    {/* OTP verification modal — shared component */}
     {showVerifyModal ? (
-      <div
-        className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 px-0 backdrop-blur-sm sm:items-center sm:px-4"
-        onClick={() => { setShowVerifyModal(false); setVerifyModalStep("choice"); }}
-      >
-        <div
-          className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {verifyModalStep === "choice" ? (
-            <div className="p-5">
-              {/* Header — clearly "last step", NOT a success screen */}
-              <div className="mb-5">
-                {/* Step indicator */}
-                <div className="mb-3 flex items-center justify-center gap-2">
-                  <div className="h-2 w-8 rounded-full bg-teal-500" />
-                  <div className="h-2 w-8 rounded-full bg-teal-500" />
-                  <div className="h-2 w-8 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="ms-1 text-xs font-semibold text-amber-600">
-                    {language === "ar" ? "الخطوة الأخيرة" : language === "fr" ? "Étape finale" : "Final step"}
-                  </span>
-                </div>
-
-                <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4 text-center">
-                  <div className="mx-auto mb-2 grid h-14 w-14 place-items-center rounded-full bg-white shadow-sm ring-2 ring-amber-300">
-                    <span className="text-2xl">📦</span>
-                  </div>
-                  <h2 className="text-lg font-extrabold text-slate-950">
-                    {language === "ar" ? "طلبك لم يُرسَل بعد!" : language === "fr" ? "Commande pas encore envoyée !" : "Order not sent yet!"}
-                  </h2>
-                  <p className="mt-1.5 text-sm text-slate-700 leading-relaxed">
-                    {language === "ar"
-                      ? <span>اختر طريقة التأكيد التالية وسيُسجَّل طلبك فوراً على الرقم <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>
-                      : language === "fr"
-                        ? <span>Choisissez une méthode — la commande sera envoyée au <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>
-                        : <span>Choose a method — your order will be sent to <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {/* WhatsApp option */}
-                {otpChannels?.whatsapp !== false && (
-                <button
-                  type="button"
-                  onClick={() => { setVerifyModalStep("whatsapp"); void sendOtp("whatsapp"); }}
-                  className="relative flex w-full items-center gap-4 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-green-50 px-5 py-4 text-start shadow-sm transition hover:border-emerald-400 hover:from-emerald-100 active:scale-[0.98]"
-                >
-                  <span className="absolute end-3 top-3 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                    {language === "ar" ? "موصى به" : "RECOMMENDED"}
-                  </span>
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#25D366] shadow-md shadow-green-200">
-                    <svg viewBox="0 0 24 24" fill="white" className="h-6 w-6" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-emerald-900">{language === "ar" ? "رمز واتساب" : "WhatsApp OTP"}</div>
-                    <div className="mt-1 text-xs text-emerald-700">{language === "ar" ? "رمز 6 أرقام على واتسابك ← أدخله ← طلبك مؤكد ✓" : "6-digit code on WhatsApp → enter → confirmed ✓"}</div>
-                  </div>
-                </button>
-                )}
-
-                {/* SMS option — 1 SMS max per phone */}
-                {otpChannels?.sms !== false && (
-                <button
-                  type="button"
-                  onClick={() => { setVerifyModalStep("sms"); void sendOtp("sms"); }}
-                  className="relative flex w-full items-center gap-4 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 px-5 py-4 text-start transition hover:border-blue-400 hover:from-blue-100 active:scale-[0.98]"
-                >
-                  <span className="absolute end-3 top-3 rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold text-white">SMS</span>
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-600 shadow-md shadow-blue-200 text-white">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-blue-900">{language === "ar" ? "رمز SMS" : "SMS OTP"}</div>
-                    <div className="mt-1 text-xs text-blue-600">{language === "ar" ? "رمز 6 أرقام عبر رسالة نصية على هاتفك" : "6-digit code via text message"}</div>
-                  </div>
-                </button>
-                )}
-
-                {/* Phone call fallback */}
-                <button
-                  type="button"
-                  onClick={() => { setManualConfirm(true); setShowVerifyModal(false); setVerifyModalStep("choice"); void placeOrder({ manualConfirmOverride: true }); }}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start transition hover:bg-slate-50 active:scale-[0.98]"
-                >
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500">
-                    <PhoneCall className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-700">{language === "ar" ? "أفضّل مكالمة هاتفية" : "I prefer a phone call"}</div>
-                    <div className="text-xs text-slate-400">{language === "ar" ? "سيتصل بك فريقنا لتأكيد الطلب" : "Our team will call you to confirm"}</div>
-                  </div>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => { setShowVerifyModal(false); setVerifyModalStep("choice"); }}
-                className="mt-4 w-full rounded-2xl py-3 text-sm text-slate-400 transition hover:text-slate-600"
-              >
-                {language === "ar" ? "← العودة لتعديل البيانات" : language === "fr" ? "← Modifier mes informations" : "← Go back to edit"}
-              </button>
-            </div>
-          ) : (
-            /* OTP code entry — same UI for both WhatsApp and SMS */
-            <div>
-              <div className={`flex items-center gap-3 px-5 py-4 text-white ${verifyModalStep === "sms" ? "bg-gradient-to-r from-blue-600 to-indigo-600" : "bg-gradient-to-r from-green-600 to-emerald-600"}`}>
-                <button
-                  type="button"
-                  onClick={() => setVerifyModalStep("choice")}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15 transition hover:bg-white/25"
-                  aria-label="back"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
-                  <MessageCircle className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="font-semibold">
-                    {verifyModalStep === "sms"
-                    ? (language === "ar" ? "تأكيد عبر SMS" : "SMS Verification")
-                    : (language === "ar" ? "تأكيد عبر واتساب" : language === "fr" ? "Vérification WhatsApp" : "WhatsApp Verification")}
-                  </div>
-                  <div className="text-sm text-white/80" dir="ltr">{phone}</div>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-5">
-                {!otpSent || otpSecondsLeft === 0 ? (
-                  <div className="space-y-4">
-                    {!otpSent ? (
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-2">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {language === "ar" ? "كيف يعمل التحقق عبر واتساب؟" : language === "fr" ? "Comment ça marche ?" : "How does it work?"}
-                        </p>
-                        <ol className="space-y-1.5 text-sm text-slate-600 list-none">
-                          <li className="flex items-start gap-2">
-                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">1</span>
-                            {language === "ar"
-                              ? <span>اضغط على الزر أدناه وسيصلك رسالة واتساب على الرقم <span className="font-semibold text-slate-900" dir="ltr">{phone}</span></span>
-                              : language === "fr"
-                                ? <span>Cliquez sur le bouton et vous recevrez un code WhatsApp au <span className="font-semibold" dir="ltr">{phone}</span></span>
-                                : <span>Click the button and you'll receive a WhatsApp message at <span className="font-semibold" dir="ltr">{phone}</span></span>}
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">2</span>
-                            <span>{language === "ar" ? "أدخل الرمز المكوّن من 6 أرقام الذي ستستلمه" : language === "fr" ? "Saisissez le code à 6 chiffres reçu" : "Enter the 6-digit code you receive"}</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">3</span>
-                            <span>{language === "ar" ? "يُثبَّت طلبك تلقائياً بعد التحقق ✓" : language === "fr" ? "Votre commande sera confirmée automatiquement ✓" : "Your order will be placed automatically ✓"}</span>
-                          </li>
-                        </ol>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-600">
-                        {language === "ar" ? "انتهت صلاحية الرمز. أرسل رمزاً جديداً:" : language === "fr" ? "Code expiré. Envoyez un nouveau code :" : "Code expired. Send a new code:"}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => void sendOtp()}
-                      disabled={otpSending}
-                      className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-sm font-semibold text-white transition hover:from-green-500 hover:to-emerald-500 disabled:opacity-60"
-                    >
-                      {otpSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      {otpSending
-                        ? (language === "ar" ? "جارٍ الإرسال..." : language === "fr" ? "Envoi..." : "Sending...")
-                        : (language === "ar" ? "أرسل لي رمز واتساب" : language === "fr" ? "Envoyer le code WhatsApp" : "Send WhatsApp code")}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                      {verifyModalStep === "sms"
-                        ? (language === "ar"
-                          ? <span>✅ تم إرسال رمز SMS إلى <span className="font-semibold" dir="ltr">{phone}</span> — تحقق من رسائلك</span>
-                          : <span>✅ SMS code sent to <span className="font-semibold" dir="ltr">{phone}</span> — check your messages</span>)
-                        : (language === "ar"
-                          ? <span>✅ تم إرسال رمز واتساب إلى <span className="font-semibold" dir="ltr">{phone}</span> — تحقق من رسائلك</span>
-                          : <span>✅ WhatsApp code sent to <span className="font-semibold" dir="ltr">{phone}</span> — check your messages</span>)}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-800">
-                        {language === "ar" ? "أدخل الرمز الذي وصلك:" : language === "fr" ? "Entrez le code reçu :" : "Enter the code you received:"}
-                      </p>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        <Clock3 className="h-3 w-3" />
-                        {otpTimerLabel}
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="_ _ _ _ _ _"
-                      className="field-input w-full py-4 text-center font-mono text-2xl tracking-[0.45em]"
-                      dir="ltr"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void verifyOtp()}
-                      disabled={otpCode.length !== 6 || otpVerifying}
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-sm font-semibold text-white transition disabled:opacity-60"
-                    >
-                      {otpVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      {otpVerifying
-                        ? (language === "ar" ? "جارٍ التحقق..." : "Verifying...")
-                        : (language === "ar" ? "تأكيد الرمز وإتمام الطلب" : "Verify & place order")}
-                    </button>
-                  </div>
-                )}
-
-                {otpNotice ? (
-                  <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${otpNoticeClassName}`}>
-                    {otpNotice.text}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <OtpVerifyModal
+        phone={phone}
+        language={language}
+        siteSettings={siteSettings}
+        onVerified={(token) => {
+          setPhoneVerificationToken(token);
+          setVerifiedPhone(phone.trim());
+          setShowVerifyModal(false);
+        }}
+        onManualConfirm={() => {
+          setManualConfirm(true);
+          setShowVerifyModal(false);
+          void placeOrder({ manualConfirmOverride: true });
+        }}
+        onClose={() => setShowVerifyModal(false)}
+      />
     ) : null}
     </>
   );

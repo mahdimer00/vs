@@ -3742,6 +3742,33 @@ export function AdminDashboardPage() {
               {language === "ar" ? "زر واتساب العائم" : "Floating WhatsApp button"}:
               <strong>{settings.whatsappFloat !== false ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
             </button>
+
+            {/* OTP verification toggle */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+              <div className="text-sm font-bold text-slate-700">{language === "ar" ? "إعدادات التحقق (OTP)" : "OTP Verification Settings"}</div>
+              <button onClick={() => setSettings({ ...settings, otpEnabled: settings.otpEnabled !== false ? false : true })}
+                className={`ghost-button gap-2 ${settings.otpEnabled !== false ? "border-teal-400 bg-teal-50 text-teal-800" : "border-rose-300 bg-rose-50 text-rose-700"}`}>
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.otpEnabled !== false ? "bg-teal-500" : "bg-rose-400"}`} />
+                {language === "ar" ? "التحقق قبل الطلب" : "OTP before order"}:
+                <strong>{settings.otpEnabled !== false ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+              </button>
+              {settings.otpEnabled !== false && (
+                <>
+                  <button onClick={() => setSettings({ ...settings, otpWhatsappEnabled: settings.otpWhatsappEnabled !== false ? false : true })}
+                    className={`ghost-button gap-2 ${settings.otpWhatsappEnabled !== false ? "border-green-400 bg-green-50 text-green-800" : ""}`}>
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.otpWhatsappEnabled !== false ? "bg-green-500" : "bg-slate-300"}`} />
+                    {language === "ar" ? "قناة واتساب" : "WhatsApp channel"}:
+                    <strong>{settings.otpWhatsappEnabled !== false ? "ON" : "OFF"}</strong>
+                  </button>
+                  <button onClick={() => setSettings({ ...settings, otpEmailEnabled: settings.otpEmailEnabled !== false ? false : true })}
+                    className={`ghost-button gap-2 ${settings.otpEmailEnabled !== false ? "border-blue-400 bg-blue-50 text-blue-800" : ""}`}>
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.otpEmailEnabled !== false ? "bg-blue-500" : "bg-slate-300"}`} />
+                    {language === "ar" ? "قناة البريد الإلكتروني" : "Email channel"}:
+                    <strong>{settings.otpEmailEnabled !== false ? "ON" : "OFF"}</strong>
+                  </button>
+                </>
+              )}
+            </div>
             <button
               onClick={() => void adminService.updateSettings(token, settings)
                 .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "تم الحفظ ✓" : "Saved ✓", "success"); })
