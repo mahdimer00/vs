@@ -212,23 +212,40 @@ export function OtpVerifyModal({ phone, language, siteSettings, onVerified, onMa
           </div>
 
         ) : !otpSent && error ? (
-          // Send failed — show error + retry + go back
-          <div className="p-5 space-y-4">
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-center">
-              <p className="font-bold text-rose-800">⚠️ {error}</p>
+          // Send failed — professional error state with header
+          <div>
+            {/* Header same color as channel */}
+            <div className={`flex items-center gap-3 px-5 py-4 text-white ${activeChannel === "email" ? "bg-gradient-to-r from-blue-600 to-indigo-600" : "bg-gradient-to-r from-green-600 to-emerald-600"}`}>
+              <button type="button" onClick={() => { setStep("choice"); setError(""); }}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15 hover:bg-white/25">
+                <X className="h-4 w-4" />
+              </button>
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
+                {activeChannel === "email" ? <Mail className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+              </div>
+              <div>
+                <div className="font-semibold">{isAr ? "تعذّر الإرسال" : "Send failed"}</div>
+                <div className="text-sm text-white/80" dir="ltr">{phone}</div>
+              </div>
             </div>
-            <button type="button"
-              disabled={sending}
-              onClick={() => { setError(""); void sendOtp(activeChannel, activeChannel === "email" ? emailInput : undefined); }}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60">
-              {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {isAr ? "إعادة المحاولة" : "Retry"}
-            </button>
-            <button type="button"
-              onClick={() => { setStep("choice"); setError(""); setOtpCode(""); }}
-              className="w-full py-2.5 text-sm text-slate-400 hover:text-slate-600">
-              {isAr ? "← اختر طريقة أخرى" : "← Choose another method"}
-            </button>
+
+            <div className="space-y-4 p-5">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                <p className="text-sm font-semibold text-rose-800">⚠️ {error}</p>
+              </div>
+              <button type="button"
+                disabled={sending}
+                onClick={() => { setError(""); void sendOtp(activeChannel, activeChannel === "email" ? emailInput : undefined); }}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-700 active:scale-[0.98] disabled:opacity-60">
+                {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {isAr ? "إعادة المحاولة" : "Try again"}
+              </button>
+              <button type="button"
+                onClick={() => { setStep("choice"); setError(""); setOtpCode(""); }}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                {isAr ? "← اختر طريقة أخرى للتحقق" : "← Choose a different method"}
+              </button>
+            </div>
           </div>
 
         ) : (
