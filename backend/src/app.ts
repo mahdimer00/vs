@@ -107,12 +107,16 @@ const HONEYPOT_PATHS = [
   "/admin.php", "/administrator", "/admin-backup", "/admin-old",
   "/.git/config", "/.git/HEAD", "/.git",
   "/backup.sql", "/dump.sql", "/database.sql", "/db.sql",
-  "/xmlrpc.php", "/api/v1/users", "/api/v1/admin", "/api/admin",
+  "/xmlrpc.php",
   "/config.php", "/setup.php", "/install.php", "/upgrade.php",
   "/shell.php", "/cmd.php", "/webshell.php", "/c99.php", "/r57.php",
   "/.htpasswd", "/credentials.json", "/secrets.json", "/config.json",
   "/server-status", "/server-info", "/info.php", "/test.php",
+  // NOTE: Do NOT add /api/admin — that's the real admin panel!
 ];
+
+// Real paths that must NEVER be trapped (whitelist)
+const SAFE_PATHS = ["/api/", "/uploads/"];
 
 app.use(async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "unknown");
@@ -123,6 +127,9 @@ app.use(async (req: express.Request, res: express.Response, next: express.NextFu
   if (authHeader.includes("CANARY")) {
     void checkCanaryToken(authHeader, ip);
   }
+
+  // Never trap real API paths
+  if (SAFE_PATHS.some((safe) => path.startsWith(safe))) return next();
 
   // Honeypot trap
   const matchedPath = HONEYPOT_PATHS.find((p) => path === p || path.startsWith(p + "/"));
