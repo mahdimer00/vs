@@ -77,8 +77,15 @@ const createOrderSchema = z.object({
   formDuration: z.number().int().min(0).max(86400).optional(), // seconds spent filling the form
 });
 
-function isOtpEnforced(): boolean {
-  return isWhatsAppConfigured();
+// OTP enforcement checked dynamically so admin toggle takes effect immediately
+async function isOtpEnforcedForOrder(): Promise<boolean> {
+  const { WebsiteSettingModel } = await import("../../models/catalog.model.js");
+  const settings = await WebsiteSettingModel.findOne().select("otpEnabled otpWhatsappEnabled otpEmailEnabled").lean().catch(() => null);
+  const globalEnabled = settings?.otpEnabled !== false;
+  if (!globalEnabled) return false;
+  const whatsapp = settings?.otpWhatsappEnabled !== false && isWhatsAppConfigured();
+  const email = settings?.otpEmailEnabled !== false && Boolean(process.env.RESEND_API_KEY);
+  return whatsapp || email;
 }
 
 function createOrderNumber() {
@@ -211,7 +218,7 @@ router.post(
     }
 
     // Verify phone OTP token when OTP is enforced (skip if customer chose manual phone-call confirmation)
-    if (isOtpEnforced() && !input.manualConfirm) {
+    if (!input.manualConfirm && await isOtpEnforcedForOrder()) {
       if (!input.phoneVerificationToken) {
         throw new AppError("يجب التحقق من رقم هاتفك أولاً", 400);
       }

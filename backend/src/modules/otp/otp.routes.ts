@@ -39,12 +39,16 @@ const OTP_RATE_LIMIT = 3;
 const MAX_VERIFY_ATTEMPTS = 5;
 
 // Available channels — frontend reads this to show/hide options
+// Also checks siteSettings.otpEnabled so admin toggle works immediately
 router.get(
   "/otp/channels",
   asyncHandler(async (_req, res) => {
+    const { WebsiteSettingModel } = await import("../../models/catalog.model.js");
+    const settings = await WebsiteSettingModel.findOne().select("otpEnabled otpWhatsappEnabled otpEmailEnabled").lean().catch(() => null);
+    const globalEnabled = settings?.otpEnabled !== false;
     return res.json({
-      whatsapp: isWhatsAppConfigured(),
-      email: isEmailOtpConfigured(),
+      whatsapp: globalEnabled && settings?.otpWhatsappEnabled !== false && isWhatsAppConfigured(),
+      email: globalEnabled && settings?.otpEmailEnabled !== false && isEmailOtpConfigured(),
     });
   }),
 );
