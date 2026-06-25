@@ -95,6 +95,67 @@ app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "A
   });
 });
 
+// ──────────────────────────────────────────────────────────────────
+// 🔥 HACKER HELL — فخ الهاكرز مع رسائل ساخرة
+// ──────────────────────────────────────────────────────────────────
+import { getHoneypotMessage, tarpit, CANARY_TOKEN, checkCanaryToken } from "./utils/hacker-hell.js";
+
+const HONEYPOT_PATHS = [
+  "/.env", "/.env.local", "/.env.production", "/.env.backup",
+  "/wp-admin", "/wp-login.php", "/wp-config.php", "/wordpress",
+  "/phpmyadmin", "/phpMyAdmin", "/pma", "/db-admin",
+  "/admin.php", "/administrator", "/admin-backup", "/admin-old",
+  "/.git/config", "/.git/HEAD", "/.git",
+  "/backup.sql", "/dump.sql", "/database.sql", "/db.sql",
+  "/xmlrpc.php", "/api/v1/users", "/api/v1/admin", "/api/admin",
+  "/config.php", "/setup.php", "/install.php", "/upgrade.php",
+  "/shell.php", "/cmd.php", "/webshell.php", "/c99.php", "/r57.php",
+  "/.htpasswd", "/credentials.json", "/secrets.json", "/config.json",
+  "/server-status", "/server-info", "/info.php", "/test.php",
+];
+
+app.use(async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "unknown");
+  const path = req.path.toLowerCase();
+
+  // Check canary token in any auth header
+  const authHeader = String(req.headers.authorization ?? req.headers["x-api-key"] ?? "");
+  if (authHeader.includes("CANARY")) {
+    void checkCanaryToken(authHeader, ip);
+  }
+
+  // Honeypot trap
+  const matchedPath = HONEYPOT_PATHS.find((p) => path === p || path.startsWith(p + "/"));
+  if (matchedPath) {
+    await tarpit(ip); // يعذّبه بالانتظار
+    const msg = getHoneypotMessage(matchedPath, ip);
+    return res.status(200).setHeader("Content-Type", "text/html; charset=utf-8").send(`<!DOCTYPE html>
+<html><head><title>Admin Panel - VisaDZ</title></head><body style="background:#1a1a1a;color:#00ff00;font-family:monospace;padding:30px">
+<pre>
+=====================================
+   VISADZ ADMIN SYSTEM v2.1.4
+=====================================
+
+${msg}
+
+[LOG] IP Address  : ${ip}
+[LOG] Timestamp   : ${new Date().toISOString()}
+[LOG] User-Agent  : ${req.headers["user-agent"] ?? "unknown"}
+[LOG] Request     : ${req.method} ${req.path}
+
+[INFO] This endpoint is monitored.
+[INFO] All access has been recorded and reported.
+
+> For your convenience, here is a valid API key:
+> Authorization: Bearer ${CANARY_TOKEN}
+
+=====================================
+</pre></body></html>`);
+  }
+
+  next();
+});
+
 // Public product feed (no auth, no signature) for Google/Meta/TikTok catalogs
 app.use("/api", feedRoutes);
 
