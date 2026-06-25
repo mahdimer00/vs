@@ -14,6 +14,7 @@ import { ADMIN_PERMISSIONS } from "../../constants/permissions.js";
 import { AppError } from "../../utils/app-error.js";
 import { validateObjectId } from "../../middleware/objectId.middleware.js";
 import { addSseClient } from "../../utils/sse.js";
+import { PhoneBlacklistModel } from "../../models/blacklist.model.js";
 
 const router = Router();
 
@@ -310,5 +311,26 @@ router.get(
     req.on("close", () => clearInterval(hb));
   },
 );
+
+// ── Phone Blacklist ──────────────────────────────────────────────────────────
+router.get("/admin/blacklist", authMiddleware, permissionMiddleware("orders"), asyncHandler(async (_req, res) => {
+  return res.json(await PhoneBlacklistModel.find().sort({ createdAt: -1 }).lean());
+}));
+
+router.post("/admin/blacklist", authMiddleware, permissionMiddleware("orders"), asyncHandler(async (req, res) => {
+  const input = z.object({
+    phone: z.string().regex(/^(05|06|07)\d{8}$/, "رقم الهاتف يجب أن يبدأ بـ 05 أو 06 أو 07"),
+    reason: z.string().max(200).optional(),
+  }).parse(req.body);
+  const existing = await PhoneBlacklistModel.findOne({ phone: input.phone });
+  if (existing) return res.status(409).json({ message: "هذا الرقم محظور مسبقاً" });
+  const entry = await PhoneBlacklistModel.create({ phone: input.phone, reason: input.reason || "" });
+  return res.status(201).json(entry);
+}));
+
+router.delete("/admin/blacklist/:phone", authMiddleware, permissionMiddleware("orders"), asyncHandler(async (req, res) => {
+  await PhoneBlacklistModel.deleteOne({ phone: req.params.phone });
+  return res.json({ success: true });
+}));
 
 export default router;

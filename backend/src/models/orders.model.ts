@@ -63,6 +63,7 @@ const orderSchema = new Schema(
     ipCountry: { type: String, default: null },
     userAgent: { type: String, default: null },
     honeypot: { type: String, default: null },
+    formDuration: { type: Number, default: null },
   },
   { timestamps: true },
 );

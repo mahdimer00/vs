@@ -18,6 +18,7 @@ import { cancelZRParcel, createZRParcel, generateZRBulkLabelPdf, generateZRLabel
 import { isWhatsAppConfigured, sendWhatsAppOrderCreated, sendWhatsAppStatusUpdate, verifyVerificationToken } from "../../utils/otp.js";
 import { emitOrderUpdate } from "../../utils/sse.js";
 import { isIpAllowed, lookupIp } from "../../utils/geoip.js";
+import { PhoneBlacklistModel } from "../../models/blacklist.model.js";
 
 const router = Router();
 
@@ -73,6 +74,7 @@ const createOrderSchema = z.object({
   email: z.string().email().max(256).optional(),
   externalId: z.string().max(256).optional(),
   honeypot: z.string().max(0).optional(), // must be empty — bots fill this
+  formDuration: z.number().int().min(0).max(86400).optional(), // seconds spent filling the form
 });
 
 function isOtpEnforced(): boolean {
@@ -194,6 +196,20 @@ router.post(
       throw new AppError("تم تجاوز الحد المسموح به للطلبات. حاول مجدداً لاحقاً.", 429);
     }
 
+    // ── PHONE BLACKLIST ──
+    const isBlacklisted = await PhoneBlacklistModel.findOne({ phone: input.customer.phone });
+    if (isBlacklisted) {
+      console.warn(`[BLACKLIST] Order blocked for blacklisted phone ${input.customer.phone}`);
+      throw new AppError("عذراً، لا يمكن إتمام هذا الطلب. تواصل مع الدعم إذا كان هناك خطأ.", 403);
+    }
+
+    // ── HUMAN TIMING: reject if form filled in < 8 seconds (bot speed) ──
+    if (input.formDuration !== undefined && input.formDuration < 8) {
+      console.warn(`[BOT-TIMING] Order from ${clientIp} filled in ${input.formDuration}s — rejected`);
+      // Silent reject — return fake success so bots don't know they're blocked
+      return res.status(201).json({ _id: "bot", orderNumber: "BOT", status: "PENDING" });
+    }
+
     // Verify phone OTP token when OTP is enforced (skip if customer chose manual phone-call confirmation)
     if (isOtpEnforced() && !input.manualConfirm) {
       if (!input.phoneVerificationToken) {
@@ -257,6 +273,7 @@ router.post(
       customerIp: clientIp || null,
       ipCountry: geoCheck.country || null,
       userAgent: String(req.headers["user-agent"] ?? "").slice(0, 300) || null,
+      formDuration: input.formDuration ?? null,
     });
 
     if (promoDocumentId) {
@@ -613,6 +630,27 @@ router.patch(
 
     await syncCommissionForOrder(String(order._id), "admin");
     emitOrderUpdate(String(order._id), input.status);
+
+    // ── CANCELLATION PATTERN ALERT ──
+    if (input.status === "CANCELLED" || input.status === "RETURNED") {
+      const phone = existing.customer?.phone;
+      if (phone) {
+        const week = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const cancelCount = await OrderModel.countDocuments({
+          "customer.phone": phone,
+          status: { $in: ["CANCELLED", "RETURNED", "FAILED"] },
+          createdAt: { $gte: week },
+        });
+        if (cancelCount >= 3) {
+          void sendTelegramMessage(
+            `🚨 <b>تحذير: نمط إلغاء مشبوه</b>\n` +
+            `📞 الهاتف: ${phone}\n` +
+            `❌ ${cancelCount} طلبات ملغاة/مرتجعة خلال 7 أيام\n` +
+            `⚠️ فكّر في إضافة هذا الرقم لقائمة الحظر`,
+          );
+        }
+      }
+    }
 
     // Send WhatsApp notification to customer on key status changes
     const WA_NOTIFY_STATUSES = new Set(["SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED"]);

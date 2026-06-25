@@ -48,6 +48,7 @@ export function CheckoutPage() {
   const [invalidField, setInvalidField] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [zrTerritories, setZrTerritories] = useState<ZRTerritory[]>([]);
+  const formStartTimeRef = useRef<number>(Date.now());
   const [selectedZrTerritory, setSelectedZrTerritory] = useState<ZRTerritory | null>(null);
 
   const [manualConfirm, setManualConfirm] = useState(false);
@@ -371,6 +372,7 @@ export function CheckoutPage() {
         email: email.trim() || undefined,
         externalId: externalId || undefined,
         honeypot: "", // bots fill this, humans leave it empty
+        formDuration: Math.floor((Date.now() - formStartTimeRef.current) / 1000),
         fbp,
         fbc,
         clientUserAgent: navigator.userAgent,

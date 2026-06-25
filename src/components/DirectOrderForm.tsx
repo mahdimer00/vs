@@ -116,6 +116,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   // Fire AddPaymentInfo pixel when phone becomes valid (strong purchase intent signal)
   const phoneValid = phonePattern.test(phone.trim());
   const firedPaymentInfoRef = useRef(false);
+  const formStartRef = useRef<number>(Date.now());
   useEffect(() => {
     if (phoneValid && !firedPaymentInfoRef.current) {
       firedPaymentInfoRef.current = true;
@@ -226,6 +227,8 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         phoneVerificationToken: (opts.token ?? phoneVerificationToken) || undefined,
         zrTerritoryId: selectedZrTerritory?.id,
         externalId: externalId || undefined,
+        honeypot: "",
+        formDuration: Math.floor((Date.now() - formStartRef.current) / 1000),
       });
 
       pixelPurchase({ orderId: order._id, value: total, eventID: capiEventId });

@@ -408,6 +408,7 @@ export function AdminDashboardPage() {
   // Customers tab — available to anyone with orders permission
   if (!isSubAdmin || userPermissions?.includes("orders")) {
     links.push({ href: "/gestion/customers", label: "العملاء", badge: undefined });
+    links.push({ href: "/gestion/blacklist", label: language === "ar" ? "🚫 الحظر" : "🚫 Blacklist", badge: undefined });
   }
 
   const loadAnalytics = async (period: string, from?: string, to?: string) => {
@@ -519,6 +520,13 @@ export function AdminDashboardPage() {
   useEffect(() => {
     if (token && tab === "analytics") {
       void loadAnalytics(analyticsPeriod, analyticsFrom || undefined, analyticsTo || undefined);
+    }
+  }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load blacklist when navigating to blacklist tab
+  useEffect(() => {
+    if (token && tab === "blacklist") {
+      adminService.getBlacklist(token).then(setBlacklist).catch(() => undefined);
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2884,6 +2892,24 @@ export function AdminDashboardPage() {
                               </button>
                               <button
                                 type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const phone = order.customer?.phone;
+                                  if (!phone) return;
+                                  if (window.confirm(language === "ar" ? `حظر الرقم ${phone}؟ لن يتمكن من الطلب مجدداً.` : `Block ${phone}? They won't be able to order again.`)) {
+                                    void adminService.addToBlacklist(token, phone, `Manual block — order ${order.orderNumber}`)
+                                      .then(() => pushToast(language === "ar" ? `تم حظر ${phone}` : `${phone} blocked`, "success"))
+                                      .catch((err: unknown) => pushToast(err instanceof ApiError ? err.message : "Error", "error"));
+                                  }
+                                }}
+                                disabled={busy}
+                                className="rounded-full px-3 py-2 text-sm font-semibold text-amber-600 transition hover:bg-amber-50 disabled:opacity-60"
+                                title={language === "ar" ? "حظر رقم الهاتف" : "Block phone"}
+                              >
+                                🚫 {language === "ar" ? "حظر" : "Block"}
+                              </button>
+                              <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); confirmDeleteOrder(order._id, order.orderNumber); }}
                                 disabled={busy}
                                 className="ms-auto rounded-full px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
@@ -4107,6 +4133,71 @@ export function AdminDashboardPage() {
     );
   };
 
+  const [blacklist, setBlacklist] = useState<Array<{ _id: string; phone: string; reason: string; createdAt: string }>>([]);
+  const [blacklistPhone, setBlacklistPhone] = useState("");
+  const [blacklistReason, setBlacklistReason] = useState("");
+  const [blacklistLoading, setBlacklistLoading] = useState(false);
+
+  const renderBlacklist = () => (
+    <div className="space-y-6">
+      <Panel title={language === "ar" ? "قائمة الأرقام المحظورة" : "Phone Blacklist"} description={language === "ar" ? "الأرقام المحظورة لا تستطيع إتمام أي طلب" : "Blacklisted phones cannot place orders"}>
+        {/* Add form */}
+        <div className="flex flex-wrap gap-3">
+          <input value={blacklistPhone} onChange={(e) => setBlacklistPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            className="field-input min-w-[160px] flex-1 py-2 text-sm" placeholder="05XXXXXXXX" dir="ltr" />
+          <input value={blacklistReason} onChange={(e) => setBlacklistReason(e.target.value)}
+            className="field-input flex-1 py-2 text-sm" placeholder={language === "ar" ? "سبب الحظر" : "Reason"} />
+          <button type="button"
+            disabled={blacklistLoading || !/^(05|06|07)\d{8}$/.test(blacklistPhone)}
+            onClick={() => {
+              setBlacklistLoading(true);
+              adminService.addToBlacklist(token, blacklistPhone, blacklistReason)
+                .then(() => { setBlacklistPhone(""); setBlacklistReason(""); return adminService.getBlacklist(token); })
+                .then(setBlacklist)
+                .catch((e: unknown) => pushToast(e instanceof ApiError ? e.message : translate(language, "adminActionError"), "error"))
+                .finally(() => setBlacklistLoading(false));
+            }}
+            className="primary-button gap-2 py-2 text-sm">
+            🚫 {language === "ar" ? "إضافة للحظر" : "Add to blacklist"}
+          </button>
+          <button type="button" onClick={() => adminService.getBlacklist(token).then(setBlacklist).catch(() => undefined)}
+            className="ghost-button py-2 text-sm">
+            {language === "ar" ? "تحديث" : "Refresh"}
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="table-wrap mt-4">
+          <table className="table-base">
+            <thead><tr><th className="ps-4">{language === "ar" ? "الرقم" : "Phone"}</th><th>{language === "ar" ? "السبب" : "Reason"}</th><th>{language === "ar" ? "التاريخ" : "Date"}</th><th /></tr></thead>
+            <tbody>
+              {blacklist.length === 0 && (
+                <tr><td colSpan={4} className="py-8 text-center text-sm text-slate-400">{language === "ar" ? "لا توجد أرقام محظورة" : "No blocked numbers"}</td></tr>
+              )}
+              {blacklist.map((b) => (
+                <tr key={b._id}>
+                  <td className="ps-4 font-mono font-bold text-slate-900" dir="ltr">{b.phone}</td>
+                  <td className="text-sm text-slate-500">{b.reason || "—"}</td>
+                  <td className="text-xs text-slate-400">{new Date(b.createdAt).toLocaleDateString("ar-DZ")}</td>
+                  <td>
+                    <button type="button"
+                      onClick={() => adminService.removeFromBlacklist(token, b.phone)
+                        .then(() => adminService.getBlacklist(token))
+                        .then(setBlacklist)
+                        .catch(() => undefined)}
+                      className="rounded-full px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50">
+                      {language === "ar" ? "رفع الحظر" : "Unblock"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+
   const renderCustomers = () => {
     const filteredCustomers = customers.filter((c) => {
       const q = customerSearch.toLowerCase();
@@ -4272,7 +4363,9 @@ export function AdminDashboardPage() {
                               ? renderAnalytics()
                               : tab === "customers"
                                 ? renderCustomers()
-                                : renderDashboard();
+                                : tab === "blacklist"
+                                  ? renderBlacklist()
+                                  : renderDashboard();
 
   return (
     <DashboardShell

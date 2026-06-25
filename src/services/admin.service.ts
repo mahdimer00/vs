@@ -197,6 +197,15 @@ export const adminService = {
   getSettings(token: string) {
     return apiRequest<WebsiteSetting>("/api/admin/settings", { token });
   },
+  getBlacklist(token: string) {
+    return apiRequest<Array<{ _id: string; phone: string; reason: string; createdAt: string }>>("/api/admin/blacklist", { token });
+  },
+  addToBlacklist(token: string, phone: string, reason?: string) {
+    return apiRequest<{ phone: string }>("/api/admin/blacklist", { method: "POST", token, body: JSON.stringify({ phone, reason }) });
+  },
+  removeFromBlacklist(token: string, phone: string) {
+    return apiRequest<{ success: boolean }>(`/api/admin/blacklist/${phone}`, { method: "DELETE", token });
+  },
   updateSettings(token: string, payload: Partial<WebsiteSetting>) {
     return apiRequest<WebsiteSetting>("/api/admin/settings", {
       method: "PATCH",
