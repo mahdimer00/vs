@@ -56,7 +56,17 @@ export function OtpVerifyModal({ phone, language, siteSettings, onVerified, onMa
       setOtpCode("");
       startTimer(res.expiresIn ?? 300);
     } catch (e) {
-      setError(e instanceof Error ? e.message : (isAr ? "فشل الإرسال" : "Send failed"));
+      const msg = e instanceof Error ? e.message : "";
+      // WhatsApp server is down — show friendly message + suggest email
+      if (channel === "whatsapp" && (msg.includes("503") || msg.includes("502") || msg.includes("متاحة") || msg.includes("failed"))) {
+        setError(isAr
+          ? "خدمة واتساب غير متاحة حالياً — جرّب التحقق عبر البريد الإلكتروني"
+          : "WhatsApp is currently unavailable — try Email verification instead");
+        // Auto-go back to choice so user can pick email
+        setTimeout(() => { setStep("choice"); setOtpSent(false); setError(""); }, 2500);
+      } else {
+        setError(msg || (isAr ? "فشل الإرسال. حاول مجدداً." : "Send failed. Please try again."));
+      }
     } finally {
       setSending(false);
     }
@@ -79,9 +89,9 @@ export function OtpVerifyModal({ phone, language, siteSettings, onVerified, onMa
   const timerLabel = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:px-4"
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:px-4"
       onClick={onClose}>
-      <div className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]"
+      <div className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2rem]"
         onClick={(e) => e.stopPropagation()}>
 
         {step === "choice" ? (
@@ -105,6 +115,18 @@ export function OtpVerifyModal({ phone, language, siteSettings, onVerified, onMa
                     : <span>Choose verification for <span className="font-extrabold text-slate-900" dir="ltr">{phone}</span></span>}
                 </p>
               </div>
+            </div>
+
+            {/* Why verify — urgency message */}
+            <div className="rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50 to-emerald-50 px-4 py-3">
+              <div className="text-sm font-bold text-teal-800">
+                {isAr ? "🔒 لماذا التحقق؟" : "🔒 Why verify?"}
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-teal-700">
+                {isAr
+                  ? "التحقق من رقمك يضمن تخصيص المنتج باسمك فوراً وتسليمه بأسرع وقت — الطلبات المؤكدة تُعالَج بأولوية."
+                  : "Verifying locks the product in your name instantly — verified orders are processed first."}
+              </p>
             </div>
 
             <div className="space-y-3">
