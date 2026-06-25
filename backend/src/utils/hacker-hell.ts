@@ -40,6 +40,20 @@ const HONEYPOT_MESSAGES: Record<string, string> = {
   "/api/v1/users": "👥 إليك قائمة المستخدمين: [{name: 'الهاكر الفاشل', email: 'you@wasted-your-time.dz'}]",
 };
 
+// رسائل إضافية ساخرة — للجولات المتقدمة
+const EXTRA_ROASTS = [
+  "🔍 لقد بحثنا عنك في غوغل. لم نجد شيئاً. حتى الإنترنت لا يعرفك.",
+  "🤖 ربما أنت بوت. البوتات ليس لها مشاعر. لكن نحن نتألم من ضحكنا عليك.",
+  "🎓 هل دفعت أموالاً لتتعلم الاختراق؟ اطلب استرداد أموالك.",
+  "📱 أمك تتصل. انتهز الفرصة وأخبرها ماذا تفعل.",
+  "☁️ بياناتك محفوظة في سحابتنا السرية. سحابة الاختراقات الفاشلة.",
+  "🎪 لقد أضفناك إلى متحف الهاكرز الفاشلين. الدخول مجاني.",
+  "🌡️ درجة خطورتك: أقل من قرصنة حساب الألعاب.",
+  "🔐 الباب مقفل، والمفتاح في المريخ، وأنت في الأرض.",
+  "🎭 اللحظة التي تعتقد فيها أنك اخترقت شيئاً: هذه اللحظة.",
+  "🛑 تحذير: الاستمرار قد يسبب إحباطاً مزمناً وخسارة في الوقت.",
+];
+
 // رسائل وهمية للأدمن (للمن يحاول اختراق لوحة التحكم)
 const FAKE_ADMIN_MESSAGES = [
   "✅ تسجيل دخول ناجح! جاري تحميل البيانات السرية...",
@@ -62,6 +76,13 @@ export function getHackerMessage(ip: string): string {
     .replace("{IP}", ip)
     .replace("{TIME}", new Date().toLocaleString("ar-DZ"));
 
+  // Add extra roast every 3rd attempt
+  let finalMsg = msg;
+  if (data.count % 3 === 0) {
+    const roastIdx = Math.floor(data.count / 3 - 1) % EXTRA_ROASTS.length;
+    finalMsg = msg + "\n\n" + EXTRA_ROASTS[roastIdx];
+  }
+
   // Alert in Telegram after 3rd attempt
   if (data.count >= 3) {
     void sendTelegramMessage(
@@ -69,11 +90,11 @@ export function getHackerMessage(ip: string): string {
       `🌐 IP: <code>${ip}</code>\n` +
       `🔢 المحاولة رقم: ${data.count}\n` +
       `⏱ منذ: ${Math.round((now - data.firstSeen) / 60000)} دقيقة\n` +
-      `💬 الرسالة: ${msg}`,
+      `💬 الرسالة: ${finalMsg.slice(0, 200)}`,
     );
   }
 
-  return msg;
+  return finalMsg;
 }
 
 export function getHoneypotMessage(path: string, ip: string): string {

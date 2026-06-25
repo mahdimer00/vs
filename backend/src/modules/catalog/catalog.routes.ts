@@ -212,4 +212,12 @@ router.delete("/admin/banners/:id", authMiddleware, permissionMiddleware("settin
   return res.json({ success: true });
 }));
 
+// Geo-check — frontend calls this on mount to verify visitor country
+router.get("/geo/check", asyncHandler(async (req, res) => {
+  const { isIpAllowed } = await import("../../utils/geoip.js");
+  const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
+  const result = await isIpAllowed(ip);
+  return res.json({ allowed: result.allowed, country: result.country });
+}));
+
 export default router;

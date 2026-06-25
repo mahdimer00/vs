@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useApp } from "@/hooks/useApp";
 import { MainLayout } from "@/layout/MainLayout";
+import { GeoGate } from "@/components/GeoGate";
 import { initAnalytics, trackPageview } from "@/utils/analytics";
 import { initPixel, pixelPageView } from "@/utils/pixel";
 import { initTikTokPixel, ttqPage } from "@/utils/tiktok";
@@ -38,6 +39,8 @@ export function App() {
   }, [location.pathname, location.search]);
 
   return (
-    <MainLayout />
+    <GeoGate>
+      <MainLayout />
+    </GeoGate>
   );
 }
