@@ -51,6 +51,7 @@ const createOrderSchema = z.object({
     wilayaCode: z.string(),
     commune: z.string().min(2),
     address: z.string().min(5),
+    deliveryNotes: z.string().max(500).optional(),
   }),
   items: z
     .array(
@@ -523,6 +524,24 @@ router.get(
       .lean();
 
     return res.json(orders.map((order) => serializeTrackedOrder(order)));
+  }),
+);
+
+// Track by order number (public)
+router.get(
+  "/orders/track-by-number/:orderNumber",
+  orderTrackRateLimitMiddleware,
+  asyncHandler(async (req, res) => {
+    const orderNumber = String(req.params.orderNumber ?? "").toUpperCase().trim();
+    if (!orderNumber || orderNumber.length < 5) return res.status(400).json({ message: "Invalid order number" });
+
+    const order = await OrderModel.findOne({ orderNumber })
+      .select("-confirmationTokenHash")
+      .populate("customer.wilaya")
+      .lean();
+
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    return res.json(serializeTrackedOrder(order));
   }),
 );
 

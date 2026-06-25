@@ -758,6 +758,31 @@ export function AffiliateDashboardPage() {
               </div>
             </div>
 
+            {/* Level progress bar */}
+            {dashboard?.affiliate.level && (() => {
+              const LEVELS = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+              const THRESHOLDS: Record<string, number> = { BRONZE: 0, SILVER: 10000, GOLD: 30000, PLATINUM: 80000 };
+              const NEXT_LEVEL: Record<string, string | null> = { BRONZE: "SILVER", SILVER: "GOLD", GOLD: "PLATINUM", PLATINUM: null };
+              const current = dashboard.affiliate.level;
+              const next = NEXT_LEVEL[current];
+              const earned = (dashboard.affiliate.balanceApproved ?? 0) + (dashboard.affiliate.balancePaid ?? 0);
+              const nextThreshold = next ? THRESHOLDS[next] : 0;
+              const currentThreshold = THRESHOLDS[current] ?? 0;
+              const progress = next ? Math.min(100, ((earned - currentThreshold) / (nextThreshold - currentThreshold)) * 100) : 100;
+              return (
+                <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-300">{language === "ar" ? "مستواك الحالي" : "Your level"}: <strong className="text-amber-300">{current}</strong></span>
+                    {next ? <span className="text-slate-400">{language === "ar" ? `التالي: ${next} عند ${nextThreshold.toLocaleString("ar-DZ")} دج` : `Next: ${next} at ${nextThreshold.toLocaleString()} DA`}</span> : <span className="text-amber-300 font-bold">🏆 {language === "ar" ? "أعلى مستوى!" : "Max level!"}</span>}
+                  </div>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                    <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="mt-1 text-right text-xs text-slate-400">{Math.round(progress)}%</div>
+                </div>
+              );
+            })()}
+
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">

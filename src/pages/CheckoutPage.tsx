@@ -37,6 +37,7 @@ export function CheckoutPage() {
   const [commune, setCommune] = useState("");
   const [communeOther, setCommuneOther] = useState(false);
   const [address, setAddress] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState("");
   const [deliveryType, setDeliveryType] = useState<DeliveryType>("DESK_PICKUP");
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromoCode, setAppliedPromoCode] = useState("");
@@ -768,6 +769,17 @@ export function CheckoutPage() {
               ) : (
                 <p className="ps-1 text-xs text-slate-400">{translate(language, "checkoutHintAddress")}</p>
               )}
+            </div>
+
+            {/* Delivery notes — optional */}
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-600">
+                {language === "ar" ? "ملاحظات التوصيل" : language === "fr" ? "Notes de livraison" : "Delivery notes"}
+                <span className="ms-1 text-xs text-slate-400">({language === "ar" ? "اختياري" : "optional"})</span>
+              </label>
+              <textarea value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} rows={2}
+                className="field-textarea w-full"
+                placeholder={language === "ar" ? "مثال: اتصل قبل التوصيل، اترك عند الجار..." : "E.g. Call before delivery, leave at door..."} />
             </div>
           </section>
 

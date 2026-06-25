@@ -52,6 +52,7 @@ function getZRStateAr(state: string, stateAr: string): string {
 export function TrackOrderPage() {
   const { language } = useApp();
   const [phone, setPhone] = useState("");
+  const [searchMode, setSearchMode] = useState<"phone" | "order">("phone");
   const [order, setOrder] = useState<Order | null>(null);
   const [phoneResults, setPhoneResults] = useState<Order[] | null>(null);
   const [error, setError] = useState("");
@@ -85,17 +86,17 @@ export function TrackOrderPage() {
   };
 
   const search = async () => {
-    if (!phone.trim() || searching) {
-      return;
-    }
-
+    if (!phone.trim() || searching) return;
     setSearching(true);
     try {
       reset();
-      const results = await orderService.trackOrdersByPhone(phone.trim());
-      setPhoneResults(results);
-      if (results.length === 0) {
-        setError(translate(language, "trackPhoneEmptyDescription"));
+      if (searchMode === "phone") {
+        const results = await orderService.trackOrdersByPhone(phone.trim());
+        setPhoneResults(results);
+        if (results.length === 0) setError(translate(language, "trackPhoneEmptyDescription"));
+      } else {
+        const found = await orderService.trackByOrderNumber(phone.trim());
+        setOrder(found);
       }
     } catch (searchError) {
       setPhoneResults(null);
@@ -327,24 +328,39 @@ export function TrackOrderPage() {
           <h1 className="font-serif text-2xl font-semibold text-slate-950 sm:text-3xl md:text-4xl">{translate(language, "trackTitle")}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{translate(language, "trackDescription")}</p>
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <IconField icon={Phone} className="flex-1">
+          {/* Search mode toggle */}
+          <div className="mt-4 flex gap-2">
+            {[
+              { mode: "phone" as const, label: language === "ar" ? "📞 رقم الهاتف" : "📞 Phone" },
+              { mode: "order" as const, label: language === "ar" ? "📦 رقم الطلب" : "📦 Order #" },
+            ].map(({ mode, label }) => (
+              <button key={mode} type="button" onClick={() => { setSearchMode(mode); setPhone(""); reset(); }}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${searchMode === mode ? "border-teal-500 bg-teal-50 text-teal-800" : "border-slate-200 bg-white text-slate-600 hover:border-teal-300"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <IconField icon={searchMode === "phone" ? Phone : Search} className="flex-1">
               <input
                 value={phone}
-                onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void search();
+                onChange={(event) => {
+                  if (searchMode === "phone") {
+                    setPhone(event.target.value.replace(/\D/g, "").slice(0, 10));
+                  } else {
+                    setPhone(event.target.value.toUpperCase().slice(0, 20));
                   }
                 }}
+                onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void search(); } }}
                 className="field-input field-input-icon w-full"
-                placeholder={translate(language, "trackPhonePlaceholder")}
+                placeholder={searchMode === "phone" ? translate(language, "trackPhonePlaceholder") : (language === "ar" ? "VS-20260625-1234" : "VS-20260625-1234")}
+                dir={searchMode === "order" ? "ltr" : undefined}
               />
             </IconField>
             <button onClick={() => void search()} disabled={searching} className="primary-button gap-2 disabled:opacity-60">
               <Search className={`h-4 w-4 ${searching ? "animate-spin" : ""}`} />
-              {searching ? (translate(language, "loading")) : translate(language, "trackSearch")}
+              {searching ? translate(language, "loading") : translate(language, "trackSearch")}
             </button>
           </div>
           {error ? <div className="mt-3 text-sm text-rose-600">{error}</div> : null}

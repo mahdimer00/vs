@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
-import { ProductFilters, type ProductFilterState } from "@/components/ProductFilters";
+import { ProductFilters, type ProductFilterState, DEFAULT_FILTERS } from "@/components/ProductFilters";
 import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { adminService } from "@/services/admin.service";
@@ -22,11 +22,12 @@ export function ProductsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filters, setFilters] = useState<ProductFilterState>({
+    ...DEFAULT_FILTERS,
     search: searchParams.get("q") || "",
     category: searchParams.get("category") || "all",
     brand: searchParams.get("brand") || "all",
-    maxPrice: 500000,
   });
+  const [visibleCount, setVisibleCount] = useState(20);
 
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories()])
@@ -49,13 +50,15 @@ export function ProductsPage() {
   }, [filters.search]);
 
   const filtered = useMemo(() => {
-    return products.filter((product) => {
+    const list = products.filter((product) => {
       if (product.isSoldOut) return false;
       const productCategory = typeof product.category === "string" ? product.category : product.category.slug;
       const productBrand = typeof product.brand === "string" ? product.brand : product.brand.name;
       const localizedName = `${product.name.ar} ${product.name.fr} ${product.name.en} ${productBrand}`.toLowerCase();
       const price = product.discountPrice ?? product.basePrice;
-
+      if (filters.inStockOnly && product.stock <= 0) return false;
+      if (filters.onSaleOnly && !product.discountPrice) return false;
+      if (filters.condition !== "all" && product.condition !== filters.condition) return false;
       return (
         (filters.category === "all" || productCategory === filters.category) &&
         (filters.brand === "all" || productBrand === filters.brand) &&
@@ -63,6 +66,15 @@ export function ProductsPage() {
         price <= filters.maxPrice
       );
     });
+
+    // Apply sort
+    switch (filters.sort) {
+      case "price_asc": return [...list].sort((a, b) => (a.discountPrice ?? a.basePrice) - (b.discountPrice ?? b.basePrice));
+      case "price_desc": return [...list].sort((a, b) => (b.discountPrice ?? b.basePrice) - (a.discountPrice ?? a.basePrice));
+      case "newest": return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      case "name": return [...list].sort((a, b) => (a.name.ar || a.name.fr || "").localeCompare(b.name.ar || b.name.fr || ""));
+      default: return list;
+    }
   }, [filters, products]);
 
   const soldOutProducts = useMemo(() => products.filter((p) => p.isSoldOut), [products]);
@@ -110,15 +122,23 @@ export function ProductsPage() {
       />
 
       {filtered.length === 0 ? (
-        <EmptyState
-          title={translate(language, "noProductsTitle")}
-          description={translate(language, "noProductsDescription")}
-        />
+        <EmptyState title={translate(language, "noProductsTitle")} description={translate(language, "noProductsDescription")} />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 xl:grid-cols-3">
-          {filtered.map((product) => (
-            <ProductCard key={product._id} product={product} language={language} />
-          ))}
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 xl:grid-cols-3">
+            {filtered.slice(0, visibleCount).map((product) => (
+              <ProductCard key={product._id} product={product} language={language} />
+            ))}
+          </div>
+          {visibleCount < filtered.length && (
+            <div className="flex flex-col items-center gap-2">
+              <button type="button" onClick={() => setVisibleCount((v) => v + 20)}
+                className="primary-button px-8 py-3">
+                {language === "ar" ? `تحميل المزيد (${filtered.length - visibleCount} متبقية)` : language === "fr" ? `Voir plus (${filtered.length - visibleCount} restants)` : `Load more (${filtered.length - visibleCount} remaining)`}
+              </button>
+              <p className="text-xs text-slate-400">{language === "ar" ? `عرض ${Math.min(visibleCount, filtered.length)} من ${filtered.length}` : `Showing ${Math.min(visibleCount, filtered.length)} of ${filtered.length}`}</p>
+            </div>
+          )}
         </div>
       )}
 

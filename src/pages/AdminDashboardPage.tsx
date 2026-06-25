@@ -2627,6 +2627,26 @@ export function AdminDashboardPage() {
                     : `${language === "ar" ? "طباعة" : language === "fr" ? "Imprimer" : "Print"} ${selectedOrderIds.size} ${language === "ar" ? "وصل" : language === "fr" ? "bons" : "labels"}`}
                 </button>
               )}
+              {selectedOrderIds.size > 0 && (
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    if (!newStatus) return;
+                    if (!window.confirm(language === "ar" ? `تغيير حالة ${selectedOrderIds.size} طلب إلى "${newStatus}"؟` : `Change ${selectedOrderIds.size} orders to "${newStatus}"?`)) return;
+                    void Promise.all([...selectedOrderIds].map((id) => adminService.updateOrderStatus(token, id, newStatus)))
+                      .then(loadAll)
+                      .catch((err: unknown) => pushToast(err instanceof ApiError ? err.message : translate(language, "adminActionError"), "error"));
+                    e.target.value = "";
+                  }}
+                  className="field-select py-2 text-sm max-w-[160px]"
+                >
+                  <option value="">{language === "ar" ? `تغيير الحالة (${selectedOrderIds.size})` : `Bulk status (${selectedOrderIds.size})`}</option>
+                  {["CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              )}
               {[...selectedOrderIds].some((id) => ordersById.get(id)?.zrParcelId) && (
                 <button
                   type="button"

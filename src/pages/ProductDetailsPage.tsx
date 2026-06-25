@@ -464,6 +464,24 @@ export function ProductDetailsPage() {
             ) : null}
           </div>
 
+          {/* Stock progress bar */}
+          {!adminSoldOut && stock > 0 && stock <= 20 && (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>{language === "ar" ? "المخزون المتبقي" : "Stock remaining"}</span>
+                <span className={`font-bold ${stock <= 3 ? "text-rose-600" : stock <= 8 ? "text-amber-600" : "text-slate-700"}`}>
+                  {stock} {language === "ar" ? "قطعة" : "units"}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`h-2 rounded-full transition-all ${stock <= 3 ? "bg-rose-500" : stock <= 8 ? "bg-amber-400" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min(100, (stock / 20) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs sm:text-sm">
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
@@ -507,6 +525,22 @@ export function ProductDetailsPage() {
               {product.adminNote}
             </div>
           ) : null}
+
+          {/* Shipping + return info */}
+          {!localPickupOnly && (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[
+                { icon: "🚚", text: language === "ar" ? "توصيل لجميع الولايات" : "All 58 wilayas" },
+                { icon: "💵", text: language === "ar" ? "دفع عند الاستلام" : "Cash on delivery" },
+                { icon: "↩️", text: language === "ar" ? "إرجاع خلال 7 أيام" : "7-day returns" },
+              ].map((item) => (
+                <div key={item.text} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <span>{item.icon}</span>
+                  <span className="font-medium">{item.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="my-5 h-px bg-slate-100" />
 
