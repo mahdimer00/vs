@@ -339,4 +339,12 @@ export interface AnalyticsSummary {
   ordersByStatus: Record<string, number>;
   visitorsByDay: Array<{ date: string; count: number }>;
   salesByDay: Array<{ date: string; revenue: number; orders: number }>;
+  // New professional analytics
+  lastHourVisitors: number;
+  lastHourOrders: number;
+  avgOrderValue: number;
+  funnel: Array<{ step: string; count: number }>;
+  ordersByHour: number[];
+  revenueByWilaya: Array<{ name: string; revenue: number; orders: number }>;
+  conversionByProduct: Array<{ productId: string; productName: LocalizedText; views: number; orders: number; conversionRate: number }>;
 }

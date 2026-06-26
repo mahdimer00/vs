@@ -1137,66 +1137,148 @@ export function AdminDashboardPage() {
           <EmptyState title={translate(language, "analyticsNoData")} description="" />
         ) : (
           <>
-            {/* KPI stat cards */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {/* ── LIVE STATS (last hour) ── */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString() },
-                { icon: TrendingUp, label: translate(language, "analyticsTodayVisitors"), value: data.todayVisitors.toLocaleString() },
-                { icon: BarChart3, label: translate(language, "analyticsProductViews"), value: data.productViews.toLocaleString() },
-                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString() },
-                { icon: TrendingUp, label: translate(language, "analyticsConversionRate"), value: `${data.conversionRate}%` },
-                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language) },
-                { icon: Wallet, label: translate(language, "analyticsRevenueToday"), value: formatCurrency(data.revenueToday, language) },
-              ].map(({ icon: Icon, label, value }) => (
+                { label: language === "ar" ? "🔴 آخر ساعة — زوار" : "Last 1h visitors", value: data.lastHourVisitors, color: "text-rose-600" },
+                { label: language === "ar" ? "🔴 آخر ساعة — طلبات" : "Last 1h orders", value: data.lastHourOrders, color: "text-rose-600" },
+                { label: language === "ar" ? "متوسط قيمة الطلب" : "Avg order value", value: formatCurrency(data.avgOrderValue ?? 0, language), color: "text-teal-700" },
+                { label: language === "ar" ? "معدل التحويل" : "Conversion rate", value: `${data.conversionRate}%`, color: data.conversionRate < 1 ? "text-rose-600" : data.conversionRate < 3 ? "text-amber-600" : "text-emerald-600" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="stat-card text-center">
+                  <div className="text-xs text-slate-400">{label}</div>
+                  <div className={`mt-1.5 text-xl font-black ${color}`}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── KPI CARDS ── */}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString(), sub: `${data.todayVisitors} ${language === "ar" ? "اليوم" : "today"}` },
+                { icon: BarChart3, label: translate(language, "analyticsProductViews"), value: data.productViews.toLocaleString(), sub: "" },
+                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString(), sub: `${data.lastHourOrders} ${language === "ar" ? "آخر ساعة" : "last hour"}` },
+                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language), sub: `${formatCurrency(data.revenueToday, language)} ${language === "ar" ? "اليوم" : "today"}` },
+              ].map(({ icon: Icon, label, value, sub }) => (
                 <div key={label} className="stat-card flex items-start gap-4">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-500">{label}</div>
-                    <div className="mt-1 text-2xl font-semibold text-slate-950">{value}</div>
+                    <div className="text-xs text-slate-500">{label}</div>
+                    <div className="mt-0.5 text-xl font-bold text-slate-950">{value}</div>
+                    {sub && <div className="mt-0.5 text-[11px] text-slate-400">{sub}</div>}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Charts */}
-            <div className="grid gap-6 xl:grid-cols-2">
+            {/* ── CONVERSION FUNNEL ── */}
+            {data.funnel && data.funnel.some((f) => f.count > 0) && (
+              <Panel title={language === "ar" ? "مسار التحويل (Funnel)" : "Conversion Funnel"}>
+                <div className="space-y-2">
+                  {data.funnel.filter((f) => f.count > 0).map((step, i, arr) => {
+                    const LABELS: Record<string, string> = {
+                      page_view: language === "ar" ? "1. زيارة الصفحة" : "1. Page Views",
+                      product_view: language === "ar" ? "2. مشاهدة المنتج" : "2. Product Views",
+                      add_to_cart: language === "ar" ? "3. إضافة للسلة" : "3. Add to Cart",
+                      checkout_start: language === "ar" ? "4. بدء الطلب" : "4. Checkout Start",
+                      order_submit: language === "ar" ? "5. إرسال الطلب" : "5. Order Submit",
+                      purchase: language === "ar" ? "6. شراء مكتمل" : "6. Purchase",
+                    };
+                    const maxCount = arr[0]?.count ?? 1;
+                    const pct = Math.round((step.count / maxCount) * 100);
+                    const dropFromPrev = i > 0 ? Math.round(((arr[i-1].count - step.count) / arr[i-1].count) * 100) : 0;
+                    return (
+                      <div key={step.step} className="flex items-center gap-3">
+                        <div className="w-36 shrink-0 text-sm text-slate-700">{LABELS[step.step] ?? step.step}</div>
+                        <div className="flex-1 overflow-hidden rounded-full bg-slate-100" style={{ height: 20 }}>
+                          <div className={`h-full rounded-full transition-all ${pct > 50 ? "bg-teal-500" : pct > 20 ? "bg-amber-400" : "bg-rose-400"}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="w-16 shrink-0 text-right text-sm font-bold text-slate-700">{step.count.toLocaleString()}</div>
+                        {i > 0 && dropFromPrev > 0 && (
+                          <div className="w-14 shrink-0 text-right text-xs font-semibold text-rose-500">-{dropFromPrev}%</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Panel>
+            )}
+
+            {/* ── CHARTS ── */}
+            <div className="grid gap-5 xl:grid-cols-2">
               <Panel title={translate(language, "analyticsVisitorsByDay")}>
                 {data.visitorsByDay.every((d) => d.count === 0) ? (
                   <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
                 ) : (
-                  <BarChart
-                    bars={data.visitorsByDay.map((d) => ({ label: d.date, value: d.count }))}
-                    color="bg-sky-400"
-                    formatTip={(v) => `${v} ${translate(language, "analyticsVisitors")}`}
-                  />
+                  <BarChart bars={data.visitorsByDay.map((d) => ({ label: d.date, value: d.count }))} color="bg-sky-400" formatTip={(v) => `${v} ${translate(language, "analyticsVisitors")}`} />
                 )}
               </Panel>
               <Panel title={translate(language, "analyticsSalesByDay")}>
                 {data.salesByDay.every((d) => d.revenue === 0) ? (
                   <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
                 ) : (
-                  <BarChart
-                    bars={data.salesByDay.map((d) => ({ label: d.date, value: d.revenue }))}
-                    color="bg-emerald-400"
-                    formatTip={(v) => formatCurrency(v, language)}
-                  />
+                  <BarChart bars={data.salesByDay.map((d) => ({ label: d.date, value: d.revenue }))} color="bg-emerald-400" formatTip={(v) => formatCurrency(v, language)} />
                 )}
               </Panel>
             </div>
 
-            {/* Orders by status */}
+            {/* ── HOURLY HEATMAP + REVENUE BY WILAYA ── */}
+            <div className="grid gap-5 xl:grid-cols-2">
+              {data.ordersByHour && data.ordersByHour.some((v) => v > 0) && (
+                <Panel title={language === "ar" ? "توزيع الطلبات بالساعة" : "Orders by hour"}>
+                  <div className="flex h-24 items-end gap-0.5">
+                    {data.ordersByHour.map((count, h) => {
+                      const max = Math.max(...data.ordersByHour, 1);
+                      const pct = Math.max(6, Math.round((count / max) * 100));
+                      const isPeak = count === max && count > 0;
+                      return (
+                        <div key={h} className="group relative flex flex-1 flex-col items-center" title={`${h}:00 — ${count} orders`}>
+                          <div className={`w-full rounded-t transition-all ${isPeak ? "bg-amber-400" : "bg-slate-200 group-hover:bg-teal-300"}`} style={{ height: `${pct}%` }} />
+                          {h % 4 === 0 && <span className="mt-0.5 text-[9px] text-slate-400">{h}h</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {data.ordersByHour && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      {language === "ar" ? "الساعة الذروة:" : "Peak hour:"} {data.ordersByHour.indexOf(Math.max(...data.ordersByHour))}:00 ({Math.max(...data.ordersByHour)} {language === "ar" ? "طلبات" : "orders"})
+                    </div>
+                  )}
+                </Panel>
+              )}
+
+              {data.revenueByWilaya && data.revenueByWilaya.length > 0 && (
+                <Panel title={language === "ar" ? "الإيرادات حسب الولاية" : "Revenue by wilaya"}>
+                  <div className="space-y-2">
+                    {data.revenueByWilaya.slice(0, 7).map((w, i) => {
+                      const max = data.revenueByWilaya[0].revenue;
+                      const pct = Math.round((w.revenue / max) * 100);
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-28 shrink-0 truncate text-xs text-slate-600">{w.name}</span>
+                          <div className="flex-1 overflow-hidden rounded-full bg-slate-100" style={{ height: 10 }}>
+                            <div className="h-full rounded-full bg-teal-400 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="w-24 shrink-0 text-right text-xs font-semibold text-slate-700">{formatCurrency(w.revenue, language)}</span>
+                          <span className="w-10 shrink-0 text-right text-[10px] text-slate-400">{w.orders}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Panel>
+              )}
+            </div>
+
+            {/* ── ORDERS BY STATUS ── */}
             <Panel title={translate(language, "analyticsOrdersByStatus")}>
               {Object.keys(data.ordersByStatus).length === 0 ? (
                 <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
               ) : (
                 <div className="flex flex-wrap gap-3">
                   {Object.entries(data.ordersByStatus).map(([status, count]) => (
-                    <div
-                      key={status}
-                      className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2 text-sm"
-                    >
+                    <div key={status} className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2 text-sm">
                       <span className={`h-2.5 w-2.5 rounded-full ${statusColors[status] ?? "bg-slate-400"}`} />
                       <span className="font-medium text-slate-700">{status}</span>
                       <span className="font-bold text-slate-950">{count}</span>
@@ -1206,9 +1288,48 @@ export function AdminDashboardPage() {
               )}
             </Panel>
 
-            {/* Product tables */}
-            <div className="grid gap-6 xl:grid-cols-2">
-              {/* Most viewed products */}
+            {/* ── CONVERSION PER PRODUCT ── */}
+            {data.conversionByProduct && data.conversionByProduct.length > 0 && (
+              <Panel title={language === "ar" ? "معدل التحويل لكل منتج (مشاهدات → طلبات)" : "Conversion rate per product"}>
+                <div className="table-wrap">
+                  <table className="table-base">
+                    <thead>
+                      <tr>
+                        <th className="ps-4">{language === "ar" ? "المنتج" : "Product"}</th>
+                        <th>{language === "ar" ? "مشاهدات" : "Views"}</th>
+                        <th>{language === "ar" ? "طلبات" : "Orders"}</th>
+                        <th>{language === "ar" ? "معدل التحويل" : "Conv. rate"}</th>
+                        <th>{language === "ar" ? "التشخيص" : "Status"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.conversionByProduct.map((p) => (
+                        <tr key={p.productId}>
+                          <td className="ps-4 text-sm text-slate-800">{getLocalizedText(p.productName, language)}</td>
+                          <td className="text-sm">{p.views}</td>
+                          <td className="text-sm font-semibold">{p.orders}</td>
+                          <td className="text-sm font-bold">
+                            <span className={p.conversionRate >= 3 ? "text-emerald-600" : p.conversionRate >= 1 ? "text-amber-600" : "text-rose-600"}>
+                              {p.conversionRate}%
+                            </span>
+                          </td>
+                          <td className="text-xs">
+                            {p.conversionRate === 0 && p.views >= 10
+                              ? <span className="text-rose-600">⚠️ {language === "ar" ? "مشاهد كثيراً — لا طلبات → راجع السعر أو الصور" : "Many views, 0 orders → check price/photos"}</span>
+                              : p.conversionRate >= 3
+                                ? <span className="text-emerald-600">✓ {language === "ar" ? "ممتاز" : "Excellent"}</span>
+                                : <span className="text-slate-400">{language === "ar" ? "طبيعي" : "Normal"}</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Panel>
+            )}
+
+            {/* ── PRODUCT TABLES ── */}
+            <div className="grid gap-5 xl:grid-cols-2">
               <Panel title={translate(language, "analyticsMostViewed")}>
                 {data.mostViewedProducts.length === 0 ? (
                   <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
@@ -1216,15 +1337,9 @@ export function AdminDashboardPage() {
                   <div className="divide-y divide-slate-100">
                     {data.mostViewedProducts.map((item, index) => (
                       <div key={item.productId} className="flex items-center gap-3 py-3">
-                        <span className="w-6 shrink-0 text-center text-sm font-bold text-slate-400">
-                          {index + 1}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
-                          {getLocalizedText(item.productName, language)}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
-                          {item.count} {translate(language, "analyticsViews")}
-                        </span>
+                        <span className="w-6 shrink-0 text-center text-sm font-bold text-slate-400">{index + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-800">{getLocalizedText(item.productName, language)}</span>
+                        <span className="shrink-0 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{item.count} {translate(language, "analyticsViews")}</span>
                       </div>
                     ))}
                   </div>

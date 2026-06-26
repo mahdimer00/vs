@@ -211,6 +211,75 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
     return { date: d, ...(salesDayMap[d] ?? { revenue: 0, orders: 0 }) };
   });
 
+  // ── LAST HOUR (live stats) ──
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const [lastHourVisitors, lastHourOrders] = await Promise.all([
+    AnalyticsEventModel.countDocuments({ eventType: "page_view", createdAt: { $gte: oneHourAgo } }),
+    OrderModel.countDocuments({ createdAt: { $gte: oneHourAgo } }),
+  ]);
+
+  // ── FUNNEL ──
+  const funnelEvents = ["page_view", "product_view", "add_to_cart", "checkout_start", "order_submit", "purchase"] as const;
+  const funnelCounts: Record<string, number> = {};
+  for (const event of events) {
+    funnelCounts[event.eventType] = (funnelCounts[event.eventType] ?? 0) + 1;
+  }
+  const funnel = funnelEvents.map((step) => ({ step, count: funnelCounts[step] ?? 0 }));
+
+  // ── AVERAGE ORDER VALUE ──
+  const completedOrders = orders.filter((o) => deliveredStatuses.has(o.status));
+  const avgOrderValue = completedOrders.length > 0 ? Math.round(completedOrders.reduce((s, o) => s + o.total, 0) / completedOrders.length) : 0;
+
+  // ── ORDERS BY HOUR (24h heatmap) ──
+  const ordersByHour = new Array(24).fill(0) as number[];
+  for (const order of orders) {
+    const h = new Date(order.createdAt).getHours();
+    ordersByHour[h]++;
+  }
+
+  // ── REVENUE BY WILAYA ──
+  const { WilayaModel } = await import("../../models/shipping.model.js");
+  const wilayaRevMap: Record<string, { name: string; revenue: number; orders: number }> = {};
+  for (const order of orders) {
+    const wilayaId = String(order.customer?.wilaya ?? "");
+    if (!wilayaId) continue;
+    const entry = wilayaRevMap[wilayaId] ?? { name: "", revenue: 0, orders: 0 };
+    entry.orders++;
+    if (deliveredStatuses.has(order.status)) entry.revenue += order.total;
+    wilayaRevMap[wilayaId] = entry;
+  }
+  const wilayaIds = Object.keys(wilayaRevMap);
+  if (wilayaIds.length > 0) {
+    const wilayaDocs = await WilayaModel.find({ _id: { $in: wilayaIds } }).select("_id name code").lean();
+    for (const w of wilayaDocs) {
+      const entry = wilayaRevMap[String(w._id)];
+      if (entry) entry.name = `${w.code} · ${(w.name as { ar: string }).ar || ""}`;
+    }
+  }
+  const revenueByWilaya = Object.values(wilayaRevMap)
+    .filter((w) => w.revenue > 0)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10);
+
+  // ── CONVERSION PER PRODUCT (views → orders) ──
+  const productOrderCount: Record<string, number> = {};
+  for (const order of orders) {
+    for (const item of order.items) {
+      productOrderCount[item.productId] = (productOrderCount[item.productId] ?? 0) + item.quantity;
+    }
+  }
+  const conversionByProduct = Object.entries(viewCounts)
+    .map(([id, views]) => ({
+      productId: id,
+      productName: viewedNameMap[id] ?? { ar: "", fr: "", en: id },
+      views,
+      orders: productOrderCount[id] ?? 0,
+      conversionRate: views > 0 ? Math.round(((productOrderCount[id] ?? 0) / views) * 1000) / 10 : 0,
+    }))
+    .filter((p) => p.views >= 3)
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 10);
+
   return res.json({
     totalVisitors,
     todayVisitors: todayPageViews,
@@ -224,6 +293,14 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
     ordersByStatus,
     visitorsByDay,
     salesByDay,
+    // New
+    lastHourVisitors,
+    lastHourOrders,
+    avgOrderValue,
+    funnel,
+    ordersByHour,
+    revenueByWilaya,
+    conversionByProduct,
   });
 }));
 
