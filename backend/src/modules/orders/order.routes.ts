@@ -211,10 +211,9 @@ router.post(
       throw new AppError("عذراً، لا يمكن إتمام هذا الطلب. تواصل مع الدعم إذا كان هناك خطأ.", 403);
     }
 
-    // ── HUMAN TIMING: reject if form filled in < 8 seconds (bot speed) ──
-    if (input.formDuration !== undefined && input.formDuration < 8) {
+    // ── HUMAN TIMING: reject only ultra-fast (< 3 seconds = definitely bot) ──
+    if (input.formDuration !== undefined && input.formDuration < 3) {
       console.warn(`[BOT-TIMING] Order from ${clientIp} filled in ${input.formDuration}s — rejected`);
-      // Silent reject — return fake success so bots don't know they're blocked
       return res.status(201).json({ _id: "bot", orderNumber: "BOT", status: "PENDING" });
     }
 

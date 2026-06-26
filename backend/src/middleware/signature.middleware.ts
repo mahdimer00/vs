@@ -64,7 +64,8 @@ export function signatureMiddleware(req: SignedRequest, res: Response, next: Nex
     req.method === "GET" ||
     req.method === "HEAD" ||
     req.method === "OPTIONS" ||
-    req.path.startsWith("/webhooks/")
+    req.path.startsWith("/webhooks/") ||
+    req.path === "/client-error" // error reporting must always work
   ) {
     next();
     return;
