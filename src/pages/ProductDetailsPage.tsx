@@ -64,6 +64,7 @@ export function ProductDetailsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(getTimeUntilMidnight());
   const [activeTab, setActiveTab] = useState<"description" | "specs">("description");
+  const [showDirectForm, setShowDirectForm] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCountdown(getTimeUntilMidnight()), 1000);
@@ -193,6 +194,7 @@ export function ProductDetailsPage() {
 
     if (nextVariant) {
       setSelectedVariantId(nextVariant._id);
+      setShowDirectForm(false); // reset form visibility when variant changes
     }
   };
 
@@ -599,15 +601,39 @@ export function ProductDetailsPage() {
               </div>
             </div>
           ) : siteSettings?.directOrderMode ? (
-            /* DIRECT ORDER MODE — inline checkout form on product page */
+            /* DIRECT ORDER MODE — show button first, reveal form on click */
             !adminSoldOut && selectedVariant.stock > 0 ? (
               <div id="direct-order-form">
-              <DirectOrderForm
-                product={product}
-                variant={selectedVariant}
-                quantity={quantity}
-                shippingFee={0}
-              />
+                {!showDirectForm ? (
+                  /* Big CTA button — reveals form on click */
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDirectForm(true);
+                      setTimeout(() => {
+                        document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 100);
+                    }}
+                    className="mt-5 flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98]"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <ShieldCheck className="h-6 w-6" />
+                      <span>
+                        {language === "ar" ? "أطلب الآن — دفع عند الاستلام" : language === "fr" ? "Commander maintenant" : "Order now — Pay on delivery"}
+                      </span>
+                    </span>
+                    <span className="rounded-xl bg-white/20 px-3 py-1.5 text-sm font-extrabold">
+                      {formatCurrency(price, language)}
+                    </span>
+                  </button>
+                ) : (
+                  <DirectOrderForm
+                    product={product}
+                    variant={selectedVariant}
+                    quantity={quantity}
+                    shippingFee={0}
+                  />
+                )}
               </div>
             ) : (
               <div className="mt-5 rounded-2xl bg-slate-100 px-5 py-4 text-center text-sm font-semibold text-slate-400">
@@ -838,13 +864,18 @@ export function ProductDetailsPage() {
               type="button"
               onClick={() => {
                 if (siteSettings?.directOrderMode) {
-                  const submitBtn = document.getElementById("dof-submit-btn") as HTMLButtonElement | null;
-                  if (submitBtn && !submitBtn.disabled) {
-                    // Form complete — submit directly
-                    submitBtn.click();
+                  if (!showDirectForm) {
+                    setShowDirectForm(true);
+                    setTimeout(() => {
+                      document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 100);
                   } else {
-                    // Form not complete — scroll to form so user sees the fields
-                    document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    const submitBtn = document.getElementById("dof-submit-btn") as HTMLButtonElement | null;
+                    if (submitBtn && !submitBtn.disabled) {
+                      submitBtn.click();
+                    } else {
+                      document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
                   }
                 } else {
                   addToCart({ product, variant: selectedVariant, quantity });
