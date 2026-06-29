@@ -619,7 +619,7 @@ export function ProductDetailsPage() {
                         document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }, 100);
                     }}
-                    className="mt-5 flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98]"
+                    className="relative mt-5 flex w-full items-center justify-between gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98] before:absolute before:inset-0 before:rounded-2xl before:shadow-[0_0_0_4px_rgba(20,184,166,0.3)] before:animate-ping before:pointer-events-none"
                   >
                     <span className="flex items-center gap-2.5">
                       <ShieldCheck className="h-6 w-6" />
