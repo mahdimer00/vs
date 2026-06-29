@@ -84,13 +84,17 @@ export function GetCouponPage() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  // Follow tracking anti-spam
-  const [followedPlatform, setFollowedPlatform] = useState<string | null>(null);
+  // Follow tracking — ALL platforms must be completed
+  const [activePlatform, setActivePlatform] = useState<string | null>(null);
+  const [verifiedPlatforms, setVerifiedPlatforms] = useState<Set<string>>(new Set());
   const [followCountdown, setFollowCountdown] = useState(0);
-  const [followVerified, setFollowVerified] = useState(false);
   const [waitingForReturn, setWaitingForReturn] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clickedAt = useRef<number>(0);
+
+  // Alias for compat
+  const followedPlatform = activePlatform;
+  const followVerified = false; // replaced by per-platform tracking below
 
   useEffect(() => {
     apiRequest<CampaignSettings>("/api/coupon-campaign/settings")
@@ -102,12 +106,12 @@ export function GetCouponPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Start countdown ONLY when user comes back to the tab
+  // Start countdown ONLY when user comes back to the tab (per platform)
   useEffect(() => {
-    if (!followedPlatform || followVerified) return;
+    if (!activePlatform || !waitingForReturn) return;
 
     const startCountdown = () => {
-      if (followVerified || !waitingForReturn) return;
+      if (!waitingForReturn) return;
       setWaitingForReturn(false);
       setFollowCountdown(FOLLOW_WAIT_SECONDS);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -115,7 +119,9 @@ export function GetCouponPage() {
         setFollowCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
-            setFollowVerified(true);
+            // Mark this platform as verified
+            setVerifiedPlatforms((vp) => new Set([...vp, activePlatform]));
+            setActivePlatform(null);
             return 0;
           }
           return prev - 1;
@@ -123,24 +129,24 @@ export function GetCouponPage() {
       }, 1000);
     };
 
-    const onVisibilityChange = () => {
+    const onReturn = () => {
       if (document.visibilityState === "visible" && waitingForReturn) {
         startCountdown();
       }
     };
 
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", onVisibilityChange);
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [followedPlatform, waitingForReturn, followVerified]);
+  }, [activePlatform, waitingForReturn]);
 
   const handleFollowClick = (platform: string) => {
-    if (followVerified) return;
-    setFollowedPlatform(platform);
+    if (verifiedPlatforms.has(platform)) return; // already done
+    setActivePlatform(platform);
     setWaitingForReturn(true);
     setFollowCountdown(0);
     clickedAt.current = Date.now();
@@ -148,9 +154,12 @@ export function GetCouponPage() {
   };
 
   const s = campaign?.settings;
-  const hasSocial = Object.keys(s?.couponSocialLinks ?? {}).filter((k) => s?.couponSocialLinks?.[k]).length > 0;
+  const socialEntries = Object.entries(s?.couponSocialLinks ?? {}).filter(([, url]) => url);
+  const hasSocial = socialEntries.length > 0;
   const requiresFollow = hasSocial && s?.couponConditionText;
-  const canProceed = !requiresFollow || followVerified;
+  // ALL platforms must be verified
+  const allVerified = !requiresFollow || socialEntries.every(([p]) => verifiedPlatforms.has(p));
+  const canProceed = allVerified;
 
   const discountLabel = s
     ? s.couponDiscountType === "PERCENTAGE"
@@ -275,8 +284,7 @@ export function GetCouponPage() {
   }
 
   // ── MAIN FUNNEL ──
-  const socialEntries = Object.entries(s?.couponSocialLinks ?? {}).filter(([, url]) => url);
-  const step = !requiresFollow ? 1 : !followVerified ? 1 : 2;
+  const step = !requiresFollow ? 1 : !allVerified ? 1 : 2;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" dir={isAr ? "rtl" : "ltr"}>
@@ -315,72 +323,83 @@ export function GetCouponPage() {
 
         {/* ── STEP 1: Follow ── */}
         {requiresFollow && (
-          <div className={`overflow-hidden rounded-3xl border transition-all ${followVerified ? "border-emerald-500/30 bg-emerald-950/30" : "border-slate-700 bg-slate-800/50"}`}>
+          <div className={`overflow-hidden rounded-3xl border transition-all ${allVerified ? "border-emerald-500/30 bg-emerald-950/30" : "border-slate-700 bg-slate-800/50"}`}>
             <div className="px-5 py-4">
               <div className="flex items-center gap-3">
-                <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black ${followVerified ? "bg-emerald-500 text-white" : "bg-amber-400 text-slate-900"}`}>
-                  {followVerified ? <Check className="h-5 w-5" /> : "1"}
+                <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black ${allVerified ? "bg-emerald-500 text-white" : "bg-amber-400 text-slate-900"}`}>
+                  {allVerified ? <Check className="h-5 w-5" /> : "1"}
                 </div>
                 <div>
                   <div className="font-bold text-white text-sm">{s?.couponConditionText || (isAr ? "تابعنا أولاً" : "Follow us first")}</div>
-                  {followVerified
-                    ? <p className="text-xs text-emerald-400 mt-0.5">{isAr ? "تم التحقق ✓ انتقل للخطوة التالية" : "Verified ✓ proceed to next step"}</p>
-                    : <p className="text-xs text-slate-400 mt-0.5">{isAr ? "اضغط على الزر وانتظر للتحقق" : "Click the button and wait to verify"}</p>}
+                  {allVerified
+                    ? <p className="text-xs text-emerald-400 mt-0.5">{isAr ? "تم التحقق من جميع المنصات ✓" : "All platforms verified ✓"}</p>
+                    : <p className="text-xs text-slate-400 mt-0.5">{isAr ? "تابعنا على جميع المنصات أدناه" : "Follow us on all platforms below"}</p>}
                 </div>
               </div>
 
-              {!followVerified && (
-                <div className="mt-4 space-y-2.5">
-                  {socialEntries.map(([platform, url]) => {
-                    const cfg = PLATFORM_CONFIG[platform] ?? { label: platform, labelAr: platform, gradient: "from-slate-700 to-slate-600", icon: "🔗" };
-                    const isActive = followedPlatform === platform;
-                    return (
-                      <a
-                        key={platform}
-                        href={String(url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => handleFollowClick(platform)}
-                        className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-4 py-3.5 text-white transition active:scale-[0.97] ${cfg.gradient}`}
-                      >
-                        <span className="flex items-center gap-2.5 font-bold text-sm">
-                          {PLATFORM_ICONS[platform] ?? <ExternalLink className="h-5 w-5" />}
-                          {isAr ? `تابعنا على ${cfg.labelAr}` : `Follow on ${cfg.label}`}
-                        </span>
-                        <ExternalLink className="h-4 w-4 opacity-70 shrink-0" />
-                      </a>
-                    );
-                  })}
-
-                  {/* Waiting for user to return from social tab */}
-                  {followedPlatform && waitingForReturn && (
-                    <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 px-4 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2 text-blue-300 mb-1">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
-                        <span className="font-bold text-sm">
-                          {isAr ? "تابعنا ثم ارجع لهذه الصفحة" : "Follow us then come back here"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-blue-400/70">
-                        {isAr ? "سيبدأ العداد تلقائياً عند عودتك ←" : "Timer starts automatically when you return ←"}
-                      </p>
+              <div className="mt-4 space-y-2.5">
+                {socialEntries.map(([platform, url]) => {
+                  const cfg = PLATFORM_CONFIG[platform] ?? { label: platform, labelAr: platform, gradient: "from-slate-700 to-slate-600" };
+                  const isDone = verifiedPlatforms.has(platform);
+                  const isActive = activePlatform === platform;
+                  return (
+                    <div key={platform} className="space-y-1.5">
+                      {isDone ? (
+                        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-500 text-white">
+                            <Check className="h-4 w-4" />
+                          </div>
+                          <span className="font-bold text-emerald-400 text-sm">
+                            {isAr ? `${cfg.labelAr} ✓ تم` : `${cfg.label} ✓ Done`}
+                          </span>
+                        </div>
+                      ) : (
+                        <a href={String(url)} target="_blank" rel="noopener noreferrer"
+                          onClick={() => handleFollowClick(platform)}
+                          className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-4 py-3.5 text-white transition active:scale-[0.97] ${isActive ? "opacity-70" : ""} ${cfg.gradient}`}>
+                          <span className="flex items-center gap-2.5 font-bold text-sm">
+                            {PLATFORM_ICONS[platform] ?? <ExternalLink className="h-5 w-5" />}
+                            {isAr ? `تابعنا على ${cfg.labelAr}` : `Follow on ${cfg.label}`}
+                          </span>
+                          <ExternalLink className="h-4 w-4 opacity-70 shrink-0" />
+                        </a>
+                      )}
+                      {isActive && waitingForReturn && (
+                        <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-2 text-blue-300 text-xs font-bold">
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                            {isAr ? "ارجع لهذه الصفحة بعد المتابعة ←" : "Come back after following ←"}
+                          </div>
+                        </div>
+                      )}
+                      {isActive && !waitingForReturn && followCountdown > 0 && (
+                        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-2 text-amber-400">
+                            <Timer className="h-4 w-4" />
+                            <span className="font-bold text-lg">{followCountdown}s</span>
+                            <span className="text-xs text-amber-300/70">{isAr ? "جارٍ التحقق..." : "Verifying..."}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {/* Countdown after returning */}
-                  {followedPlatform && !waitingForReturn && followCountdown > 0 && (
-                    <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2 text-amber-400">
-                        <Timer className="h-5 w-5" />
-                        <span className="font-bold text-2xl">{followCountdown}s</span>
-                      </div>
-                      <p className="mt-1 text-xs text-amber-300/80">
-                        {isAr ? "جارٍ التحقق من المتابعة..." : "Verifying your follow..."}
-                      </p>
+                  );
+                })}
+                {/* Progress bar */}
+                {requiresFollow && socialEntries.length > 1 && (
+                  <div className="rounded-2xl border border-slate-700 bg-slate-800/50 px-4 py-3">
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-slate-400">{isAr ? "التقدم:" : "Progress:"}</span>
+                      <span className={`font-bold ${allVerified ? "text-emerald-400" : "text-amber-400"}`}>
+                        {verifiedPlatforms.size}/{socialEntries.length} {isAr ? "منجزة" : "done"}
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-700">
+                      <div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-500"
+                        style={{ width: `${socialEntries.length > 0 ? (verifiedPlatforms.size / socialEntries.length) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
