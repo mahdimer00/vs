@@ -65,6 +65,27 @@ router.get(
         ? String((product.brand as { name: unknown }).name)
         : "";
       const catName = cat?.name?.fr ?? cat?.name?.en ?? "";
+      const catSlug = (cat?.slug ?? "").toLowerCase();
+
+      // Google Product Taxonomy IDs required by Meta
+      const GOOGLE_CATEGORY_MAP: Record<string, string> = {
+        laptop: "278",        // Electronics > Computers > Laptops
+        laptops: "278",
+        "ordinateurs portables": "278",
+        phone: "267",         // Electronics > Communications > Telephony > Mobile Phones
+        phones: "267",
+        smartphone: "267",
+        smartphones: "267",
+        tablet: "4745",       // Electronics > Computers > Tablet Computers
+        tablets: "4745",
+        computer: "69",       // Electronics > Computers
+        computers: "69",
+        accessory: "140",     // Electronics > Electronics Accessories
+        accessories: "140",
+      };
+      const googleCategoryId = GOOGLE_CATEGORY_MAP[catSlug] ?? GOOGLE_CATEGORY_MAP[catName.toLowerCase()] ?? "222";
+      // 222 = Electronics > Computers & Peripherals
+
       const productUrl = `${STORE_URL}/products/${escapeXml(product.slug)}`;
       const imageUrl = escapeXml(resolveImageUrl(image));
 
@@ -92,7 +113,7 @@ router.get(
       <g:condition>${condition}</g:condition>
       ${brandName ? `<g:brand>${escapeXml(brandName)}</g:brand>` : ""}
       ${catName ? `<g:product_type>${escapeXml(catName)}</g:product_type>` : ""}
-      <g:google_product_category>Electronics</g:google_product_category>
+      <g:google_product_category>${googleCategoryId}</g:google_product_category>
     </item>`);
 
       // Additional images as extra entries (optional)
