@@ -26,6 +26,7 @@ const productSchema = z.object({
   isSoldOut: z.boolean().default(false),
   localPickupOnly: z.boolean().default(false),
   affiliateEnabled: z.boolean().default(false),
+  isEuropean: z.boolean().default(false),
   commissionType: z.enum(["PERCENTAGE", "FIXED"]).default("PERCENTAGE"),
   commissionValue: z.number().nonnegative().default(0),
   variants: z.array(
@@ -153,7 +154,7 @@ router.get(
   "/settings",
   asyncHandler(async (_req, res) => {
     const settings = await WebsiteSettingModel.findOne()
-      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode promoCodeEnabled directOrderMode whatsappFloat otpEnabled otpWhatsappEnabled otpEmailEnabled")
+      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode promoCodeEnabled directOrderMode whatsappFloat otpEnabled otpWhatsappEnabled otpEmailEnabled couponCampaignEnabled couponDiscountType couponDiscountValue couponExpiryDays couponMinOrder couponConditionText couponSocialLinks")
       .lean();
     return res.json(settings);
   }),

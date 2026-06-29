@@ -442,11 +442,16 @@ export function ProductDetailsPage() {
             <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold uppercase tracking-wide text-slate-600">{brandName}</span>
             <span
               className={`rounded-full px-3 py-1 font-semibold uppercase tracking-wide ${
-                product.condition === "USED" ? "bg-orange-50 text-orange-700" : "bg-teal-50 text-teal-700"
+                product.condition === "USED" ? "bg-amber-50 text-amber-800" : "bg-teal-50 text-teal-700"
               }`}
             >
               {translate(language, product.condition === "USED" ? "productConditionUsed" : "productConditionNew")}
             </span>
+            {product.isEuropean && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                🇪🇺 {language === "ar" ? "علامة أوروبية" : language === "fr" ? "Origine UE" : "EU Origin"}
+              </span>
+            )}
           </div>
 
           <h1 className="mt-3 text-xl font-semibold leading-tight text-slate-950 sm:text-2xl md:text-3xl">

@@ -227,6 +227,13 @@ const websiteSettingsSchema = z.object({
   otpEnabled: z.boolean().optional(),
   otpWhatsappEnabled: z.boolean().optional(),
   otpEmailEnabled: z.boolean().optional(),
+  couponCampaignEnabled: z.boolean().optional(),
+  couponDiscountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
+  couponDiscountValue: z.number().min(0).max(100000).optional(),
+  couponExpiryDays: z.number().int().min(1).max(365).optional(),
+  couponMinOrder: z.number().min(0).optional(),
+  couponConditionText: z.string().max(500).optional(),
+  couponSocialLinks: z.record(z.string().max(50), z.string().max(2048)).optional(),
   affiliateLevels: z.record(
     z.string().max(20),
     z.object({ commissionRate: z.number().min(0).max(100), referralBonus: z.number().min(0) }),

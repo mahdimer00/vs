@@ -55,6 +55,13 @@ export function ProductCard({ product, language }: { product: Product; language:
             </span>
           ) : null}
 
+          {/* European origin badge */}
+          {product.isEuropean && !soldOut && (
+            <span className="absolute bottom-2.5 start-2.5 flex items-center gap-1 rounded-full border border-blue-200 bg-white/95 px-2 py-0.5 text-[10px] font-bold text-blue-700 shadow-sm backdrop-blur-sm">
+              🇪🇺 {language === "ar" ? "علامة أوروبية" : language === "fr" ? "Origine UE" : "EU Origin"}
+            </span>
+          )}
+
           {/* Wishlist */}
           <button
             type="button"

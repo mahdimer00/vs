@@ -83,6 +83,7 @@ export interface Product {
   isSoldOut?: boolean;
   localPickupOnly?: boolean;
   affiliateEnabled: boolean;
+  isEuropean?: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: number;
   createdAt: string;
@@ -243,6 +244,13 @@ export interface WebsiteSetting {
   otpEnabled?: boolean;
   otpWhatsappEnabled?: boolean;
   otpEmailEnabled?: boolean;
+  couponCampaignEnabled?: boolean;
+  couponDiscountType?: "PERCENTAGE" | "FIXED";
+  couponDiscountValue?: number;
+  couponExpiryDays?: number;
+  couponMinOrder?: number;
+  couponConditionText?: string;
+  couponSocialLinks?: Record<string, string>;
   affiliateLevels?: AffiliateLevelSettings;
 }
 

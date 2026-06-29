@@ -911,6 +911,7 @@ export function AdminDashboardPage() {
       isSoldOut: productForm.isSoldOut,
       localPickupOnly: productForm.localPickupOnly,
       affiliateEnabled: productForm.affiliateEnabled,
+      isEuropean: (productForm as { isEuropean?: boolean }).isEuropean ?? false,
       commissionType: productForm.commissionType,
       commissionValue: Number(productForm.commissionValue || 0),
       variants: variantSource.map((draft, index) => ({
@@ -1738,6 +1739,15 @@ export function AdminDashboardPage() {
                 className="h-4 w-4 rounded border-amber-300 accent-amber-600"
               />
               متوفر في المتجر فقط — لا يوجد توصيل لهذا المنتج
+            </label>
+            <label className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(productForm as { isEuropean?: boolean }).isEuropean ?? false}
+                onChange={(event) => setProductForm({ ...productForm, isEuropean: event.target.checked } as typeof productForm)}
+                className="h-4 w-4 rounded border-blue-300 accent-blue-600"
+              />
+              🇪🇺 علامة أوروبية — يُعرض شارة "EU Origin" على بطاقة المنتج
             </label>
           </div>
 
@@ -4064,6 +4074,83 @@ export function AdminDashboardPage() {
             </div>
             <button
               onClick={() => void adminService.updateSettings(token, settings)
+                .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "تم الحفظ ✓" : "Saved ✓", "success"); })
+                .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+              className="primary-button"
+            >
+              {translate(language, "adminSave")}
+            </button>
+          </div>
+        </Panel>
+
+        {/* ── COUPON CAMPAIGN PANEL ── */}
+        <Panel title={language === "ar" ? "🎟️ حملة الكوبون (Get-Coupon)" : "🎟️ Coupon Campaign"} description={language === "ar" ? `رابط الصفحة: visadz.store/get-coupon` : "Landing page: visadz.store/get-coupon"}>
+          <div className="space-y-4">
+            {/* Master toggle */}
+            <button
+              onClick={() => setSettings({ ...settings, couponCampaignEnabled: !settings.couponCampaignEnabled })}
+              className={`ghost-button gap-2 ${settings.couponCampaignEnabled ? "border-amber-400 bg-amber-50 text-amber-800" : ""}`}
+            >
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.couponCampaignEnabled ? "bg-amber-500" : "bg-slate-300"}`} />
+              {language === "ar" ? "حملة الكوبون" : "Coupon Campaign"}:
+              <strong>{settings.couponCampaignEnabled ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+            </button>
+
+            {settings.couponCampaignEnabled && (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {/* Discount type + value */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "نوع الخصم" : "Discount type"}</label>
+                  <select value={settings.couponDiscountType ?? "PERCENTAGE"} onChange={(e) => setSettings({ ...settings, couponDiscountType: e.target.value as "PERCENTAGE" | "FIXED" })} className="field-select">
+                    <option value="PERCENTAGE">% نسبة مئوية</option>
+                    <option value="FIXED">دج مبلغ ثابت</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "قيمة الخصم" : "Discount value"}</label>
+                  <input type="number" min={1} value={settings.couponDiscountValue ?? 10} onChange={(e) => setSettings({ ...settings, couponDiscountValue: Number(e.target.value) })} className="field-input" placeholder="10" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "صلاحية الكوبون (أيام)" : "Expires (days)"}</label>
+                  <input type="number" min={1} max={365} value={settings.couponExpiryDays ?? 7} onChange={(e) => setSettings({ ...settings, couponExpiryDays: Number(e.target.value) })} className="field-input" placeholder="7" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "الحد الأدنى للطلب (دج)" : "Min order (DA)"}</label>
+                  <input type="number" min={0} value={settings.couponMinOrder ?? 0} onChange={(e) => setSettings({ ...settings, couponMinOrder: Number(e.target.value) })} className="field-input" placeholder="0 = بدون حد" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "شرط المتابعة (اختياري) — اتركه فارغاً إذا لا تريد شرطاً" : "Follow condition text (optional)"}</label>
+                  <input value={settings.couponConditionText ?? ""} onChange={(e) => setSettings({ ...settings, couponConditionText: e.target.value })} className="field-input" placeholder={language === "ar" ? "مثال: تابعنا على TikTok للحصول على الخصم" : "e.g. Follow us on TikTok to get the discount"} />
+                </div>
+                {/* Social links */}
+                <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "روابط التواصل الاجتماعي (للأزرار)" : "Social links (for buttons)"}</label>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {["tiktok", "facebook", "instagram", "youtube"].map((platform) => (
+                      <div key={platform} className="flex items-center gap-2">
+                        <span className="w-20 shrink-0 text-xs font-semibold capitalize text-slate-600">{platform}</span>
+                        <input
+                          value={(settings.couponSocialLinks as Record<string,string> ?? {})[platform] ?? ""}
+                          onChange={(e) => setSettings({ ...settings, couponSocialLinks: { ...(settings.couponSocialLinks as Record<string,string> ?? {}), [platform]: e.target.value } })}
+                          className="field-input flex-1 text-xs"
+                          placeholder={`https://...`}
+                          dir="ltr"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Preview link */}
+                <div className="md:col-span-2 xl:col-span-3">
+                  <a href="https://visadz.store/get-coupon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100">
+                    🔗 visadz.store/get-coupon — {language === "ar" ? "معاينة الصفحة" : "Preview page"}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => void adminService.updateSettings(token, settings as Parameters<typeof adminService.updateSettings>[1])
                 .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "تم الحفظ ✓" : "Saved ✓", "success"); })
                 .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
               className="primary-button"

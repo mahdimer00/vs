@@ -41,6 +41,7 @@ const productSchema = new Schema(
     affiliateEnabled: { type: Boolean, default: false },
     commissionType: { type: String, enum: ["PERCENTAGE", "FIXED"], default: "PERCENTAGE" },
     commissionValue: { type: Number, default: 0 },
+    isEuropean: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
@@ -79,6 +80,14 @@ const websiteSettingSchema = new Schema(
     otpEnabled: { type: Boolean, default: true },
     otpWhatsappEnabled: { type: Boolean, default: true },
     otpEmailEnabled: { type: Boolean, default: true },
+    // Coupon campaign (get-coupon page)
+    couponCampaignEnabled: { type: Boolean, default: false },
+    couponDiscountType: { type: String, enum: ["PERCENTAGE", "FIXED"], default: "PERCENTAGE" },
+    couponDiscountValue: { type: Number, default: 10 },
+    couponExpiryDays: { type: Number, default: 7 },
+    couponMinOrder: { type: Number, default: 0 },
+    couponConditionText: { type: String, default: "" },
+    couponSocialLinks: { type: Schema.Types.Mixed, default: {} },
     affiliateLevels: {
       type: Schema.Types.Mixed,
       default: {

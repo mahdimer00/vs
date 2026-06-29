@@ -21,6 +21,7 @@ import aiRoutes from "./modules/ai/ai.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 import otpRoutes from "./modules/otp/otp.routes.js";
 import feedRoutes from "./modules/feed/feed.routes.js";
+import couponCampaignRoutes from "./modules/coupon-campaign/coupon-campaign.routes.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { roleMiddleware } from "./middleware/role.middleware.js";
 import { AppError } from "./utils/app-error.js";
@@ -166,6 +167,8 @@ ${msg}
 
 // Public product feed (no auth, no signature) for Google/Meta/TikTok catalogs
 app.use("/api", feedRoutes);
+// Coupon campaign (public claim + admin management)
+app.use("/api", couponCampaignRoutes);
 
 app.use("/api", signatureMiddleware);
 app.use("/api/auth", authRoutes);
