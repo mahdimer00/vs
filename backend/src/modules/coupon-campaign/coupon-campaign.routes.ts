@@ -11,13 +11,13 @@ import { permissionMiddleware } from "../../middleware/permission.middleware.js"
 
 const router = Router();
 
-function generateCouponCode(prefix = "DISC"): string {
+function generateCouponCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     code += chars[crypto.randomInt(0, chars.length)];
   }
-  return `${prefix}-${code}`;
+  return `VS-${code}`;
 }
 
 // Public — get campaign settings (for the landing page)
@@ -59,7 +59,7 @@ router.post("/coupon-campaign/claim", asyncHandler(async (req, res) => {
   // Generate unique code
   let code = generateCouponCode();
   let attempts = 0;
-  while (await PromoCodeModel.exists({ code }) && attempts < 10) {
+  while (await PromoCodeModel.exists({ code }) && attempts < 20) {
     code = generateCouponCode();
     attempts++;
   }

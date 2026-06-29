@@ -1,12 +1,17 @@
-import { BadgePercent, Check, Copy, Facebook, Phone, ShoppingBag } from "lucide-react";
-import { useEffect, useState } from "react";
+/**
+ * Get-Coupon landing page — maximum conversion design
+ * Anti-spam: follow tracking with countdown timer
+ * Mobile-first, RTL Arabic
+ */
+import { BadgePercent, Check, CheckCircle2, Copy, ExternalLink, Phone, ShoppingBag, Timer } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Seo } from "@/components/Seo";
-import { IconField } from "@/components/IconField";
 import { useApp } from "@/hooks/useApp";
 import { apiRequest } from "@/services/apiClient";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
+const FOLLOW_WAIT_SECONDS = 25; // seconds user must wait after clicking follow
 
 interface CampaignSettings {
   enabled: boolean;
@@ -30,18 +35,19 @@ interface ClaimResult {
   expiresAt?: string;
 }
 
-const SOCIAL_ICONS: Record<string, { label: string; color: string }> = {
-  tiktok: { label: "TikTok", color: "bg-slate-900" },
-  facebook: { label: "Facebook", color: "bg-[#1877F2]" },
-  instagram: { label: "Instagram", color: "bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400" },
-  youtube: { label: "YouTube", color: "bg-[#FF0000]" },
-  whatsapp: { label: "WhatsApp", color: "bg-[#25D366]" },
+const PLATFORM_CONFIG: Record<string, { label: string; labelAr: string; gradient: string; icon: string }> = {
+  tiktok: { label: "TikTok", labelAr: "تيك توك", gradient: "from-slate-900 to-slate-700", icon: "🎵" },
+  facebook: { label: "Facebook", labelAr: "فيسبوك", gradient: "from-[#1877F2] to-[#0c5cc9]", icon: "📘" },
+  instagram: { label: "Instagram", labelAr: "انستغرام", gradient: "from-purple-600 via-pink-500 to-orange-400", icon: "📸" },
+  youtube: { label: "YouTube", labelAr: "يوتيوب", gradient: "from-[#FF0000] to-[#cc0000]", icon: "▶️" },
+  whatsapp: { label: "WhatsApp", labelAr: "واتساب", gradient: "from-[#25D366] to-[#1da851]", icon: "💬" },
 };
 
 export function GetCouponPage() {
   const { language } = useApp();
   const [searchParams] = useSearchParams();
   const source = searchParams.get("src") || searchParams.get("utm_source") || "direct";
+  const isAr = language === "ar";
 
   const [campaign, setCampaign] = useState<CampaignSettings | null>(null);
   const [phone, setPhone] = useState("");
@@ -49,9 +55,12 @@ export function GetCouponPage() {
   const [result, setResult] = useState<ClaimResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
-  const [followed, setFollowed] = useState(false);
 
-  const isAr = language === "ar";
+  // Follow tracking anti-spam
+  const [followedPlatform, setFollowedPlatform] = useState<string | null>(null);
+  const [followCountdown, setFollowCountdown] = useState(0);
+  const [followVerified, setFollowVerified] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     apiRequest<CampaignSettings>("/api/coupon-campaign/settings")
@@ -59,9 +68,41 @@ export function GetCouponPage() {
       .catch(() => setCampaign({ enabled: false }));
   }, []);
 
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const handleFollowClick = (platform: string) => {
+    if (followVerified) return;
+    setFollowedPlatform(platform);
+    setFollowCountdown(FOLLOW_WAIT_SECONDS);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setFollowCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setFollowVerified(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const s = campaign?.settings;
+  const hasSocial = Object.keys(s?.couponSocialLinks ?? {}).filter((k) => s?.couponSocialLinks?.[k]).length > 0;
+  const requiresFollow = hasSocial && s?.couponConditionText;
+  const canProceed = !requiresFollow || followVerified;
+
+  const discountLabel = s
+    ? s.couponDiscountType === "PERCENTAGE"
+      ? `${s.couponDiscountValue}%`
+      : `${s.couponDiscountValue.toLocaleString("ar-DZ")} ${isAr ? "دج" : "DA"}`
+    : "";
+
   const claim = async () => {
     if (!phonePattern.test(phone.trim())) {
-      setError(isAr ? "أدخل رقم هاتف صحيح (05/06/07...)" : "Enter a valid phone number");
+      setError(isAr ? "أدخل رقم هاتف جزائري صحيح" : "Enter a valid Algerian phone number");
       return;
     }
     setSubmitting(true);
@@ -73,7 +114,7 @@ export function GetCouponPage() {
       });
       setResult(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ، حاول مجدداً");
+      setError(e instanceof Error ? e.message : (isAr ? "حدث خطأ، حاول مجدداً" : "Error, please try again"));
     } finally {
       setSubmitting(false);
     }
@@ -83,185 +124,275 @@ export function GetCouponPage() {
     if (!result?.code) return;
     await navigator.clipboard.writeText(result.code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
-  const discountLabel = result
-    ? result.discountType === "PERCENTAGE"
-      ? `${result.discountValue}%`
-      : `${result.discountValue.toLocaleString("ar-DZ")} ${isAr ? "دج" : "DA"}`
-    : campaign?.settings?.couponDiscountType === "PERCENTAGE"
-      ? `${campaign.settings.couponDiscountValue}%`
-      : `${(campaign?.settings?.couponDiscountValue ?? 0).toLocaleString()} ${isAr ? "دج" : "DA"}`;
+  if (!campaign) return (
+    <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-400 border-t-transparent" />
+    </div>
+  );
 
-  if (!campaign) return null;
+  if (!campaign.enabled) return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 text-center">
+      <div className="text-6xl mb-4">🎟️</div>
+      <h1 className="text-2xl font-bold text-white mb-3">{isAr ? "الحملة غير متاحة حالياً" : "Campaign not available"}</h1>
+      <Link to="/" className="mt-4 inline-flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-semibold text-white hover:bg-teal-500">
+        <ShoppingBag className="h-4 w-4" />
+        {isAr ? "تسوق الآن" : "Shop now"}
+      </Link>
+    </div>
+  );
 
-  if (!campaign.enabled) {
+  // ── RESULT SCREEN ──
+  if (result) {
     return (
-      <div className="mx-auto max-w-lg py-20 text-center">
-        <div className="text-5xl mb-4">🎟️</div>
-        <h1 className="text-xl font-bold text-slate-950">{isAr ? "الحملة غير متاحة حالياً" : "Campaign not available"}</h1>
-        <Link to="/" className="mt-6 inline-flex items-center gap-2 rounded-full bg-teal-600 px-6 py-3 text-sm font-semibold text-white">
-          {isAr ? "تسوق الآن" : "Shop now"}
-        </Link>
+      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-slate-950 to-slate-950 flex items-center justify-center px-4 py-10" dir={isAr ? "rtl" : "ltr"}>
+        <Seo title={isAr ? "كودك جاهز!" : "Your code is ready!"} noindex path="/get-coupon" />
+        <div className="w-full max-w-sm space-y-5">
+          {/* Success animation */}
+          <div className="text-center">
+            <div className="mx-auto mb-4 grid h-24 w-24 place-items-center rounded-full bg-emerald-500/20 ring-4 ring-emerald-500/30">
+              <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+            </div>
+            <h1 className="text-3xl font-black text-white">
+              {result.alreadyClaimed
+                ? (isAr ? "كودك الخاص 🎟️" : "Your code 🎟️")
+                : (isAr ? "تهانينا! 🎉" : "Congratulations! 🎉")}
+            </h1>
+            <p className="mt-2 text-emerald-300 font-semibold">
+              {isAr ? `خصم ${discountLabel} ينتظرك` : `${discountLabel} discount waiting for you`}
+            </p>
+          </div>
+
+          {/* Big code card */}
+          <div className="overflow-hidden rounded-3xl border-2 border-amber-400/30 bg-gradient-to-br from-amber-950/50 to-slate-900">
+            <div className="px-6 py-5 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-400/70 mb-3">
+                {isAr ? "كود الخصم الخاص بك" : "Your exclusive discount code"}
+              </p>
+              <div className="font-mono text-4xl font-black tracking-[0.35em] text-amber-300 select-all">
+                {result.code}
+              </div>
+              {result.expiresAt && (
+                <p className="mt-3 text-xs text-slate-400">
+                  {isAr
+                    ? `⏳ ينتهي: ${new Date(result.expiresAt).toLocaleDateString("ar-DZ")}`
+                    : `⏳ Expires: ${new Date(result.expiresAt).toLocaleDateString()}`}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => void copyCode()}
+              className={`flex w-full items-center justify-center gap-2.5 py-4 text-sm font-bold transition ${
+                copied
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "bg-white/5 text-slate-300 hover:bg-white/10"
+              }`}
+            >
+              {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+              {copied ? (isAr ? "✓ تم النسخ!" : "✓ Copied!") : (isAr ? "انسخ الكود" : "Copy code")}
+            </button>
+          </div>
+
+          {/* CTA */}
+          <Link
+            to="/products"
+            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-5 font-bold text-white shadow-[0_12px_32px_rgba(20,184,166,0.4)] transition hover:from-teal-400 active:scale-[0.98]"
+          >
+            <span className="flex items-center gap-2.5 text-base">
+              <ShoppingBag className="h-6 w-6" />
+              {isAr ? "تسوق الآن واستخدم الكود" : "Shop now and use code"}
+            </span>
+            <span className="rounded-xl bg-white/20 px-3 py-1.5 text-sm font-extrabold">{discountLabel} {isAr ? "خصم" : "OFF"}</span>
+          </Link>
+
+          <p className="text-center text-xs text-slate-500">
+            {isAr ? "أدخل الكود عند إتمام الطلب — الدفع عند الاستلام فقط" : "Enter code at checkout — cash on delivery"}
+          </p>
+        </div>
       </div>
     );
   }
 
-  const s = campaign.settings!;
-  const socialLinks = s.couponSocialLinks ?? {};
-  const hasSocial = Object.keys(socialLinks).length > 0;
-  const requiresFollow = hasSocial && s.couponConditionText;
+  // ── MAIN FUNNEL ──
+  const socialEntries = Object.entries(s?.couponSocialLinks ?? {}).filter(([, url]) => url);
+  const step = !requiresFollow ? 1 : !followVerified ? 1 : 2;
 
   return (
-    <div className="mx-auto max-w-lg space-y-0 pb-10" dir={isAr ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" dir={isAr ? "rtl" : "ltr"}>
       <Seo title={isAr ? `احصل على خصم ${discountLabel}` : `Get ${discountLabel} discount`} noindex path="/get-coupon" />
 
       {/* Hero */}
-      <div className="overflow-hidden rounded-b-[3rem] bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 px-6 pb-12 pt-10 text-center">
-        <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-amber-400/20 ring-2 ring-amber-400/30">
-          <BadgePercent className="h-10 w-10 text-amber-300" />
+      <div className="relative overflow-hidden px-4 pt-14 pb-10 text-center">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-amber-400/10 blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 h-48 w-48 rounded-full bg-teal-500/10 blur-2xl" />
+          <div className="absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-purple-500/10 blur-2xl" />
         </div>
-        <h1 className="font-serif text-3xl font-bold text-white sm:text-4xl">
-          {isAr ? `خصم ${discountLabel} خاص بك` : `Your ${discountLabel} discount`}
-        </h1>
-        <p className="mt-3 text-slate-300 leading-relaxed">
-          {isAr
-            ? `احصل على كود خصم خاص على جميع منتجات ${s.storeName} — استخدمه مرة واحدة`
-            : `Get an exclusive discount code for ${s.storeName}`}
-        </p>
-        {s.couponMinOrder > 0 && (
-          <p className="mt-2 text-sm text-amber-300">
-            {isAr ? `الحد الأدنى للطلب: ${s.couponMinOrder.toLocaleString("ar-DZ")} دج` : `Min order: ${s.couponMinOrder.toLocaleString()} DA`}
+        <div className="relative z-10 mx-auto max-w-sm">
+          <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-[0_12px_32px_rgba(251,191,36,0.4)]">
+            <BadgePercent className="h-10 w-10 text-white" />
+          </div>
+          <h1 className="text-3xl font-black leading-tight text-white sm:text-4xl">
+            {isAr
+              ? <><span className="text-amber-400">خصم {discountLabel}</span><br />خاص بك!</>
+              : <><span className="text-amber-400">{discountLabel} off</span><br />just for you!</>}
+          </h1>
+          <p className="mt-3 text-slate-400 leading-relaxed">
+            {isAr
+              ? `احصل على كود خصم حصري على منتجات ${s?.storeName || "المتجر"}`
+              : `Get an exclusive coupon for ${s?.storeName || "our store"}`}
           </p>
-        )}
+          {s?.couponMinOrder ? (
+            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-400">
+              {isAr ? `الحد الأدنى: ${s.couponMinOrder.toLocaleString("ar-DZ")} دج` : `Min order: ${s.couponMinOrder.toLocaleString()} DA`}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      <div className="px-4 pt-8 space-y-6">
+      <div className="mx-auto max-w-sm px-4 space-y-4 pb-12">
 
-        {/* Step 1 — Follow on social (if required) */}
-        {requiresFollow && !result && (
-          <div className="surface-card p-5 space-y-4">
-            <div className="flex items-center gap-2 font-bold text-slate-950">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">1</span>
-              {s.couponConditionText || (isAr ? "تابعنا على وسائل التواصل" : "Follow us on social media")}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {Object.entries(socialLinks).map(([platform, url]) => {
-                const info = SOCIAL_ICONS[platform] ?? { label: platform, color: "bg-slate-700" };
-                return (
-                  <a key={platform} href={String(url)} target="_blank" rel="noopener noreferrer"
-                    onClick={() => setFollowed(true)}
-                    className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:opacity-90 active:scale-95 ${info.color}`}>
-                    {platform === "tiktok" && <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V9.41a8.16 8.16 0 004.77 1.52V7.49a4.85 4.85 0 01-1-.8z"/></svg>}
-                    {platform === "facebook" && <Facebook className="h-5 w-5" />}
-                    {platform === "instagram" && <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>}
-                    {!["tiktok","facebook","instagram"].includes(platform) && <span>🔗</span>}
-                    {info.label}
-                  </a>
-                );
-              })}
-            </div>
-            {followed && (
-              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-                <Check className="h-4 w-4" /> {isAr ? "شكراً على المتابعة! انتقل للخطوة التالية" : "Thanks for following!"}
+        {/* ── STEP 1: Follow ── */}
+        {requiresFollow && (
+          <div className={`overflow-hidden rounded-3xl border transition-all ${followVerified ? "border-emerald-500/30 bg-emerald-950/30" : "border-slate-700 bg-slate-800/50"}`}>
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black ${followVerified ? "bg-emerald-500 text-white" : "bg-amber-400 text-slate-900"}`}>
+                  {followVerified ? <Check className="h-5 w-5" /> : "1"}
+                </div>
+                <div>
+                  <div className="font-bold text-white text-sm">{s?.couponConditionText || (isAr ? "تابعنا أولاً" : "Follow us first")}</div>
+                  {followVerified
+                    ? <p className="text-xs text-emerald-400 mt-0.5">{isAr ? "تم التحقق ✓ انتقل للخطوة التالية" : "Verified ✓ proceed to next step"}</p>
+                    : <p className="text-xs text-slate-400 mt-0.5">{isAr ? "اضغط على الزر وانتظر للتحقق" : "Click the button and wait to verify"}</p>}
+                </div>
               </div>
-            )}
+
+              {!followVerified && (
+                <div className="mt-4 space-y-2.5">
+                  {socialEntries.map(([platform, url]) => {
+                    const cfg = PLATFORM_CONFIG[platform] ?? { label: platform, labelAr: platform, gradient: "from-slate-700 to-slate-600", icon: "🔗" };
+                    const isActive = followedPlatform === platform;
+                    return (
+                      <a
+                        key={platform}
+                        href={String(url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => handleFollowClick(platform)}
+                        className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r px-4 py-3.5 text-white transition active:scale-[0.97] ${cfg.gradient}`}
+                      >
+                        <span className="flex items-center gap-2.5 font-bold text-sm">
+                          <span className="text-xl">{cfg.icon}</span>
+                          {isAr ? `تابعنا على ${cfg.labelAr}` : `Follow on ${cfg.label}`}
+                        </span>
+                        <ExternalLink className="h-4 w-4 opacity-70 shrink-0" />
+                      </a>
+                    );
+                  })}
+
+                  {/* Countdown after click */}
+                  {followedPlatform && followCountdown > 0 && (
+                    <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2 text-amber-400">
+                        <Timer className="h-5 w-5" />
+                        <span className="font-bold text-lg">{followCountdown}s</span>
+                      </div>
+                      <p className="mt-1 text-xs text-amber-300/80">
+                        {isAr ? "انتظر للتحقق من المتابعة..." : "Waiting to verify your follow..."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Step 2 — Phone input */}
-        {!result && (
-          <div className="surface-card p-5 space-y-4">
-            {requiresFollow && (
-              <div className="flex items-center gap-2 font-bold text-slate-950">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">2</span>
-                {isAr ? "أدخل رقم هاتفك" : "Enter your phone number"}
+        {/* ── STEP 2: Phone ── */}
+        <div className={`overflow-hidden rounded-3xl border transition-all ${!canProceed ? "border-slate-800 bg-slate-900/30 opacity-60" : "border-slate-700 bg-slate-800/60"}`}>
+          <div className="px-5 py-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black ${canProceed ? "bg-amber-400 text-slate-900" : "bg-slate-700 text-slate-500"}`}>
+                {requiresFollow ? "2" : "1"}
               </div>
-            )}
-            {!requiresFollow && (
-              <h2 className="font-bold text-slate-950 text-lg">{isAr ? "أدخل رقمك واحصل على الكود فوراً" : "Enter your number to get the code"}</h2>
-            )}
-            <IconField icon={Phone}>
+              <div>
+                <div className="font-bold text-white text-sm">{isAr ? "أدخل رقم هاتفك" : "Enter your phone number"}</div>
+                <p className="text-xs text-slate-400 mt-0.5">{isAr ? "سيُرسَل الكود لمرة واحدة فقط لكل رقم" : "One code per phone number"}</p>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2">
+                <Phone className="h-5 w-5 text-slate-400" />
+              </div>
               <input
                 type="tel"
                 inputMode="tel"
                 dir="ltr"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                onKeyDown={(e) => e.key === "Enter" && void claim()}
-                className="field-input field-input-icon w-full"
+                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && canProceed && void claim()}
+                disabled={!canProceed}
+                className="w-full rounded-2xl border border-slate-600 bg-slate-700/60 py-4 ps-12 pe-4 text-lg font-semibold text-white placeholder:text-slate-500 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 disabled:opacity-40"
                 placeholder="0555 12 34 56"
                 autoComplete="tel"
               />
-            </IconField>
-            {error && <p className="text-sm font-medium text-rose-600">⚠️ {error}</p>}
+            </div>
+
+            {error && (
+              <p className="flex items-center gap-2 text-sm font-semibold text-rose-400">
+                <span>⚠️</span> {error}
+              </p>
+            )}
+
             <button
               type="button"
-              disabled={submitting || phone.length < 10 || (requiresFollow && !followed)}
+              disabled={submitting || !canProceed || phone.length < 10}
               onClick={() => void claim()}
-              className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 py-4 text-base font-bold text-slate-950 shadow-[0_8px_24px_rgba(251,191,36,0.4)] transition hover:from-amber-300 active:scale-[0.98] disabled:opacity-60"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 px-6 py-4.5 font-bold text-slate-900 shadow-[0_8px_28px_rgba(251,191,36,0.35)] transition hover:from-amber-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ paddingTop: "1.125rem", paddingBottom: "1.125rem" }}
             >
-              <BadgePercent className="h-5 w-5" />
-              {submitting
-                ? (isAr ? "جارٍ التوليد..." : "Generating...")
-                : (isAr ? `احصل على خصم ${discountLabel}` : `Get ${discountLabel} off`)}
+              <span className="flex items-center gap-2.5 text-base">
+                <BadgePercent className="h-6 w-6" />
+                {submitting
+                  ? (isAr ? "جارٍ التوليد..." : "Generating...")
+                  : (isAr ? `احصل على خصم ${discountLabel}` : `Get ${discountLabel} off`)}
+              </span>
+              <span className="rounded-xl bg-slate-900/20 px-3 py-1.5 text-sm font-black">←</span>
             </button>
-            {requiresFollow && !followed && (
-              <p className="text-center text-xs text-slate-400">{isAr ? "تابعنا أولاً ثم أدخل رقمك" : "Follow us first, then enter your number"}</p>
+
+            {!canProceed && requiresFollow && (
+              <p className="text-center text-xs text-slate-500">
+                {isAr ? "أكمل الخطوة الأولى أولاً" : "Complete step 1 first"}
+              </p>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Result — coupon revealed */}
-        {result && (
-          <div className="surface-card overflow-hidden">
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-5 text-center text-white">
-              <div className="text-3xl mb-1">🎉</div>
-              <h2 className="text-xl font-extrabold">
-                {result.alreadyClaimed
-                  ? (isAr ? "كودك الخاص بك" : "Your existing code")
-                  : (isAr ? "تهانينا! كودك جاهز" : "Congratulations! Here's your code")}
-              </h2>
-              <p className="mt-1 text-white/80 text-sm">
-                {isAr ? `خصم ${discountLabel} على طلبك القادم` : `${discountLabel} off your next order`}
-              </p>
+        {/* Trust row */}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { icon: "🔒", text: isAr ? "خصوصية تامة" : "100% private" },
+            { icon: "⚡", text: isAr ? "فوري" : "Instant" },
+            { icon: "💳", text: isAr ? "دفع عند الاستلام" : "Pay on delivery" },
+          ].map((item) => (
+            <div key={item.text} className="rounded-2xl border border-slate-700/50 bg-slate-800/30 px-2 py-3">
+              <div className="text-xl mb-1">{item.icon}</div>
+              <div className="text-[11px] font-semibold text-slate-400">{item.text}</div>
             </div>
-            <div className="p-6 space-y-4">
-              {/* Big coupon code */}
-              <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 p-5 text-center">
-                <div className="font-mono text-3xl font-black tracking-[0.3em] text-slate-950">{result.code}</div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {result.expiresAt
-                    ? (isAr ? `ينتهي في: ${new Date(result.expiresAt).toLocaleDateString("ar-DZ")}` : `Expires: ${new Date(result.expiresAt).toLocaleDateString()}`)
-                    : (isAr ? "كود لمرة واحدة — استخدمه في أول طلب" : "One-time use — valid on your first order")}
-                </div>
-              </div>
+          ))}
+        </div>
 
-              <button
-                type="button"
-                onClick={() => void copyCode()}
-                className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition ${copied ? "bg-emerald-100 text-emerald-700" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? (isAr ? "تم النسخ ✓" : "Copied ✓") : (isAr ? "نسخ الكود" : "Copy code")}
-              </button>
-
-              <Link
-                to={`/products?promo=${result.code}`}
-                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 py-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(20,184,166,0.3)] transition hover:from-teal-500"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {isAr ? "تسوق الآن واستخدم الكود" : "Shop now and use the code"}
-              </Link>
-
-              <p className="text-center text-xs text-slate-400">
-                {isAr ? "أدخل الكود في صفحة الطلب — الدفع عند الاستلام" : "Enter code at checkout — pay on delivery"}
-              </p>
-            </div>
-          </div>
-        )}
-
+        {/* Store link */}
+        <div className="text-center">
+          <Link to="/products" className="text-xs text-slate-500 hover:text-slate-300 transition">
+            {isAr ? "أو تسوق بدون كوبون ←" : "Or shop without coupon →"}
+          </Link>
+        </div>
       </div>
     </div>
   );
