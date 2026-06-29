@@ -11,7 +11,7 @@ import { useApp } from "@/hooks/useApp";
 import { apiRequest } from "@/services/apiClient";
 
 const phonePattern = /^(05|06|07)\d{8}$/;
-const FOLLOW_WAIT_SECONDS = 25; // seconds user must wait after clicking follow
+const FOLLOW_WAIT_SECONDS = 20; // seconds after returning from social tab
 
 interface CampaignSettings {
   enabled: boolean;
@@ -88,7 +88,9 @@ export function GetCouponPage() {
   const [followedPlatform, setFollowedPlatform] = useState<string | null>(null);
   const [followCountdown, setFollowCountdown] = useState(0);
   const [followVerified, setFollowVerified] = useState(false);
+  const [waitingForReturn, setWaitingForReturn] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clickedAt = useRef<number>(0);
 
   useEffect(() => {
     apiRequest<CampaignSettings>("/api/coupon-campaign/settings")
@@ -100,21 +102,49 @@ export function GetCouponPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  // Start countdown ONLY when user comes back to the tab
+  useEffect(() => {
+    if (!followedPlatform || followVerified) return;
+
+    const startCountdown = () => {
+      if (followVerified || !waitingForReturn) return;
+      setWaitingForReturn(false);
+      setFollowCountdown(FOLLOW_WAIT_SECONDS);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setFollowCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            setFollowVerified(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible" && waitingForReturn) {
+        startCountdown();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onVisibilityChange);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followedPlatform, waitingForReturn, followVerified]);
+
   const handleFollowClick = (platform: string) => {
     if (followVerified) return;
     setFollowedPlatform(platform);
-    setFollowCountdown(FOLLOW_WAIT_SECONDS);
+    setWaitingForReturn(true);
+    setFollowCountdown(0);
+    clickedAt.current = Date.now();
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setFollowCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          setFollowVerified(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
   };
 
   const s = campaign?.settings;
@@ -322,15 +352,30 @@ export function GetCouponPage() {
                     );
                   })}
 
-                  {/* Countdown after click */}
-                  {followedPlatform && followCountdown > 0 && (
+                  {/* Waiting for user to return from social tab */}
+                  {followedPlatform && waitingForReturn && (
+                    <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2 text-blue-300 mb-1">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                        <span className="font-bold text-sm">
+                          {isAr ? "تابعنا ثم ارجع لهذه الصفحة" : "Follow us then come back here"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-400/70">
+                        {isAr ? "سيبدأ العداد تلقائياً عند عودتك ←" : "Timer starts automatically when you return ←"}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Countdown after returning */}
+                  {followedPlatform && !waitingForReturn && followCountdown > 0 && (
                     <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2 text-amber-400">
                         <Timer className="h-5 w-5" />
-                        <span className="font-bold text-lg">{followCountdown}s</span>
+                        <span className="font-bold text-2xl">{followCountdown}s</span>
                       </div>
                       <p className="mt-1 text-xs text-amber-300/80">
-                        {isAr ? "انتظر للتحقق من المتابعة..." : "Waiting to verify your follow..."}
+                        {isAr ? "جارٍ التحقق من المتابعة..." : "Verifying your follow..."}
                       </p>
                     </div>
                   )}

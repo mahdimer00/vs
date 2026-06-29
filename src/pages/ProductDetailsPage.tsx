@@ -1,4 +1,4 @@
-import { ArrowRight, BadgePercent, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, ChevronLeft, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
