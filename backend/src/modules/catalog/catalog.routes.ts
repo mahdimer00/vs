@@ -85,7 +85,8 @@ router.get(
     return res.json(
       products.map((product) => {
         const productVariants = variants.filter((variant) => String(variant.productId) === String(product._id));
-        return { ...product, variants: productVariants, stock: productVariants.reduce((sum, variant) => sum + variant.stock, 0) };
+        const stock = productVariants.reduce((sum, variant) => sum + variant.stock, 0);
+        return { ...product, variants: productVariants, stock, isSoldOut: product.isSoldOut || stock <= 0 };
       }),
     );
   }),
@@ -99,7 +100,8 @@ router.get(
       return res.status(404).json({ message: "Product not found" });
     }
     const variants = await ProductVariantModel.find({ productId: product._id }).lean();
-    return res.json({ ...product, variants, stock: variants.reduce((sum, variant) => sum + variant.stock, 0) });
+    const stock = variants.reduce((sum, variant) => sum + variant.stock, 0);
+    return res.json({ ...product, variants, stock, isSoldOut: product.isSoldOut || stock <= 0 });
   }),
 );
 

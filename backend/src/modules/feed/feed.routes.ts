@@ -17,10 +17,11 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function resolveImageUrl(url: string): string {
+function resolveImageUrl(url: string, version?: string): string {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
-  return `${BACKEND_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  const full = url.startsWith("http") ? url : `${BACKEND_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  if (!version) return full;
+  return `${full}${full.includes("?") ? "&" : "?"}v=${version}`;
 }
 
 // Google Merchant Center RSS 2.0 feed
@@ -51,12 +52,13 @@ router.get(
 
     for (const product of products) {
       const pvs = variantsByProduct.get(String(product._id)) ?? [];
+      const totalStock = pvs.reduce((sum, v) => sum + v.stock, 0);
       const activeVariants = pvs.filter((v) => v.stock > 0);
-      if (activeVariants.length === 0 && product.stock === 0) continue;
+      if (totalStock === 0) continue;
 
       const price = product.discountPrice ?? product.basePrice;
       const image = product.images[0] ?? activeVariants[0]?.images[0] ?? "";
-      const availability = product.stock > 0 || activeVariants.some((v) => v.stock > 0) ? "in_stock" : "out_of_stock";
+      const availability = totalStock > 0 ? "in_stock" : "out_of_stock";
       const condition = product.condition === "NEW" ? "new" : "used";
       const cat = typeof product.category === "object" && product.category !== null && "_id" in product.category
         ? categoryMap.get(String((product.category as { _id: unknown })._id))
@@ -87,7 +89,8 @@ router.get(
       // 222 = Electronics > Computers & Peripherals
 
       const productUrl = `${STORE_URL}/products/${escapeXml(product.slug)}`;
-      const imageUrl = escapeXml(resolveImageUrl(image));
+      const imgVersion = product.updatedAt ? new Date(product.updatedAt).getTime().toString() : undefined;
+      const imageUrl = escapeXml(resolveImageUrl(image, imgVersion));
 
       // One item per product (Google also supports item_group_id for variants)
       const rawTitle = (product.name.fr || product.name.ar || product.name.en || "").trim();
@@ -122,7 +125,7 @@ router.get(
         if (extraImg && existingItem) {
           items[items.length - 1] = existingItem.replace(
             "</item>",
-            `\n      <g:additional_image_link>${escapeXml(resolveImageUrl(extraImg))}</g:additional_image_link>\n    </item>`,
+            `\n      <g:additional_image_link>${escapeXml(resolveImageUrl(extraImg, imgVersion))}</g:additional_image_link>\n    </item>`,
           );
         }
       }
