@@ -1,10 +1,11 @@
 import { apiRequest } from "@/services/apiClient";
-import type { Affiliate, Commission, CouponRequest, Order, PromoCode, WithdrawalRequest } from "@/types";
+import type { Affiliate, AffiliateRecentVisitor, Commission, CouponRequest, Order, PromoCode, WithdrawalRequest } from "@/types";
 
 export const affiliateService = {
-  trackClick(referralCode: string) {
+  trackClick(referralCode: string, payload?: { visitorId?: string; landingPath?: string; referrer?: string; shortCode?: string }) {
     return apiRequest<{ success: boolean }>("/api/affiliate/track-click/" + referralCode, {
       method: "POST",
+      body: JSON.stringify(payload ?? {}),
     });
   },
   getDashboard(token: string) {
@@ -12,11 +13,15 @@ export const affiliateService = {
       affiliate: Affiliate;
       ordersCount: number;
       clicksCount: number;
+      visitorsCount: number;
       teamCount: number;
       referralBonusAmount: number;
       referralLink: string;
+      shortReferralLink: string;
       inviteLink: string;
+      shortInviteLink: string;
       promoCodes: PromoCode[];
+      recentVisitors: AffiliateRecentVisitor[];
     }>("/api/affiliate/dashboard", { token });
   },
   getOrders(token: string) {
@@ -26,7 +31,7 @@ export const affiliateService = {
     return apiRequest<Commission[]>("/api/affiliate/commissions", { token });
   },
   getReferralLink(token: string) {
-    return apiRequest<{ referralLink: string; promoCodes: PromoCode[] }>("/api/affiliate/referral-link", { token });
+    return apiRequest<{ referralLink: string; shortReferralLink: string; shortInviteLink: string; promoCodes: PromoCode[] }>("/api/affiliate/referral-link", { token });
   },
   requestWithdrawal(token: string, payload: { amount: number; method: string; accountInfo: string }) {
     return apiRequest<{ success: boolean }>("/api/affiliate/withdrawals", {

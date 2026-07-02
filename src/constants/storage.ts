@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   adminSession: "visastore-admin-session",
   affiliateSession: "visastore-affiliate-session",
   affiliateRef: "visastore-affiliate-ref",
+  affiliateVisitorId: "visastore-affiliate-visitor-id",
   pendingOrder: "visastore-pending-order",
   confirmedOrder: "visastore-confirmed-order",
   wishlist: "visastore-wishlist",

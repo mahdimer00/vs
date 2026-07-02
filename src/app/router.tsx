@@ -8,6 +8,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 const AdminDashboardPage = lazy(() => import("@/pages/AdminDashboardPage").then((module) => ({ default: module.AdminDashboardPage })));
 const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage").then((module) => ({ default: module.AdminLoginPage })));
 const AffiliateDashboardPage = lazy(() => import("@/pages/AffiliateDashboardPage").then((module) => ({ default: module.AffiliateDashboardPage })));
+const AffiliateRedirectPage = lazy(() => import("@/pages/AffiliateRedirectPage").then((module) => ({ default: module.AffiliateRedirectPage })));
 const AffiliateLoginPage = lazy(() => import("@/pages/AffiliateLoginPage").then((module) => ({ default: module.AffiliateLoginPage })));
 const AffiliateRegisterPage = lazy(() => import("@/pages/AffiliateRegisterPage").then((module) => ({ default: module.AffiliateRegisterPage })));
 const AffiliateForgotPasswordPage = lazy(() => import("@/pages/AffiliateForgotPasswordPage").then((module) => ({ default: module.AffiliateForgotPasswordPage })));
@@ -32,6 +33,8 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "r/:ref", element: <AffiliateRedirectPage /> },
+      { path: "r/:ref/*", element: <AffiliateRedirectPage /> },
       { path: "products", element: <ProductsPage /> },
       { path: "products/:slug", element: <ProductDetailsPage /> },
       { path: "categories", element: <CategoriesPage /> },

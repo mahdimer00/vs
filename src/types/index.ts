@@ -134,6 +134,15 @@ export interface Affiliate {
   createdAt: string;
 }
 
+export interface AffiliateRecentVisitor {
+  visitorKey: string;
+  landingPath: string;
+  referrer: string;
+  shortCode: string;
+  visits: number;
+  lastVisitedAt: string;
+}
+
 export interface WithdrawalRequest {
   _id: string;
   affiliate: string | Affiliate;
@@ -186,6 +195,9 @@ export interface Order {
   zrTrackingNumber?: string | null;
   zrTerritoryId?: string | null;
   adminNote?: string | null;
+  customerIp?: string | null;
+  ipCountry?: string | null;
+  userAgent?: string | null;
   createdAt: string;
   confirmationToken?: string;
 }

@@ -24,8 +24,12 @@ const affiliateClickSchema = new Schema(
   {
     affiliate: { type: Schema.Types.ObjectId, ref: "Affiliate", required: true },
     referralCode: { type: String, required: true },
+    visitorId: String,
     ip: String,
     userAgent: String,
+    landingPath: String,
+    referrer: String,
+    shortCode: String,
   },
   { timestamps: true },
 );

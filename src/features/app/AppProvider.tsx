@@ -7,6 +7,7 @@ import { buildVariantLabel, getLocalizedText, isRTL } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { pixelAddToCart } from "@/utils/pixel";
 import { ttqAddToCart } from "@/utils/tiktok";
+import { getOrCreateAffiliateVisitorId } from "@/utils/affiliateVisitor";
 import { trackEvent } from "@/utils/tracking";
 import { readSessionStorage, readStorage, writeSessionStorage, writeStorage } from "@/utils/storage";
 
@@ -161,7 +162,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setAffiliateRef: (value) => {
         setAffiliateRefState(value);
         if (value) {
-          void affiliateService.trackClick(value).catch(() => undefined);
+          void affiliateService.trackClick(value, {
+            visitorId: getOrCreateAffiliateVisitorId(),
+            landingPath: typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "",
+            referrer: typeof document !== "undefined" ? document.referrer : "",
+            shortCode: typeof window !== "undefined" && window.location.pathname.startsWith("/r/") ? window.location.pathname : "",
+          }).catch(() => undefined);
         }
       },
       rememberPendingOrder,

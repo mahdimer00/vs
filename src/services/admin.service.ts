@@ -39,6 +39,13 @@ export const adminService = {
       body: JSON.stringify({ status }),
     });
   },
+  updateOrder(token: string, orderId: string, payload: Record<string, unknown>) {
+    return apiRequest<Order>(`/api/admin/orders/${orderId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
   deleteOrder(token: string, orderId: string) {
     return apiRequest<{ success: boolean }>(`/api/admin/orders/${orderId}`, { method: "DELETE", token });
   },

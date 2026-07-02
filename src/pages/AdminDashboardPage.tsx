@@ -259,6 +259,68 @@ type SubAdminFormState = {
   permissions: AdminPermission[];
 };
 
+type OrderEditDraft = {
+  customer: {
+    fullName: string;
+    phone: string;
+    phone2: string;
+    wilayaCode: string;
+    commune: string;
+    address: string;
+  };
+  deliveryType: "HOME_DELIVERY" | "DESK_PICKUP";
+  shippingFee: string;
+  discount: string;
+  promoCode: string;
+  zrTerritoryId: string;
+  items: Array<{
+    productId: string;
+    variantId: string;
+    productSlug: string;
+    variantLabel: string;
+    quantity: string;
+    unitPrice: string;
+    image?: string;
+    productName: {
+      ar: string;
+      fr: string;
+      en: string;
+    };
+  }>;
+};
+
+function createOrderEditDraft(order: Order): OrderEditDraft {
+  return {
+    customer: {
+      fullName: order.customer.fullName,
+      phone: order.customer.phone,
+      phone2: order.customer.phone2 ?? "",
+      wilayaCode: typeof order.customer.wilaya === "string" ? "" : order.customer.wilaya.code,
+      commune: order.customer.commune,
+      address: order.customer.address,
+    },
+    deliveryType: order.deliveryType,
+    shippingFee: String(order.shippingFee),
+    discount: String(order.discount),
+    promoCode: order.promoCode ?? "",
+    zrTerritoryId: order.zrTerritoryId ?? "",
+    items: order.items.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId ?? "",
+      productSlug: item.productSlug,
+      variantLabel: item.variantLabel,
+      quantity: String(item.quantity),
+      unitPrice: String(item.unitPrice),
+      image: item.image,
+      productName: {
+        ar: item.productName.ar ?? "",
+        fr: item.productName.fr ?? "",
+        en: item.productName.en ?? "",
+      },
+    })),
+  };
+}
+
 const defaultSubAdminForm: SubAdminFormState = {
   name: "",
   email: "",
@@ -347,6 +409,9 @@ export function AdminDashboardPage() {
   const [zrCancellingId, setZrCancellingId] = useState<string | null>(null);
   const [orderNoteEditing, setOrderNoteEditing] = useState<string | null>(null);
   const [orderNoteDraft, setOrderNoteDraft] = useState("");
+  const [orderEditingId, setOrderEditingId] = useState<string | null>(null);
+  const [orderEditDraft, setOrderEditDraft] = useState<OrderEditDraft | null>(null);
+  const [orderSavingId, setOrderSavingId] = useState<string | null>(null);
   const [printLabelId, setPrintLabelId] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkLabelPrinting, setBulkLabelPrinting] = useState(false);
@@ -2193,6 +2258,58 @@ export function AdminDashboardPage() {
     }
   };
 
+  const startOrderEdit = (order: Order) => {
+    setOrderEditingId(order._id);
+    setOrderEditDraft(createOrderEditDraft(order));
+  };
+
+  const saveOrderEdit = async (order: Order) => {
+    if (!orderEditDraft) {
+      return;
+    }
+
+    setOrderSavingId(order._id);
+    try {
+      await adminService.updateOrder(token, order._id, {
+        customer: {
+          fullName: orderEditDraft.customer.fullName.trim(),
+          phone: orderEditDraft.customer.phone.trim(),
+          phone2: orderEditDraft.customer.phone2.trim(),
+          wilayaCode: orderEditDraft.customer.wilayaCode.trim(),
+          commune: orderEditDraft.customer.commune.trim(),
+          address: orderEditDraft.customer.address.trim(),
+        },
+        deliveryType: orderEditDraft.deliveryType,
+        shippingFee: Number(orderEditDraft.shippingFee || 0),
+        discount: Number(orderEditDraft.discount || 0),
+        promoCode: orderEditDraft.promoCode.trim(),
+        zrTerritoryId: orderEditDraft.zrTerritoryId.trim(),
+        items: orderEditDraft.items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          productSlug: item.productSlug,
+          variantLabel: item.variantLabel.trim(),
+          quantity: Number(item.quantity || 0),
+          unitPrice: Number(item.unitPrice || 0),
+          image: item.image,
+          productName: {
+            ar: item.productName.ar.trim(),
+            fr: item.productName.fr.trim(),
+            en: item.productName.en.trim(),
+          },
+        })),
+      });
+      pushToast(language === "ar" ? "تم تحديث الطلب ✓" : language === "fr" ? "Commande mise à jour" : "Order updated", "success");
+      setOrderEditingId(null);
+      setOrderEditDraft(null);
+      await loadAll();
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
+    } finally {
+      setOrderSavingId(null);
+    }
+  };
+
   const loadZRHistory = async (orderId: string) => {
     if (zrHistory[orderId]) {
       setZrHistory((prev) => { const next = { ...prev }; delete next[orderId]; return next; });
@@ -3130,6 +3247,201 @@ export function AdminDashboardPage() {
                               )}
                             </div>
 
+                            {orderEditingId === order._id && orderEditDraft ? (
+                              <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50/60 p-4" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <h3 className="text-sm font-semibold text-slate-900">
+                                    {language === "ar" ? "تعديل بيانات الطلب" : language === "fr" ? "Modifier la commande" : "Edit order"}
+                                  </h3>
+                                  <div className="text-xs text-slate-500">
+                                    {language === "ar" ? "إذا كانت شحنة ZR موجودة فسيتم تحديثها تلقائياً أو إعادة إنشائها" : "ZR parcel will be refreshed when shipping details change"}
+                                  </div>
+                                </div>
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                  <input
+                                    value={orderEditDraft.customer.fullName}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, fullName: e.target.value } } : current)}
+                                    className="field-input"
+                                    placeholder={language === "ar" ? "الاسم الكامل" : "Full name"}
+                                  />
+                                  <input
+                                    value={orderEditDraft.customer.phone}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, phone: e.target.value.replace(/\D/g, "").slice(0, 10) } } : current)}
+                                    className="field-input"
+                                    placeholder="05XXXXXXXX"
+                                    dir="ltr"
+                                  />
+                                  <input
+                                    value={orderEditDraft.customer.phone2}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, phone2: e.target.value.replace(/\D/g, "").slice(0, 10) } } : current)}
+                                    className="field-input"
+                                    placeholder={language === "ar" ? "رقم احتياطي" : "Backup phone"}
+                                    dir="ltr"
+                                  />
+                                  <select
+                                    value={orderEditDraft.customer.wilayaCode}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, wilayaCode: e.target.value } } : current)}
+                                    className="field-select"
+                                  >
+                                    <option value="">{language === "ar" ? "اختر الولاية" : "Select wilaya"}</option>
+                                    {wilayas.map((wilaya) => (
+                                      <option key={wilaya._id} value={wilaya.code}>
+                                        {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    value={orderEditDraft.customer.commune}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, commune: e.target.value } } : current)}
+                                    className="field-input"
+                                    placeholder={language === "ar" ? "البلدية" : "Commune"}
+                                  />
+                                  <select
+                                    value={orderEditDraft.deliveryType}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, deliveryType: e.target.value as Order["deliveryType"] } : current)}
+                                    className="field-select"
+                                  >
+                                    <option value="HOME_DELIVERY">{translate(language, "homeDelivery")}</option>
+                                    <option value="DESK_PICKUP">{translate(language, "deskPickup")}</option>
+                                  </select>
+                                </div>
+                                <textarea
+                                  value={orderEditDraft.customer.address}
+                                  onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, address: e.target.value } } : current)}
+                                  rows={2}
+                                  className="field-input mt-3 w-full resize-none"
+                                  placeholder={language === "ar" ? "العنوان" : "Address"}
+                                />
+                                <div className="mt-3 grid gap-3 md:grid-cols-4">
+                                  <input
+                                    value={orderEditDraft.shippingFee}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, shippingFee: e.target.value } : current)}
+                                    className="field-input"
+                                    placeholder={language === "ar" ? "رسوم التوصيل" : "Shipping fee"}
+                                  />
+                                  <input
+                                    value={orderEditDraft.discount}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, discount: e.target.value } : current)}
+                                    className="field-input"
+                                    placeholder={language === "ar" ? "الخصم" : "Discount"}
+                                  />
+                                  <input
+                                    value={orderEditDraft.promoCode}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, promoCode: e.target.value.toUpperCase() } : current)}
+                                    className="field-input"
+                                    placeholder={language === "ar" ? "كود الخصم" : "Promo code"}
+                                  />
+                                  <input
+                                    value={orderEditDraft.zrTerritoryId}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, zrTerritoryId: e.target.value } : current)}
+                                    className="field-input"
+                                    placeholder="ZR territory ID"
+                                  />
+                                </div>
+                                <div className="mt-4 space-y-3">
+                                  {orderEditDraft.items.map((item, itemIndex) => (
+                                    <div key={`${item.variantId}-${itemIndex}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                        <input
+                                          value={item.productName.ar}
+                                          onChange={(e) => setOrderEditDraft((current) => current ? {
+                                            ...current,
+                                            items: current.items.map((entry, index) => index === itemIndex ? { ...entry, productName: { ...entry.productName, ar: e.target.value } } : entry),
+                                          } : current)}
+                                          className="field-input"
+                                          placeholder="اسم المنتج AR"
+                                        />
+                                        <input
+                                          value={item.productName.fr}
+                                          onChange={(e) => setOrderEditDraft((current) => current ? {
+                                            ...current,
+                                            items: current.items.map((entry, index) => index === itemIndex ? { ...entry, productName: { ...entry.productName, fr: e.target.value } } : entry),
+                                          } : current)}
+                                          className="field-input"
+                                          placeholder="Nom produit FR"
+                                        />
+                                        <input
+                                          value={item.productName.en}
+                                          onChange={(e) => setOrderEditDraft((current) => current ? {
+                                            ...current,
+                                            items: current.items.map((entry, index) => index === itemIndex ? { ...entry, productName: { ...entry.productName, en: e.target.value } } : entry),
+                                          } : current)}
+                                          className="field-input"
+                                          placeholder="Product name EN"
+                                        />
+                                        <input
+                                          value={item.variantLabel}
+                                          onChange={(e) => setOrderEditDraft((current) => current ? {
+                                            ...current,
+                                            items: current.items.map((entry, index) => index === itemIndex ? { ...entry, variantLabel: e.target.value } : entry),
+                                          } : current)}
+                                          className="field-input"
+                                          placeholder={language === "ar" ? "المتغير" : "Variant"}
+                                        />
+                                        <input
+                                          value={item.quantity}
+                                          onChange={(e) => setOrderEditDraft((current) => current ? {
+                                            ...current,
+                                            items: current.items.map((entry, index) => index === itemIndex ? { ...entry, quantity: e.target.value } : entry),
+                                          } : current)}
+                                          className="field-input"
+                                          placeholder={language === "ar" ? "الكمية" : "Qty"}
+                                        />
+                                        <input
+                                          value={item.unitPrice}
+                                          onChange={(e) => setOrderEditDraft((current) => current ? {
+                                            ...current,
+                                            items: current.items.map((entry, index) => index === itemIndex ? { ...entry, unitPrice: e.target.value } : entry),
+                                          } : current)}
+                                          className="field-input"
+                                          placeholder={language === "ar" ? "سعر الوحدة" : "Unit price"}
+                                        />
+                                        <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                                          SKU: <span className="font-mono">{item.variantId}</span>
+                                        </div>
+                                        <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                                          {language === "ar" ? "المجموع" : "Line total"}:{" "}
+                                          <span className="font-semibold text-slate-900">
+                                            {formatCurrency(Number(item.quantity || 0) * Number(item.unitPrice || 0), language)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                  <div className="text-sm font-semibold text-slate-700">
+                                    {language === "ar" ? "الإجمالي الجديد" : language === "fr" ? "Nouveau total" : "Updated total"}:{" "}
+                                    <span className="text-slate-950">
+                                      {formatCurrency(
+                                        orderEditDraft.items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0) +
+                                          Number(orderEditDraft.shippingFee || 0) -
+                                          Number(orderEditDraft.discount || 0),
+                                        language,
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={orderSavingId === order._id}
+                                      onClick={() => void saveOrderEdit(order)}
+                                      className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
+                                    >
+                                      {orderSavingId === order._id ? (language === "ar" ? "جارٍ الحفظ..." : "Saving...") : (language === "ar" ? "حفظ التعديل" : "Save changes")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOrderEditingId(null); setOrderEditDraft(null); }}
+                                      className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                                    >
+                                      {language === "ar" ? "إلغاء" : "Cancel"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null}
+
                             {/* Actions */}
                             <div className="flex flex-wrap items-center gap-2">
                               <select
@@ -3158,6 +3470,15 @@ export function AdminDashboardPage() {
                                   </button>
                                 );
                               })}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); startOrderEdit(order); }}
+                                disabled={busy || orderSavingId === order._id}
+                                className="ghost-button gap-1.5 px-4 py-2 text-sm"
+                              >
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                {language === "ar" ? "تعديل" : language === "fr" ? "Modifier" : "Edit"}
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); printReceiptAction(order); }}

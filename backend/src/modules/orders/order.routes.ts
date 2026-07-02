@@ -6,6 +6,7 @@ import { permissionMiddleware } from "../../middleware/permission.middleware.js"
 import { orderCreateRateLimitMiddleware, orderTrackRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { OrderModel, PromoCodeUsageModel } from "../../models/orders.model.js";
 import { ProductModel, ProductVariantModel } from "../../models/catalog.model.js";
+import { WilayaModel } from "../../models/shipping.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { AppError } from "../../utils/app-error.js";
 import { syncCommissionForOrder } from "../../utils/commission.js";
@@ -78,6 +79,36 @@ const createOrderSchema = z.object({
   formDuration: z.number().int().min(0).max(86400).optional(), // seconds spent filling the form
 });
 
+const adminOrderUpdateSchema = z.object({
+  customer: z.object({
+    fullName: z.string().min(4).optional(),
+    phone: z.string().regex(/^(05|06|07)\d{8}$/).optional(),
+    phone2: z.union([z.string().regex(/^(05|06|07)\d{8}$/), z.literal(""), z.null()]).optional(),
+    wilayaCode: z.string().min(2).optional(),
+    commune: z.string().min(2).optional(),
+    address: z.string().min(5).optional(),
+  }).optional(),
+  items: z.array(z.object({
+    productId: z.string().min(1),
+    variantId: z.string().min(1),
+    productSlug: z.string().min(1),
+    productName: z.object({
+      ar: z.string().optional(),
+      fr: z.string().optional(),
+      en: z.string().optional(),
+    }),
+    variantLabel: z.string().min(1),
+    quantity: z.number().int().min(1),
+    unitPrice: z.number().min(0),
+    image: z.string().optional(),
+  })).min(1).optional(),
+  deliveryType: z.enum(["HOME_DELIVERY", "DESK_PICKUP"]).optional(),
+  shippingFee: z.number().min(0).optional(),
+  discount: z.number().min(0).optional(),
+  promoCode: z.union([z.string().max(100), z.literal(""), z.null()]).optional(),
+  zrTerritoryId: z.union([z.string().uuid(), z.literal(""), z.null()]).optional(),
+});
+
 // OTP enforcement checked dynamically so admin toggle takes effect immediately
 async function isOtpEnforcedForOrder(): Promise<boolean> {
   const { WebsiteSettingModel } = await import("../../models/catalog.model.js");
@@ -143,6 +174,146 @@ async function releaseStockForOrder(order: { items: Array<{ variantId: string; q
   for (const item of order.items) {
     await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
   }
+}
+
+async function reconcileReservedStockForOrderEdit(
+  existingItems: Array<{ variantId: string; quantity: number }>,
+  nextItems: Array<{ variantId: string; quantity: number; productName: { en?: string; fr?: string; ar?: string } }>,
+) {
+  const existingByVariant = new Map<string, number>();
+  const nextByVariant = new Map<string, { quantity: number; productName: { en?: string; fr?: string; ar?: string } }>();
+
+  for (const item of existingItems) {
+    existingByVariant.set(item.variantId, (existingByVariant.get(item.variantId) ?? 0) + item.quantity);
+  }
+
+  for (const item of nextItems) {
+    const current = nextByVariant.get(item.variantId);
+    nextByVariant.set(item.variantId, {
+      quantity: (current?.quantity ?? 0) + item.quantity,
+      productName: item.productName,
+    });
+  }
+
+  const variantIds = new Set([...existingByVariant.keys(), ...nextByVariant.keys()]);
+
+  for (const variantId of variantIds) {
+    const existingQty = existingByVariant.get(variantId) ?? 0;
+    const nextQty = nextByVariant.get(variantId)?.quantity ?? 0;
+    const delta = nextQty - existingQty;
+
+    if (delta <= 0) {
+      continue;
+    }
+
+    const variant = await ProductVariantModel.findById(variantId);
+    if (!variant || variant.stock < delta) {
+      const fallbackName = nextByVariant.get(variantId)?.productName;
+      const productName = fallbackName?.en || fallbackName?.fr || fallbackName?.ar || variantId;
+      throw new AppError(`Stock changed for ${productName}`, 400);
+    }
+  }
+
+  for (const variantId of variantIds) {
+    const existingQty = existingByVariant.get(variantId) ?? 0;
+    const nextQty = nextByVariant.get(variantId)?.quantity ?? 0;
+    const delta = nextQty - existingQty;
+
+    if (delta !== 0) {
+      await ProductVariantModel.findByIdAndUpdate(variantId, { $inc: { stock: -delta } });
+    }
+  }
+}
+
+function normalizeLocalizedText(value: { ar?: string; fr?: string; en?: string }) {
+  return {
+    ar: String(value.ar ?? "").trim(),
+    fr: String(value.fr ?? "").trim(),
+    en: String(value.en ?? "").trim(),
+  };
+}
+
+function buildEditedOrderItems(items: Array<{
+  productId: string;
+  variantId: string;
+  productSlug: string;
+  productName: { ar?: string; fr?: string; en?: string };
+  variantLabel: string;
+  quantity: number;
+  unitPrice: number;
+  image?: string;
+}>) {
+  const normalizedItems = items.map((item) => {
+    const productName = normalizeLocalizedText(item.productName);
+    const lineTotal = item.quantity * item.unitPrice;
+
+    return {
+      productId: item.productId,
+      variantId: item.variantId,
+      productSlug: item.productSlug,
+      productName,
+      variantLabel: item.variantLabel.trim(),
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineTotal,
+      image: item.image,
+    };
+  });
+
+  return {
+    items: normalizedItems,
+    subtotal: normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0),
+  };
+}
+
+function shouldRefreshZrParcel(
+  existing: {
+    customer: { fullName: string; phone: string; phone2?: string | null; commune: string; address: string };
+    deliveryType: string;
+    total: number;
+    zrTerritoryId?: string | null;
+    items: Array<{ productName: { en?: string; fr?: string; ar?: string }; variantLabel: string; quantity: number; unitPrice: number }>;
+  },
+  next: {
+    customer: { fullName: string; phone: string; phone2?: string | null; commune: string; address: string };
+    deliveryType: string;
+    total: number;
+    zrTerritoryId?: string | null;
+    items: Array<{ productName: { en?: string; fr?: string; ar?: string }; variantLabel: string; quantity: number; unitPrice: number }>;
+  },
+) {
+  if (
+    existing.customer.fullName !== next.customer.fullName ||
+    existing.customer.phone !== next.customer.phone ||
+    (existing.customer.phone2 ?? null) !== (next.customer.phone2 ?? null) ||
+    existing.customer.commune !== next.customer.commune ||
+    existing.customer.address !== next.customer.address ||
+    existing.deliveryType !== next.deliveryType ||
+    existing.total !== next.total ||
+    (existing.zrTerritoryId ?? null) !== (next.zrTerritoryId ?? null)
+  ) {
+    return true;
+  }
+
+  if (existing.items.length !== next.items.length) {
+    return true;
+  }
+
+  return existing.items.some((item, index) => {
+    const editedItem = next.items[index];
+    if (!editedItem) {
+      return true;
+    }
+
+    return (
+      item.variantLabel !== editedItem.variantLabel ||
+      item.quantity !== editedItem.quantity ||
+      item.unitPrice !== editedItem.unitPrice ||
+      (item.productName.en ?? "") !== (editedItem.productName.en ?? "") ||
+      (item.productName.fr ?? "") !== (editedItem.productName.fr ?? "") ||
+      (item.productName.ar ?? "") !== (editedItem.productName.ar ?? "")
+    );
+  });
 }
 
 function serializeTrackedOrder(order: any) {
@@ -689,6 +860,167 @@ router.patch(
     }
 
     return res.json(order);
+  }),
+);
+
+router.patch(
+  "/admin/orders/:id",
+  authMiddleware,
+  permissionMiddleware("orders"),
+  asyncHandler(async (req, res) => {
+    const input = adminOrderUpdateSchema.parse(req.body);
+    const existing = await OrderModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    if (!existing.customer) {
+      throw new AppError("Order has no customer data", 400);
+    }
+    const existingCustomer = existing.customer;
+
+    const nextCustomer = {
+      fullName: input.customer?.fullName?.trim() ?? existingCustomer.fullName,
+      phone: input.customer?.phone ?? existingCustomer.phone,
+      phone2: input.customer?.phone2 === ""
+        ? null
+        : input.customer?.phone2 === undefined
+          ? (existingCustomer.phone2 ?? null)
+          : (input.customer.phone2 ?? null),
+      commune: input.customer?.commune?.trim() ?? existingCustomer.commune,
+      address: input.customer?.address?.trim() ?? existingCustomer.address,
+    };
+
+    let nextWilayaId = existingCustomer.wilaya;
+    if (input.customer?.wilayaCode) {
+      const wilaya = await WilayaModel.findOne({ code: input.customer.wilayaCode.trim() }).select("_id");
+      if (!wilaya) {
+        throw new AppError("Wilaya not found", 404);
+      }
+      nextWilayaId = wilaya._id;
+    }
+
+    const nextItemResult = input.items
+      ? buildEditedOrderItems(input.items)
+      : {
+          items: existing.items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            productSlug: item.productSlug,
+            productName: normalizeLocalizedText(item.productName),
+            variantLabel: item.variantLabel,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            lineTotal: item.lineTotal,
+            image: item.image,
+          })),
+          subtotal: existing.subtotal,
+        };
+
+    const shippingFee = input.shippingFee ?? existing.shippingFee;
+    const discount = input.discount ?? existing.discount;
+    const total = Math.max(0, nextItemResult.subtotal + shippingFee - discount);
+    const deliveryType = input.deliveryType ?? existing.deliveryType;
+    const promoCode = input.promoCode === ""
+      ? null
+      : input.promoCode === undefined
+        ? (existing.promoCode ?? null)
+        : (input.promoCode ? input.promoCode.toUpperCase() : null);
+    const zrTerritoryId = input.zrTerritoryId === ""
+      ? null
+      : input.zrTerritoryId === undefined
+        ? (existing.zrTerritoryId ?? null)
+        : (input.zrTerritoryId ?? null);
+
+    if (hasReservedStock(existing)) {
+      await reconcileReservedStockForOrderEdit(existing.items, nextItemResult.items);
+    }
+
+    const refreshZr = Boolean(existing.zrParcelId) && shouldRefreshZrParcel(
+      {
+        customer: {
+          fullName: existingCustomer.fullName,
+          phone: existingCustomer.phone,
+          phone2: existingCustomer.phone2 ?? null,
+          commune: existingCustomer.commune,
+          address: existingCustomer.address,
+        },
+        deliveryType: existing.deliveryType,
+        total: existing.total,
+        zrTerritoryId: existing.zrTerritoryId,
+        items: existing.items,
+      },
+      {
+        customer: nextCustomer,
+        deliveryType,
+        total,
+        zrTerritoryId,
+        items: nextItemResult.items,
+      },
+    );
+    const previousParcelId = refreshZr ? existing.zrParcelId : null;
+
+    existingCustomer.fullName = nextCustomer.fullName;
+    existingCustomer.phone = nextCustomer.phone;
+    existingCustomer.phone2 = nextCustomer.phone2;
+    existingCustomer.wilaya = nextWilayaId;
+    existingCustomer.commune = nextCustomer.commune;
+    existingCustomer.address = nextCustomer.address;
+    existing.items = nextItemResult.items as typeof existing.items;
+    existing.subtotal = nextItemResult.subtotal;
+    existing.shippingFee = shippingFee;
+    existing.discount = discount;
+    existing.total = total;
+    existing.deliveryType = deliveryType;
+    existing.promoCode = promoCode;
+    existing.zrTerritoryId = zrTerritoryId;
+
+    if (refreshZr) {
+      existing.zrParcelId = null;
+      existing.zrTrackingNumber = null;
+    }
+
+    await existing.save();
+
+    if (previousParcelId) {
+      void cancelZRParcel(previousParcelId);
+    }
+
+    if (
+      !existing.zrParcelId &&
+      isZRConfigured() &&
+      (existing.status === "CONFIRMED" || existing.status === "PROCESSING" || existing.status === "SHIPPED")
+    ) {
+      try {
+        const { parcelId, trackingNumber } = await createZRParcel({
+          orderNumber: existing.orderNumber,
+          total: existing.total,
+          deliveryType: existing.deliveryType as "HOME_DELIVERY" | "DESK_PICKUP",
+          zrTerritoryId: existing.zrTerritoryId,
+          customer: {
+            fullName: existingCustomer.fullName,
+            phone: existingCustomer.phone,
+            phone2: existingCustomer.phone2 ?? null,
+            commune: existingCustomer.commune,
+            address: existingCustomer.address,
+          },
+          items: existing.items,
+        });
+        existing.zrParcelId = parcelId;
+        existing.zrTrackingNumber = trackingNumber;
+        await existing.save();
+      } catch (err) {
+        console.error("[ZR Express] Parcel recreation failed after order edit:", err);
+      }
+    }
+
+    await syncCommissionForOrder(String(existing._id), "admin");
+
+    const updatedOrder = await loadOrderResponse(String(existing._id));
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    return res.json(updatedOrder);
   }),
 );
 

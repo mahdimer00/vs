@@ -9,7 +9,7 @@ import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
 import { affiliateService } from "@/services/affiliate.service";
 import { productService } from "@/services/product.service";
-import type { Affiliate, Commission, CouponRequest, Order, Product, PromoCode, WithdrawalRequest } from "@/types";
+import type { Affiliate, AffiliateRecentVisitor, Commission, CouponRequest, Order, Product, PromoCode, WithdrawalRequest } from "@/types";
 import { ApiError } from "@/services/apiClient";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate, translateStatus, type TranslationKey } from "@/utils/i18n";
@@ -33,11 +33,15 @@ export function AffiliateDashboardPage() {
     affiliate: { name: string; referralCode: string; commissionRate: number; status: string; level: string; balanceApproved: number; balancePaid: number; balancePending: number; phone?: string };
     ordersCount: number;
     clicksCount: number;
+    visitorsCount: number;
     teamCount: number;
     referralBonusAmount: number;
     referralLink: string;
+    shortReferralLink: string;
     inviteLink: string;
+    shortInviteLink: string;
     promoCodes: PromoCode[];
+    recentVisitors: AffiliateRecentVisitor[];
   } | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -103,7 +107,7 @@ export function AffiliateDashboardPage() {
     if (!code) {
       return;
     }
-    const link = `${window.location.origin}/products/${slug}?ref=${code}`;
+    const link = `${window.location.origin}/r/${code}/products/${slug}`;
     await navigator.clipboard.writeText(link);
     pushToast(translate(language, "affiliateCopied"));
   };
@@ -143,6 +147,22 @@ export function AffiliateDashboardPage() {
       return;
     }
     await navigator.clipboard.writeText(dashboard.inviteLink);
+    pushToast(translate(language, "affiliateCopied"));
+  };
+
+  const copyShortReferral = async () => {
+    if (!dashboard?.shortReferralLink) {
+      return;
+    }
+    await navigator.clipboard.writeText(dashboard.shortReferralLink);
+    pushToast(translate(language, "affiliateCopied"));
+  };
+
+  const copyShortInviteLink = async () => {
+    if (!dashboard?.shortInviteLink) {
+      return;
+    }
+    await navigator.clipboard.writeText(dashboard.shortInviteLink);
     pushToast(translate(language, "affiliateCopied"));
   };
 
@@ -410,7 +430,11 @@ export function AffiliateDashboardPage() {
                 <div className="flex gap-2">
                   <button onClick={() => void copyReferral()} className="ghost-button gap-2">
                     <Copy className="h-4 w-4" />
-                    {translate(language, "affiliateCopy")}
+                    {language === "ar" ? "نسخ الرابط الطويل" : language === "fr" ? "Copier le lien long" : "Copy long link"}
+                  </button>
+                  <button onClick={() => void copyShortReferral()} className="ghost-button gap-2">
+                    <Copy className="h-4 w-4" />
+                    {language === "ar" ? "نسخ الرابط القصير" : language === "fr" ? "Copier le lien court" : "Copy short link"}
                   </button>
                   {dashboard?.referralLink ? (
                     <a
@@ -462,10 +486,19 @@ export function AffiliateDashboardPage() {
               <div className="mt-4 rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700 break-all">
                 {dashboard?.inviteLink}
               </div>
-              <button onClick={() => void copyInviteLink()} className="ghost-button mt-4 gap-2">
-                <Copy className="h-4 w-4" />
-                {translate(language, "affiliateCopy")}
-              </button>
+              <div className="mt-3 rounded-[1.5rem] border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 break-all">
+                {dashboard?.shortInviteLink}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button onClick={() => void copyInviteLink()} className="ghost-button gap-2">
+                  <Copy className="h-4 w-4" />
+                  {language === "ar" ? "نسخ رابط الدعوة الطويل" : language === "fr" ? "Copier le lien d'invitation long" : "Copy long invite link"}
+                </button>
+                <button onClick={() => void copyShortInviteLink()} className="ghost-button gap-2">
+                  <Copy className="h-4 w-4" />
+                  {language === "ar" ? "نسخ رابط الدعوة القصير" : language === "fr" ? "Copier le lien d'invitation court" : "Copy short invite link"}
+                </button>
+              </div>
               {dashboard && dashboard.referralBonusAmount > 0 ? (
                 <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   <Gift className="mb-1 h-4 w-4" /> {translate(language, "affiliateReferralBonusHint").replace("{amount}", formatCurrency(dashboard.referralBonusAmount, language))}
@@ -783,13 +816,20 @@ export function AffiliateDashboardPage() {
               );
             })()}
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <MousePointerClick className="h-4 w-4" />
                   {translate(language, "affiliateClicks")}
                 </div>
                 <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.clicksCount ?? 0}</div>
+              </div>
+              <div className="stat-card">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <Users className="h-4 w-4" />
+                  {language === "ar" ? "الزوار" : language === "fr" ? "Visiteurs" : "Visitors"}
+                </div>
+                <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.visitorsCount ?? 0}</div>
               </div>
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -844,10 +884,17 @@ export function AffiliateDashboardPage() {
                 <div className="mt-4 rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm text-slate-700 break-all">
                   {dashboard?.referralLink}
                 </div>
+                <div className="mt-3 rounded-[1.5rem] border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-700 break-all">
+                  {dashboard?.shortReferralLink}
+                </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button onClick={() => void copyReferral()} className="ghost-button gap-2">
                     <Copy className="h-4 w-4" />
-                    {translate(language, "affiliateCopy")}
+                    {language === "ar" ? "نسخ الرابط الطويل" : language === "fr" ? "Copier le lien long" : "Copy long link"}
+                  </button>
+                  <button onClick={() => void copyShortReferral()} className="ghost-button gap-2">
+                    <Copy className="h-4 w-4" />
+                    {language === "ar" ? "نسخ الرابط القصير" : language === "fr" ? "Copier le lien court" : "Copy short link"}
                   </button>
                   {dashboard?.referralLink ? (
                     <a
@@ -861,6 +908,27 @@ export function AffiliateDashboardPage() {
                     </a>
                   ) : null}
                 </div>
+                {dashboard?.recentVisitors.length ? (
+                  <div className="mt-5 space-y-3">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      {language === "ar" ? "آخر الزوار" : language === "fr" ? "Derniers visiteurs" : "Recent visitors"}
+                    </h3>
+                    {dashboard.recentVisitors.map((visitor) => (
+                      <div key={visitor.visitorKey} className="muted-card flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-900">{visitor.landingPath || "/"}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {formatDate(visitor.lastVisitedAt, language)}
+                            {visitor.visits > 1 ? ` · ${visitor.visits} ${language === "ar" ? "زيارات" : language === "fr" ? "visites" : "visits"}` : ""}
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                          {visitor.shortCode ? "Short" : "Query"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="surface-card p-6">

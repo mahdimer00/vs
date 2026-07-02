@@ -56,6 +56,31 @@ interface ZRParcelResponse {
   deliveredAt?: string;
 }
 
+function humanizeSlug(slug?: string): string {
+  return String(slug ?? "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pickZrProductName(item: {
+  productName: { en?: string; fr?: string; ar?: string };
+  productSlug?: string;
+  variantLabel?: string;
+}): string {
+  const preferred = [
+    item.productName.en,
+    item.productName.fr,
+    humanizeSlug(item.productSlug),
+    item.variantLabel,
+    item.productName.ar,
+  ]
+    .map((value) => String(value ?? "").trim())
+    .find(Boolean);
+
+  return (preferred ?? "Product").slice(0, 120);
+}
+
 let territoriesMap: Map<string, ZRTerritory> | null = null;
 let ratesCache: ZRTerritory[] | null = null;
 let ratesCacheTime = 0;
@@ -268,7 +293,7 @@ export async function createZRParcel(order: {
     commune: string;
     address: string;
   };
-  items: { productName: { en: string; ar?: string }; variantLabel?: string; quantity: number; unitPrice: number }[];
+  items: { productName: { en?: string; fr?: string; ar?: string }; productSlug?: string; variantLabel?: string; quantity: number; unitPrice: number }[];
 }): Promise<{ parcelId: string; trackingNumber: string }> {
   if (!isZRConfigured()) throw new Error("ZR Express credentials not configured");
 
@@ -294,10 +319,11 @@ export async function createZRParcel(order: {
   const customerId = await getOrCreateZRCustomer(order.customer.fullName, intlPhone);
 
   const orderedProducts = order.items.map((item) => {
-    const sku = item.variantLabel ?? item.productName.en;
+    const productName = pickZrProductName(item);
+    const sku = item.variantLabel ?? productName;
     return {
       productId: deterministicUUID(`zr-product:${sku}`),
-      productName: item.productName.en,
+      productName,
       productSku: sku,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
@@ -306,7 +332,7 @@ export async function createZRParcel(order: {
     };
   });
 
-  const productsDesc = order.items.map((item) => `${item.productName.en} x ${item.quantity}`).join(", ");
+  const productsDesc = order.items.map((item) => `${pickZrProductName(item)} x ${item.quantity}`).join(", ");
   const description = `${productsDesc} | قابل للكسر`;
 
   const phone2 = order.customer.phone2 ? toInternationalPhone(order.customer.phone2) : undefined;

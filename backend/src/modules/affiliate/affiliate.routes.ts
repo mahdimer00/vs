@@ -12,6 +12,13 @@ import { sendTelegramMessage } from "../../utils/telegram.js";
 
 const router = Router();
 
+const affiliateTrackClickSchema = z.object({
+  visitorId: z.string().min(8).max(128).optional(),
+  landingPath: z.string().max(500).optional(),
+  referrer: z.string().max(1000).optional(),
+  shortCode: z.string().max(100).optional(),
+});
+
 router.post("/affiliate/track-click/:referralCode", asyncHandler(async (req, res) => {
   const referralCode = String(req.params.referralCode).toUpperCase();
   const affiliate = await AffiliateModel.findOne({ referralCode });
@@ -19,11 +26,18 @@ router.post("/affiliate/track-click/:referralCode", asyncHandler(async (req, res
     return res.status(404).json({ message: "Affiliate not found" });
   }
 
+  const input = affiliateTrackClickSchema.safeParse(req.body);
+  const payload = input.success ? input.data : {};
+
   await AffiliateClickModel.create({
     affiliate: affiliate._id,
     referralCode: affiliate.referralCode,
+    visitorId: payload.visitorId,
     ip: req.ip,
     userAgent: req.headers["user-agent"],
+    landingPath: payload.landingPath,
+    referrer: payload.referrer,
+    shortCode: payload.shortCode,
   });
 
   return res.json({ success: true });
@@ -36,22 +50,81 @@ router.get("/affiliate/dashboard", authMiddleware, roleMiddleware(["AFFILIATE"])
   }
 
   const clicksCount = await AffiliateClickModel.countDocuments({ affiliate: affiliate._id });
+  const visitorAggregation = await AffiliateClickModel.aggregate([
+    { $match: { affiliate: affiliate._id } },
+    {
+      $addFields: {
+        visitorKey: {
+          $ifNull: [
+            "$visitorId",
+            {
+              $cond: [
+                { $and: [{ $ne: ["$ip", null] }, { $ne: ["$ip", ""] }] },
+                { $concat: ["ip:", "$ip"] },
+                { $concat: ["anon:", { $toString: "$_id" }] },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $facet: {
+        totals: [{ $group: { _id: "$visitorKey" } }, { $count: "count" }],
+        recent: [
+          { $sort: { createdAt: -1 } },
+          {
+            $group: {
+              _id: "$visitorKey",
+              lastVisitedAt: { $first: "$createdAt" },
+              landingPath: { $first: "$landingPath" },
+              referrer: { $first: "$referrer" },
+              shortCode: { $first: "$shortCode" },
+              visits: { $sum: 1 },
+            },
+          },
+          { $sort: { lastVisitedAt: -1 } },
+          { $limit: 12 },
+        ],
+      },
+    },
+  ]);
   const ordersCount = await OrderModel.countDocuments({ affiliate: affiliate._id });
   const promoCodes = await PromoCodeModel.find({ affiliate: affiliate._id }).lean();
   const teamCount = await AffiliateModel.countDocuments({ referredBy: affiliate._id });
   const settings = await WebsiteSettingModel.findOne();
   const levels = settings?.affiliateLevels as Record<string, { commissionRate: number; referralBonus: number }> | undefined;
+  const visitorsCount = visitorAggregation[0]?.totals?.[0]?.count ?? 0;
+  const shortBase = `${env.FRONTEND_URL}/r/${affiliate.referralCode}`;
 
   const { passwordHash: _ph, ...safeAffiliate } = affiliate.toObject();
   return res.json({
     affiliate: safeAffiliate,
     clicksCount,
+    visitorsCount,
     ordersCount,
     teamCount,
     referralBonusAmount: levels?.[String(affiliate.level)]?.referralBonus ?? 0,
     referralLink: `${env.FRONTEND_URL}?ref=${affiliate.referralCode}`,
+    shortReferralLink: shortBase,
     inviteLink: `${env.FRONTEND_URL}/affiliate/register?ref=${affiliate.referralCode}`,
+    shortInviteLink: `${shortBase}/affiliate/register`,
     promoCodes,
+    recentVisitors: (visitorAggregation[0]?.recent ?? []).map((entry: {
+      _id: string;
+      lastVisitedAt: Date | string;
+      landingPath?: string;
+      referrer?: string;
+      shortCode?: string;
+      visits: number;
+    }) => ({
+      visitorKey: entry._id,
+      lastVisitedAt: entry.lastVisitedAt,
+      landingPath: entry.landingPath ?? "",
+      referrer: entry.referrer ?? "",
+      shortCode: entry.shortCode ?? "",
+      visits: entry.visits,
+    })),
   });
 }));
 
@@ -78,8 +151,11 @@ router.get("/affiliate/referral-link", authMiddleware, roleMiddleware(["AFFILIAT
     return res.status(404).json({ message: "Affiliate not found" });
   }
   const promoCodes = await PromoCodeModel.find({ affiliate: affiliate._id }).lean();
+  const shortBase = `${env.FRONTEND_URL}/r/${affiliate.referralCode}`;
   return res.json({
     referralLink: `${env.FRONTEND_URL}?ref=${affiliate.referralCode}`,
+    shortReferralLink: shortBase,
+    shortInviteLink: `${shortBase}/affiliate/register`,
     promoCodes,
   });
 }));
