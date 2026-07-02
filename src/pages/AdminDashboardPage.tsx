@@ -1,4 +1,4 @@
-import {
+﻿import {
   AlertTriangle,
   Award,
   BellRing,
@@ -39,7 +39,7 @@ import { IconField } from "@/components/IconField";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { TikTokIcon } from "@/components/TikTokIcon";
 
-// WhatsApp status widget — polls every 30s
+// WhatsApp status widget â€” polls every 30s
 function WaStatusWidget({ token, language }: { token: string; language: string }) {
   const [status, setStatus] = React.useState<{ connected: boolean; warmingUp?: boolean; pendingOtps?: number; error?: string } | null>(null);
   React.useEffect(() => {
@@ -51,11 +51,11 @@ function WaStatusWidget({ token, language }: { token: string; language: string }
   const isAr = language === "ar";
   const color = status?.connected && !status?.warmingUp ? "border-green-100 bg-green-50" : status?.warmingUp ? "border-amber-100 bg-amber-50" : "border-rose-100 bg-rose-50";
   const dot = status?.connected && !status?.warmingUp ? "bg-green-500 animate-pulse" : status?.warmingUp ? "bg-amber-400 animate-pulse" : "bg-rose-400";
-  const label = status === null ? "..." : status.connected && !status.warmingUp ? (isAr ? "متصل ✓" : "Connected ✓") : status.warmingUp ? (isAr ? "جاري التشغيل..." : "Warming up...") : (isAr ? "غير متصل ✗" : "Offline ✗");
+  const label = status === null ? "..." : status.connected && !status.warmingUp ? (isAr ? "Ù…ØªØµÙ„ âœ“" : "Connected âœ“") : status.warmingUp ? (isAr ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ´ØºÙŠÙ„..." : "Warming up...") : (isAr ? "ØºÙŠØ± Ù…ØªØµÙ„ âœ—" : "Offline âœ—");
   return (
     <div className={`rounded-xl border px-3 py-2.5 ${color}`}>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-slate-600">{isAr ? "واتساب" : "WhatsApp"}</span>
+        <span className="text-slate-600">{isAr ? "ÙˆØ§ØªØ³Ø§Ø¨" : "WhatsApp"}</span>
         <div className="flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${dot}`} />
           <span className="font-semibold text-slate-700">{label}</span>
@@ -74,6 +74,7 @@ import { ApiError, sseUrl } from "@/services/apiClient";
 import { adminService } from "@/services/admin.service";
 import { orderService } from "@/services/order.service";
 import { productService } from "@/services/product.service";
+import { zrShippingService, type ZRTerritory } from "@/services/shipping.zr.service";
 import type {
   AdminNotifications,
   AdminPermission,
@@ -99,30 +100,30 @@ import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate, type TranslationKey } from "@/utils/i18n";
 
 const ZR_STATE_AR: Record<string, string> = {
-  "order received": "تم استلام الطلب",
-  "order in process": "الطلب قيد المعالجة",
-  "confirmation call": "مكالمة تأكيد العميل",
-  "order confirmed": "تم تأكيد الطلب",
-  "ready to ship": "جاهز للشحن",
-  "confirmed at office": "مؤكد في المكتب",
-  "dispatch in the same wilaya": "إرسال داخل نفس الولاية",
-  "to region": "في الطريق إلى الولاية",
-  "in transit": "في الطريق",
-  "out for delivery": "في رحلة التسليم",
-  "out for delivery again": "محاولة تسليم ثانية",
-  "delivered": "تم التسليم",
-  "collected": "تم الاستلام من المكتب",
-  "recovered": "مُرجَع",
-  "picked up": "تم الاستلام",
-  "returned": "مُرجَع",
-  "failed delivery": "فشل التسليم",
-  "cancelled": "ملغى",
-  "accepted": "مقبول",
-  "pris en charge": "تم الاستلام من المتجر",
-  "en cours de livraison": "في الطريق للتسليم",
-  "livré": "تم التسليم",
-  "retour": "مُرجَع",
-  "annulé": "ملغى",
+  "order received": "ØªÙ… Ø§Ø³ØªÙ„Ø§Ù… Ø§Ù„Ø·Ù„Ø¨",
+  "order in process": "Ø§Ù„Ø·Ù„Ø¨ Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§Ù„Ø¬Ø©",
+  "confirmation call": "Ù…ÙƒØ§Ù„Ù…Ø© ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¹Ù…ÙŠÙ„",
+  "order confirmed": "ØªÙ… ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø·Ù„Ø¨",
+  "ready to ship": "Ø¬Ø§Ù‡Ø² Ù„Ù„Ø´Ø­Ù†",
+  "confirmed at office": "Ù…Ø¤ÙƒØ¯ ÙÙŠ Ø§Ù„Ù…ÙƒØªØ¨",
+  "dispatch in the same wilaya": "Ø¥Ø±Ø³Ø§Ù„ Ø¯Ø§Ø®Ù„ Ù†ÙØ³ Ø§Ù„ÙˆÙ„Ø§ÙŠØ©",
+  "to region": "ÙÙŠ Ø§Ù„Ø·Ø±ÙŠÙ‚ Ø¥Ù„Ù‰ Ø§Ù„ÙˆÙ„Ø§ÙŠØ©",
+  "in transit": "ÙÙŠ Ø§Ù„Ø·Ø±ÙŠÙ‚",
+  "out for delivery": "ÙÙŠ Ø±Ø­Ù„Ø© Ø§Ù„ØªØ³Ù„ÙŠÙ…",
+  "out for delivery again": "Ù…Ø­Ø§ÙˆÙ„Ø© ØªØ³Ù„ÙŠÙ… Ø«Ø§Ù†ÙŠØ©",
+  "delivered": "ØªÙ… Ø§Ù„ØªØ³Ù„ÙŠÙ…",
+  "collected": "ØªÙ… Ø§Ù„Ø§Ø³ØªÙ„Ø§Ù… Ù…Ù† Ø§Ù„Ù…ÙƒØªØ¨",
+  "recovered": "Ù…ÙØ±Ø¬ÙŽØ¹",
+  "picked up": "ØªÙ… Ø§Ù„Ø§Ø³ØªÙ„Ø§Ù…",
+  "returned": "Ù…ÙØ±Ø¬ÙŽØ¹",
+  "failed delivery": "ÙØ´Ù„ Ø§Ù„ØªØ³Ù„ÙŠÙ…",
+  "cancelled": "Ù…Ù„ØºÙ‰",
+  "accepted": "Ù…Ù‚Ø¨ÙˆÙ„",
+  "pris en charge": "ØªÙ… Ø§Ù„Ø§Ø³ØªÙ„Ø§Ù… Ù…Ù† Ø§Ù„Ù…ØªØ¬Ø±",
+  "en cours de livraison": "ÙÙŠ Ø§Ù„Ø·Ø±ÙŠÙ‚ Ù„Ù„ØªØ³Ù„ÙŠÙ…",
+  "livrÃ©": "ØªÙ… Ø§Ù„ØªØ³Ù„ÙŠÙ…",
+  "retour": "Ù…ÙØ±Ø¬ÙŽØ¹",
+  "annulÃ©": "Ù…Ù„ØºÙ‰",
 };
 const getZRStateAr = (state: string, stateAr: string) => stateAr || ZR_STATE_AR[state.toLowerCase()] || state;
 
@@ -321,6 +322,23 @@ function createOrderEditDraft(order: Order): OrderEditDraft {
   };
 }
 
+function matchesZrTerritoryName(territory: ZRTerritory, commune: string) {
+  const normalizedCommune = commune.trim().toLowerCase();
+  return territory.name.toLowerCase() === normalizedCommune || territory.nameAr === commune.trim();
+}
+
+function getZrTerritoryOptionLabel(
+  territory: ZRTerritory,
+  deliveryType: Order["deliveryType"],
+  language: string,
+) {
+  const price = deliveryType === "HOME_DELIVERY" ? territory.homePrice : territory.pickupPrice;
+  const currencyLabel = language === "ar" ? "Ø¯Ø¬" : "DA";
+  const nameLabel = language === "ar" ? (territory.nameAr || territory.name) : territory.name;
+  const extraLabel = territory.nameAr && territory.nameAr !== nameLabel ? ` Â· ${territory.nameAr}` : "";
+  return `${nameLabel}${extraLabel}${territory.hasPricing ? ` Â· ${price} ${currencyLabel}` : ""}`;
+}
+
 const defaultSubAdminForm: SubAdminFormState = {
   name: "",
   email: "",
@@ -382,6 +400,7 @@ export function AdminDashboardPage() {
   const [ordersTotal, setOrdersTotal] = useState(0);
   const [ordersLoadingMore, setOrdersLoadingMore] = useState(false);
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
+  const [zrTerritories, setZrTerritories] = useState<ZRTerritory[]>([]);
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -501,10 +520,10 @@ export function AdminDashboardPage() {
   if (!isSubAdmin || userPermissions?.includes("dashboard")) {
     links.push({ href: "/gestion/analytics", label: translate(language, "analyticsTitle"), badge: undefined });
   }
-  // Customers tab — available to anyone with orders permission
+  // Customers tab â€” available to anyone with orders permission
   if (!isSubAdmin || userPermissions?.includes("orders")) {
-    links.push({ href: "/gestion/customers", label: "العملاء", badge: undefined });
-    links.push({ href: "/gestion/blacklist", label: language === "ar" ? "🚫 الحظر" : "🚫 Blacklist", badge: undefined });
+    links.push({ href: "/gestion/customers", label: "Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡", badge: undefined });
+    links.push({ href: "/gestion/blacklist", label: language === "ar" ? "ðŸš« Ø§Ù„Ø­Ø¸Ø±" : "ðŸš« Blacklist", badge: undefined });
   }
 
   const loadAnalytics = async (period: string, from?: string, to?: string) => {
@@ -513,7 +532,7 @@ export function AdminDashboardPage() {
       const data = await adminService.getAnalytics(token, period, from, to);
       setAnalyticsData(data);
     } catch {
-      // silently fail — analytics tab shows empty state
+      // silently fail â€” analytics tab shows empty state
     } finally {
       setAnalyticsLoading(false);
     }
@@ -539,6 +558,7 @@ export function AdminDashboardPage() {
         bannerData,
         orderData,
         wilayaData,
+        zrTerritoryData,
         promoData,
         affiliateData,
         commissionData,
@@ -555,6 +575,7 @@ export function AdminDashboardPage() {
         safe(adminService.getBanners(token), []),
         safe(adminService.getOrders(token, 0, 100), { orders: [], total: 0 } as { orders: Order[]; total: number }),
         adminService.getWilayas(),
+        zrShippingService.getTerritories(),
         safe(adminService.getPromoCodes(token), []),
         safe(adminService.getAffiliates(token), []),
         safe(adminService.getCommissions(token), []),
@@ -574,6 +595,7 @@ export function AdminDashboardPage() {
       setOrders(orderResult.orders ?? []);
       setOrdersTotal(orderResult.total ?? 0);
       setWilayas(wilayaData);
+      setZrTerritories(zrTerritoryData);
       setPromos(promoData);
       setAffiliates(affiliateData);
       setCommissions(commissionData);
@@ -594,6 +616,44 @@ export function AdminDashboardPage() {
       void loadAll();
     }
   }, [token]);
+
+  const selectedOrderEditZrTerritories = useMemo(
+    () => orderEditDraft?.customer.wilayaCode
+      ? zrTerritories.filter((territory) => territory.wilayaCode === orderEditDraft.customer.wilayaCode)
+      : [],
+    [orderEditDraft?.customer.wilayaCode, zrTerritories],
+  );
+
+  const selectedOrderEditTerritory = useMemo(
+    () => orderEditDraft?.zrTerritoryId
+      ? selectedOrderEditZrTerritories.find((territory) => territory.id === orderEditDraft.zrTerritoryId) ?? null
+      : null,
+    [orderEditDraft?.zrTerritoryId, selectedOrderEditZrTerritories],
+  );
+
+  useEffect(() => {
+    if (!orderEditDraft?.customer.wilayaCode || !orderEditDraft.customer.commune.trim() || orderEditDraft.zrTerritoryId) {
+      return;
+    }
+
+    const match = zrTerritories.find((territory) =>
+      territory.wilayaCode === orderEditDraft.customer.wilayaCode &&
+      matchesZrTerritoryName(territory, orderEditDraft.customer.commune),
+    );
+
+    if (!match) {
+      return;
+    }
+
+    setOrderEditDraft((current) => current ? {
+      ...current,
+      zrTerritoryId: match.id,
+      customer: {
+        ...current.customer,
+        commune: match.name,
+      },
+    } : current);
+  }, [orderEditDraft?.customer.commune, orderEditDraft?.customer.wilayaCode, orderEditDraft?.zrTerritoryId, zrTerritories]);
 
   // Real-time order status updates via Server-Sent Events
   useEffect(() => {
@@ -1189,7 +1249,7 @@ export function AdminDashboardPage() {
                 className="ghost-button gap-2"
               >
                 <Download className="h-4 w-4" />
-                تصدير CSV
+                ØªØµØ¯ÙŠØ± CSV
               </button>
             </div>
           ) : null}
@@ -1203,13 +1263,13 @@ export function AdminDashboardPage() {
           <EmptyState title={translate(language, "analyticsNoData")} description="" />
         ) : (
           <>
-            {/* ── LIVE STATS (last hour) ── */}
+            {/* â”€â”€ LIVE STATS (last hour) â”€â”€ */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: language === "ar" ? "🔴 آخر ساعة — زوار" : "Last 1h visitors", value: data.lastHourVisitors, color: "text-rose-600" },
-                { label: language === "ar" ? "🔴 آخر ساعة — طلبات" : "Last 1h orders", value: data.lastHourOrders, color: "text-rose-600" },
-                { label: language === "ar" ? "متوسط قيمة الطلب" : "Avg order value", value: formatCurrency(data.avgOrderValue ?? 0, language), color: "text-teal-700" },
-                { label: language === "ar" ? "معدل التحويل" : "Conversion rate", value: `${data.conversionRate}%`, color: data.conversionRate < 1 ? "text-rose-600" : data.conversionRate < 3 ? "text-amber-600" : "text-emerald-600" },
+                { label: language === "ar" ? "ðŸ”´ Ø¢Ø®Ø± Ø³Ø§Ø¹Ø© â€” Ø²ÙˆØ§Ø±" : "Last 1h visitors", value: data.lastHourVisitors, color: "text-rose-600" },
+                { label: language === "ar" ? "ðŸ”´ Ø¢Ø®Ø± Ø³Ø§Ø¹Ø© â€” Ø·Ù„Ø¨Ø§Øª" : "Last 1h orders", value: data.lastHourOrders, color: "text-rose-600" },
+                { label: language === "ar" ? "Ù…ØªÙˆØ³Ø· Ù‚ÙŠÙ…Ø© Ø§Ù„Ø·Ù„Ø¨" : "Avg order value", value: formatCurrency(data.avgOrderValue ?? 0, language), color: "text-teal-700" },
+                { label: language === "ar" ? "Ù…Ø¹Ø¯Ù„ Ø§Ù„ØªØ­ÙˆÙŠÙ„" : "Conversion rate", value: `${data.conversionRate}%`, color: data.conversionRate < 1 ? "text-rose-600" : data.conversionRate < 3 ? "text-amber-600" : "text-emerald-600" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="stat-card text-center">
                   <div className="text-xs text-slate-400">{label}</div>
@@ -1218,13 +1278,13 @@ export function AdminDashboardPage() {
               ))}
             </div>
 
-            {/* ── KPI CARDS ── */}
+            {/* â”€â”€ KPI CARDS â”€â”€ */}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString(), sub: `${data.todayVisitors} ${language === "ar" ? "اليوم" : "today"}` },
+                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString(), sub: `${data.todayVisitors} ${language === "ar" ? "Ø§Ù„ÙŠÙˆÙ…" : "today"}` },
                 { icon: BarChart3, label: translate(language, "analyticsProductViews"), value: data.productViews.toLocaleString(), sub: "" },
-                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString(), sub: `${data.lastHourOrders} ${language === "ar" ? "آخر ساعة" : "last hour"}` },
-                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language), sub: `${formatCurrency(data.revenueToday, language)} ${language === "ar" ? "اليوم" : "today"}` },
+                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString(), sub: `${data.lastHourOrders} ${language === "ar" ? "Ø¢Ø®Ø± Ø³Ø§Ø¹Ø©" : "last hour"}` },
+                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language), sub: `${formatCurrency(data.revenueToday, language)} ${language === "ar" ? "Ø§Ù„ÙŠÙˆÙ…" : "today"}` },
               ].map(({ icon: Icon, label, value, sub }) => (
                 <div key={label} className="stat-card flex items-start gap-4">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
@@ -1239,18 +1299,18 @@ export function AdminDashboardPage() {
               ))}
             </div>
 
-            {/* ── CONVERSION FUNNEL ── */}
+            {/* â”€â”€ CONVERSION FUNNEL â”€â”€ */}
             {data.funnel && data.funnel.some((f) => f.count > 0) && (
-              <Panel title={language === "ar" ? "مسار التحويل (Funnel)" : "Conversion Funnel"}>
+              <Panel title={language === "ar" ? "Ù…Ø³Ø§Ø± Ø§Ù„ØªØ­ÙˆÙŠÙ„ (Funnel)" : "Conversion Funnel"}>
                 <div className="space-y-2">
                   {data.funnel.filter((f) => f.count > 0).map((step, i, arr) => {
                     const LABELS: Record<string, string> = {
-                      page_view: language === "ar" ? "1. زيارة الصفحة" : "1. Page Views",
-                      product_view: language === "ar" ? "2. مشاهدة المنتج" : "2. Product Views",
-                      add_to_cart: language === "ar" ? "3. إضافة للسلة" : "3. Add to Cart",
-                      checkout_start: language === "ar" ? "4. بدء الطلب" : "4. Checkout Start",
-                      order_submit: language === "ar" ? "5. إرسال الطلب" : "5. Order Submit",
-                      purchase: language === "ar" ? "6. شراء مكتمل" : "6. Purchase",
+                      page_view: language === "ar" ? "1. Ø²ÙŠØ§Ø±Ø© Ø§Ù„ØµÙØ­Ø©" : "1. Page Views",
+                      product_view: language === "ar" ? "2. Ù…Ø´Ø§Ù‡Ø¯Ø© Ø§Ù„Ù…Ù†ØªØ¬" : "2. Product Views",
+                      add_to_cart: language === "ar" ? "3. Ø¥Ø¶Ø§ÙØ© Ù„Ù„Ø³Ù„Ø©" : "3. Add to Cart",
+                      checkout_start: language === "ar" ? "4. Ø¨Ø¯Ø¡ Ø§Ù„Ø·Ù„Ø¨" : "4. Checkout Start",
+                      order_submit: language === "ar" ? "5. Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨" : "5. Order Submit",
+                      purchase: language === "ar" ? "6. Ø´Ø±Ø§Ø¡ Ù…ÙƒØªÙ…Ù„" : "6. Purchase",
                     };
                     const maxCount = arr[0]?.count ?? 1;
                     const pct = Math.round((step.count / maxCount) * 100);
@@ -1272,7 +1332,7 @@ export function AdminDashboardPage() {
               </Panel>
             )}
 
-            {/* ── CHARTS ── */}
+            {/* â”€â”€ CHARTS â”€â”€ */}
             <div className="grid gap-5 xl:grid-cols-2">
               <Panel title={translate(language, "analyticsVisitorsByDay")}>
                 {data.visitorsByDay.every((d) => d.count === 0) ? (
@@ -1290,17 +1350,17 @@ export function AdminDashboardPage() {
               </Panel>
             </div>
 
-            {/* ── HOURLY HEATMAP + REVENUE BY WILAYA ── */}
+            {/* â”€â”€ HOURLY HEATMAP + REVENUE BY WILAYA â”€â”€ */}
             <div className="grid gap-5 xl:grid-cols-2">
               {data.ordersByHour && data.ordersByHour.some((v) => v > 0) && (
-                <Panel title={language === "ar" ? "توزيع الطلبات بالساعة" : "Orders by hour"}>
+                <Panel title={language === "ar" ? "ØªÙˆØ²ÙŠØ¹ Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø¨Ø§Ù„Ø³Ø§Ø¹Ø©" : "Orders by hour"}>
                   <div className="flex h-24 items-end gap-0.5">
                     {data.ordersByHour.map((count, h) => {
                       const max = Math.max(...data.ordersByHour, 1);
                       const pct = Math.max(6, Math.round((count / max) * 100));
                       const isPeak = count === max && count > 0;
                       return (
-                        <div key={h} className="group relative flex flex-1 flex-col items-center" title={`${h}:00 — ${count} orders`}>
+                        <div key={h} className="group relative flex flex-1 flex-col items-center" title={`${h}:00 â€” ${count} orders`}>
                           <div className={`w-full rounded-t transition-all ${isPeak ? "bg-amber-400" : "bg-slate-200 group-hover:bg-teal-300"}`} style={{ height: `${pct}%` }} />
                           {h % 4 === 0 && <span className="mt-0.5 text-[9px] text-slate-400">{h}h</span>}
                         </div>
@@ -1309,14 +1369,14 @@ export function AdminDashboardPage() {
                   </div>
                   {data.ordersByHour && (
                     <div className="mt-2 text-xs text-slate-500">
-                      {language === "ar" ? "الساعة الذروة:" : "Peak hour:"} {data.ordersByHour.indexOf(Math.max(...data.ordersByHour))}:00 ({Math.max(...data.ordersByHour)} {language === "ar" ? "طلبات" : "orders"})
+                      {language === "ar" ? "Ø§Ù„Ø³Ø§Ø¹Ø© Ø§Ù„Ø°Ø±ÙˆØ©:" : "Peak hour:"} {data.ordersByHour.indexOf(Math.max(...data.ordersByHour))}:00 ({Math.max(...data.ordersByHour)} {language === "ar" ? "Ø·Ù„Ø¨Ø§Øª" : "orders"})
                     </div>
                   )}
                 </Panel>
               )}
 
               {data.revenueByWilaya && data.revenueByWilaya.length > 0 && (
-                <Panel title={language === "ar" ? "الإيرادات حسب الولاية" : "Revenue by wilaya"}>
+                <Panel title={language === "ar" ? "Ø§Ù„Ø¥ÙŠØ±Ø§Ø¯Ø§Øª Ø­Ø³Ø¨ Ø§Ù„ÙˆÙ„Ø§ÙŠØ©" : "Revenue by wilaya"}>
                   <div className="space-y-2">
                     {data.revenueByWilaya.slice(0, 7).map((w, i) => {
                       const max = data.revenueByWilaya[0].revenue;
@@ -1337,7 +1397,7 @@ export function AdminDashboardPage() {
               )}
             </div>
 
-            {/* ── ORDERS BY STATUS ── */}
+            {/* â”€â”€ ORDERS BY STATUS â”€â”€ */}
             <Panel title={translate(language, "analyticsOrdersByStatus")}>
               {Object.keys(data.ordersByStatus).length === 0 ? (
                 <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
@@ -1354,18 +1414,18 @@ export function AdminDashboardPage() {
               )}
             </Panel>
 
-            {/* ── CONVERSION PER PRODUCT ── */}
+            {/* â”€â”€ CONVERSION PER PRODUCT â”€â”€ */}
             {data.conversionByProduct && data.conversionByProduct.length > 0 && (
-              <Panel title={language === "ar" ? "معدل التحويل لكل منتج (مشاهدات → طلبات)" : "Conversion rate per product"}>
+              <Panel title={language === "ar" ? "Ù…Ø¹Ø¯Ù„ Ø§Ù„ØªØ­ÙˆÙŠÙ„ Ù„ÙƒÙ„ Ù…Ù†ØªØ¬ (Ù…Ø´Ø§Ù‡Ø¯Ø§Øª â†’ Ø·Ù„Ø¨Ø§Øª)" : "Conversion rate per product"}>
                 <div className="table-wrap">
                   <table className="table-base">
                     <thead>
                       <tr>
-                        <th className="ps-4">{language === "ar" ? "المنتج" : "Product"}</th>
-                        <th>{language === "ar" ? "مشاهدات" : "Views"}</th>
-                        <th>{language === "ar" ? "طلبات" : "Orders"}</th>
-                        <th>{language === "ar" ? "معدل التحويل" : "Conv. rate"}</th>
-                        <th>{language === "ar" ? "التشخيص" : "Status"}</th>
+                        <th className="ps-4">{language === "ar" ? "Ø§Ù„Ù…Ù†ØªØ¬" : "Product"}</th>
+                        <th>{language === "ar" ? "Ù…Ø´Ø§Ù‡Ø¯Ø§Øª" : "Views"}</th>
+                        <th>{language === "ar" ? "Ø·Ù„Ø¨Ø§Øª" : "Orders"}</th>
+                        <th>{language === "ar" ? "Ù…Ø¹Ø¯Ù„ Ø§Ù„ØªØ­ÙˆÙŠÙ„" : "Conv. rate"}</th>
+                        <th>{language === "ar" ? "Ø§Ù„ØªØ´Ø®ÙŠØµ" : "Status"}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1381,10 +1441,10 @@ export function AdminDashboardPage() {
                           </td>
                           <td className="text-xs">
                             {p.conversionRate === 0 && p.views >= 10
-                              ? <span className="text-rose-600">⚠️ {language === "ar" ? "مشاهد كثيراً — لا طلبات → راجع السعر أو الصور" : "Many views, 0 orders → check price/photos"}</span>
+                              ? <span className="text-rose-600">âš ï¸ {language === "ar" ? "Ù…Ø´Ø§Ù‡Ø¯ ÙƒØ«ÙŠØ±Ø§Ù‹ â€” Ù„Ø§ Ø·Ù„Ø¨Ø§Øª â†’ Ø±Ø§Ø¬Ø¹ Ø§Ù„Ø³Ø¹Ø± Ø£Ùˆ Ø§Ù„ØµÙˆØ±" : "Many views, 0 orders â†’ check price/photos"}</span>
                               : p.conversionRate >= 3
-                                ? <span className="text-emerald-600">✓ {language === "ar" ? "ممتاز" : "Excellent"}</span>
-                                : <span className="text-slate-400">{language === "ar" ? "طبيعي" : "Normal"}</span>}
+                                ? <span className="text-emerald-600">âœ“ {language === "ar" ? "Ù…Ù…ØªØ§Ø²" : "Excellent"}</span>
+                                : <span className="text-slate-400">{language === "ar" ? "Ø·Ø¨ÙŠØ¹ÙŠ" : "Normal"}</span>}
                           </td>
                         </tr>
                       ))}
@@ -1394,7 +1454,7 @@ export function AdminDashboardPage() {
               </Panel>
             )}
 
-            {/* ── PRODUCT TABLES ── */}
+            {/* â”€â”€ PRODUCT TABLES â”€â”€ */}
             <div className="grid gap-5 xl:grid-cols-2">
               <Panel title={translate(language, "analyticsMostViewed")}>
                 {data.mostViewedProducts.length === 0 ? (
@@ -1518,18 +1578,18 @@ export function AdminDashboardPage() {
     return (
       <div className="space-y-5">
 
-        {/* ── URGENT ALERTS ROW ── */}
+        {/* â”€â”€ URGENT ALERTS ROW â”€â”€ */}
         {(stats.abandonedOrders > 0 || stats.awaitingCallOrders > 0 || alerts.length > 0) && (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {/* Abandoned orders — most urgent */}
+            {/* Abandoned orders â€” most urgent */}
             {stats.abandonedOrders > 0 && (
               <Link to="/gestion/orders" className="flex items-center gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 px-4 py-3.5 transition hover:-translate-y-0.5">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500 text-white">
                   <Phone className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-rose-900">{isAr ? `${stats.abandonedOrders} طلب منتهية الصلاحية` : `${stats.abandonedOrders} abandoned`}</div>
-                  <div className="text-xs text-rose-600">{isAr ? "تنتظر مكالمتك أكثر من 24 ساعة ⚠️" : "waiting call >24h ⚠️"}</div>
+                  <div className="text-sm font-bold text-rose-900">{isAr ? `${stats.abandonedOrders} Ø·Ù„Ø¨ Ù…Ù†ØªÙ‡ÙŠØ© Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ©` : `${stats.abandonedOrders} abandoned`}</div>
+                  <div className="text-xs text-rose-600">{isAr ? "ØªÙ†ØªØ¸Ø± Ù…ÙƒØ§Ù„Ù…ØªÙƒ Ø£ÙƒØ«Ø± Ù…Ù† 24 Ø³Ø§Ø¹Ø© âš ï¸" : "waiting call >24h âš ï¸"}</div>
                 </div>
               </Link>
             )}
@@ -1540,8 +1600,8 @@ export function AdminDashboardPage() {
                   <BellRing className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-amber-900">{isAr ? `${stats.awaitingCallOrders} طلب يتانتظر` : `${stats.awaitingCallOrders} need call`}</div>
-                  <div className="text-xs text-amber-600">{isAr ? "اتصل بهم الآن" : "Call them now"}</div>
+                  <div className="text-sm font-bold text-amber-900">{isAr ? `${stats.awaitingCallOrders} Ø·Ù„Ø¨ ÙŠØªØ§Ù†ØªØ¸Ø±` : `${stats.awaitingCallOrders} need call`}</div>
+                  <div className="text-xs text-amber-600">{isAr ? "Ø§ØªØµÙ„ Ø¨Ù‡Ù… Ø§Ù„Ø¢Ù†" : "Call them now"}</div>
                 </div>
               </Link>
             )}
@@ -1554,45 +1614,45 @@ export function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ── TODAY + TOTAL STATS ── */}
+        {/* â”€â”€ TODAY + TOTAL STATS â”€â”€ */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {/* Today's orders */}
           <div className="stat-card border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-white">
-            <div className="text-xs font-bold uppercase tracking-wider text-teal-600">{isAr ? "اليوم" : "Today"}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-teal-600">{isAr ? "Ø§Ù„ÙŠÙˆÙ…" : "Today"}</div>
             <div className="mt-2 text-3xl font-black text-teal-700">{stats.todayOrders}</div>
-            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب جديد" : "new orders"}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "Ø·Ù„Ø¨ Ø¬Ø¯ÙŠØ¯" : "new orders"}</div>
             {stats.todayRevenue > 0 && <div className="mt-1 text-xs font-semibold text-teal-600">{formatCurrency(stats.todayRevenue, language)}</div>}
           </div>
           {/* This week */}
           <div className="stat-card">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "هذا الأسبوع" : "This week"}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹" : "This week"}</div>
             <div className="mt-2 text-3xl font-black text-slate-800">{stats.weekOrders}</div>
-            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب" : "orders"}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "Ø·Ù„Ø¨" : "orders"}</div>
             {stats.weekRevenue > 0 && <div className="mt-1 text-xs font-semibold text-slate-500">{formatCurrency(stats.weekRevenue, language)}</div>}
           </div>
           {/* Total delivered */}
           <div className="stat-card">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "مُسلَّم" : "Delivered"}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "Ù…ÙØ³Ù„ÙŽÙ‘Ù…" : "Delivered"}</div>
             <div className="mt-2 text-3xl font-black text-emerald-700">{stats.deliveredOrders}</div>
-            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب مكتمل" : "completed"}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "Ø·Ù„Ø¨ Ù…ÙƒØªÙ…Ù„" : "completed"}</div>
           </div>
           {/* Total revenue */}
           <div className="stat-card">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "الإيرادات" : "Revenue"}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "Ø§Ù„Ø¥ÙŠØ±Ø§Ø¯Ø§Øª" : "Revenue"}</div>
             <div className="mt-2 break-words text-2xl font-black text-slate-900">{formatCurrency(stats.revenue, language)}</div>
-            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "إجمالي" : "total"}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "Ø¥Ø¬Ù…Ø§Ù„ÙŠ" : "total"}</div>
           </div>
         </div>
 
-        {/* ── ABANDONED ORDERS DETAIL ── */}
+        {/* â”€â”€ ABANDONED ORDERS DETAIL â”€â”€ */}
         {stats.abandonedOrderDetails.length > 0 && (
           <div className="surface-card overflow-hidden p-0">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
               <div className="flex items-center gap-2 font-bold text-rose-800">
                 <Phone className="h-4 w-4" />
-                {isAr ? `طلبات تنتظر مكالمتك (${stats.abandonedOrders})` : `Orders waiting your call (${stats.abandonedOrders})`}
+                {isAr ? `Ø·Ù„Ø¨Ø§Øª ØªÙ†ØªØ¸Ø± Ù…ÙƒØ§Ù„Ù…ØªÙƒ (${stats.abandonedOrders})` : `Orders waiting your call (${stats.abandonedOrders})`}
               </div>
-              <Link to="/gestion/orders" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "عرض الكل" : "View all"}</Link>
+              <Link to="/gestion/orders" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "Ø¹Ø±Ø¶ Ø§Ù„ÙƒÙ„" : "View all"}</Link>
             </div>
             <div className="divide-y divide-slate-50">
               {stats.abandonedOrderDetails.map((o) => (
@@ -1603,7 +1663,7 @@ export function AdminDashboardPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-slate-900">{formatCurrency(o.total, language)}</div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-rose-500">{isAr ? `منذ ${o.hoursAgo} ساعة` : `${o.hoursAgo}h ago`}</div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-rose-500">{isAr ? `Ù…Ù†Ø° ${o.hoursAgo} Ø³Ø§Ø¹Ø©` : `${o.hoursAgo}h ago`}</div>
                   </div>
                 </div>
               ))}
@@ -1611,12 +1671,12 @@ export function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ── BOTTOM GRID ── */}
+        {/* â”€â”€ BOTTOM GRID â”€â”€ */}
         <div className="grid gap-5 xl:grid-cols-3">
           {/* Low stock */}
-          <Panel title={`${translate(language, "dashboardLowStock")}${stats.outOfStockProducts > 0 ? ` — ${stats.outOfStockProducts} ${isAr ? "نفد" : "out of stock"}` : ""}`}>
+          <Panel title={`${translate(language, "dashboardLowStock")}${stats.outOfStockProducts > 0 ? ` â€” ${stats.outOfStockProducts} ${isAr ? "Ù†ÙØ¯" : "out of stock"}` : ""}`}>
             {stats.lowStockProducts.length === 0 ? (
-              <div className="py-4 text-center text-sm text-emerald-600">✓ {isAr ? "كل المخزون جيد" : "All stock is healthy"}</div>
+              <div className="py-4 text-center text-sm text-emerald-600">âœ“ {isAr ? "ÙƒÙ„ Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø¬ÙŠØ¯" : "All stock is healthy"}</div>
             ) : (
               <div className="space-y-2">
                 {stats.lowStockProducts.map((product) => (
@@ -1634,7 +1694,7 @@ export function AdminDashboardPage() {
           {/* Top products by actual orders */}
           <Panel title={translate(language, "dashboardTopProducts")}>
             {stats.topProducts.length === 0 ? (
-              <div className="py-4 text-center text-sm text-slate-400">{isAr ? "لا توجد بيانات بعد" : "No data yet"}</div>
+              <div className="py-4 text-center text-sm text-slate-400">{isAr ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª Ø¨Ø¹Ø¯" : "No data yet"}</div>
             ) : (
               <div className="space-y-2">
                 {stats.topProducts.map((product, i) => (
@@ -1642,7 +1702,7 @@ export function AdminDashboardPage() {
                     <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-200 text-[11px] font-bold text-slate-600">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-slate-700">{getLocalizedText(product.name, language)}</span>
                     <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-700">
-                      {product.orderCount} {isAr ? "طلب" : "sold"}
+                      {product.orderCount} {isAr ? "Ø·Ù„Ø¨" : "sold"}
                     </span>
                   </div>
                 ))}
@@ -1652,17 +1712,17 @@ export function AdminDashboardPage() {
 
           {/* WhatsApp status */}
           <div className="surface-card p-5 space-y-3">
-            <div className="text-sm font-bold text-slate-700">{isAr ? "حالة النظام" : "System Status"}</div>
+            <div className="text-sm font-bold text-slate-700">{isAr ? "Ø­Ø§Ù„Ø© Ø§Ù„Ù†Ø¸Ø§Ù…" : "System Status"}</div>
             <WaStatusWidget token={token} language={language} />
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">{isAr ? "ZR Express" : "ZR Express"}</span>
-                <span className="font-semibold text-emerald-700">{zrStatus?.configured ? "✓ متصل" : "غير مفعّل"}</span>
+                <span className="font-semibold text-emerald-700">{zrStatus?.configured ? "âœ“ Ù…ØªØµÙ„" : "ØºÙŠØ± Ù…ÙØ¹Ù‘Ù„"}</span>
               </div>
             </div>
             <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">{isAr ? "منتجات نفد مخزونها" : "Out of stock"}</span>
+                <span className="text-slate-600">{isAr ? "Ù…Ù†ØªØ¬Ø§Øª Ù†ÙØ¯ Ù…Ø®Ø²ÙˆÙ†Ù‡Ø§" : "Out of stock"}</span>
                 <span className={`font-bold ${stats.outOfStockProducts > 0 ? "text-rose-600" : "text-emerald-600"}`}>{stats.outOfStockProducts}</span>
               </div>
             </div>
@@ -1794,7 +1854,7 @@ export function AdminDashboardPage() {
                 onChange={(event) => setProductForm({ ...productForm, isSoldOut: event.target.checked })}
                 className="h-4 w-4 rounded border-rose-300 accent-rose-600"
               />
-              {translate(language, "productSoldOut")} — {translate(language, "adminSoldOutHint") || "يُظهر المنتج كـ Sold Out ولا يمكن الشراء منه"}
+              {translate(language, "productSoldOut")} â€” {translate(language, "adminSoldOutHint") || "ÙŠÙØ¸Ù‡Ø± Ø§Ù„Ù…Ù†ØªØ¬ ÙƒÙ€ Sold Out ÙˆÙ„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ù„Ø´Ø±Ø§Ø¡ Ù…Ù†Ù‡"}
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 cursor-pointer">
               <input
@@ -1803,7 +1863,7 @@ export function AdminDashboardPage() {
                 onChange={(event) => setProductForm({ ...productForm, localPickupOnly: event.target.checked })}
                 className="h-4 w-4 rounded border-amber-300 accent-amber-600"
               />
-              متوفر في المتجر فقط — لا يوجد توصيل لهذا المنتج
+              Ù…ØªÙˆÙØ± ÙÙŠ Ø§Ù„Ù…ØªØ¬Ø± ÙÙ‚Ø· â€” Ù„Ø§ ÙŠÙˆØ¬Ø¯ ØªÙˆØµÙŠÙ„ Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 cursor-pointer">
               <input
@@ -1812,7 +1872,7 @@ export function AdminDashboardPage() {
                 onChange={(event) => setProductForm({ ...productForm, isEuropean: event.target.checked } as typeof productForm)}
                 className="h-4 w-4 rounded border-blue-300 accent-blue-600"
               />
-              🇪🇺 علامة أوروبية — يُعرض شارة "EU Origin" على بطاقة المنتج
+              ðŸ‡ªðŸ‡º Ø¹Ù„Ø§Ù…Ø© Ø£ÙˆØ±ÙˆØ¨ÙŠØ© â€” ÙŠÙØ¹Ø±Ø¶ Ø´Ø§Ø±Ø© "EU Origin" Ø¹Ù„Ù‰ Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ù…Ù†ØªØ¬
             </label>
           </div>
 
@@ -1911,7 +1971,7 @@ export function AdminDashboardPage() {
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>
                   )}
                   {product.localPickupOnly ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">متجر فقط</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Ù…ØªØ¬Ø± ÙÙ‚Ø·</span>
                   ) : null}
                   </div>
                 </td>
@@ -1921,7 +1981,7 @@ export function AdminDashboardPage() {
                       onClick={() => void adminService.updateProduct(token, product._id, { isSoldOut: !product.isSoldOut }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
                       className={`text-xs font-semibold ${product.isSoldOut ? "text-emerald-600" : "text-rose-600"}`}
                     >
-                      {product.isSoldOut ? "✓ Activate" : "✗ Sold Out"}
+                      {product.isSoldOut ? "âœ“ Activate" : "âœ— Sold Out"}
                     </button>
                     <button onClick={() => startEditProduct(product)} className="text-sm font-semibold text-teal-700">
                       {translate(language, "adminEdit")}
@@ -2111,7 +2171,7 @@ export function AdminDashboardPage() {
       order.items.map((item) => `${item.productName.en ?? item.productName.ar} x${item.quantity}`).join("; "),
     ]);
     const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["ï»¿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -2135,13 +2195,13 @@ export function AdminDashboardPage() {
   const confirmUpdateStatus = (orderId: string, status: Order["status"], orderNumber: string) => {
     const statusLabel = translate(language, `status_${status}` as TranslationKey);
     setConfirmModal({
-      title: language === "ar" ? "تغيير حالة الطلب" : language === "fr" ? "Changer le statut" : "Change Order Status",
+      title: language === "ar" ? "ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© Ø§Ù„Ø·Ù„Ø¨" : language === "fr" ? "Changer le statut" : "Change Order Status",
       message: language === "ar"
-        ? `هل تريد تغيير حالة الطلب ${orderNumber} إلى "${statusLabel}"؟`
+        ? `Ù‡Ù„ ØªØ±ÙŠØ¯ ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© Ø§Ù„Ø·Ù„Ø¨ ${orderNumber} Ø¥Ù„Ù‰ "${statusLabel}"ØŸ`
         : language === "fr"
           ? `Changer le statut de la commande ${orderNumber} en "${statusLabel}" ?`
           : `Change order ${orderNumber} status to "${statusLabel}"?`,
-      confirmLabel: language === "ar" ? "تأكيد" : language === "fr" ? "Confirmer" : "Confirm",
+      confirmLabel: language === "ar" ? "ØªØ£ÙƒÙŠØ¯" : language === "fr" ? "Confirmer" : "Confirm",
       tone: ["CANCELLED", "RETURNED", "FAILED"].includes(status) ? "danger" : "info",
       onConfirm: () => void updateOrderStatusAction(orderId, status),
     });
@@ -2161,13 +2221,13 @@ export function AdminDashboardPage() {
 
   const confirmDeleteOrder = (orderId: string, orderNumber: string) => {
     setConfirmModal({
-      title: language === "ar" ? "حذف الطلب" : language === "fr" ? "Supprimer la commande" : "Delete Order",
+      title: language === "ar" ? "Ø­Ø°Ù Ø§Ù„Ø·Ù„Ø¨" : language === "fr" ? "Supprimer la commande" : "Delete Order",
       message: language === "ar"
-        ? `هل أنت متأكد من حذف الطلب ${orderNumber}؟ لا يمكن التراجع عن هذا الإجراء.`
+        ? `Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø§Ù„Ø·Ù„Ø¨ ${orderNumber}ØŸ Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ù„ØªØ±Ø§Ø¬Ø¹ Ø¹Ù† Ù‡Ø°Ø§ Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡.`
         : language === "fr"
-          ? `Supprimer définitivement la commande ${orderNumber} ? Cette action est irréversible.`
+          ? `Supprimer dÃ©finitivement la commande ${orderNumber} ? Cette action est irrÃ©versible.`
           : `Permanently delete order ${orderNumber}? This cannot be undone.`,
-      confirmLabel: language === "ar" ? "حذف" : language === "fr" ? "Supprimer" : "Delete",
+      confirmLabel: language === "ar" ? "Ø­Ø°Ù" : language === "fr" ? "Supprimer" : "Delete",
       tone: "danger",
       onConfirm: () => void deleteOrderAction(orderId),
     });
@@ -2188,13 +2248,13 @@ export function AdminDashboardPage() {
 
   const confirmCreateZRParcel = (orderId: string, orderNumber: string) => {
     setConfirmModal({
-      title: language === "ar" ? "إنشاء شحنة ZR Express" : language === "fr" ? "Créer un colis ZR" : "Create ZR Express Parcel",
+      title: language === "ar" ? "Ø¥Ù†Ø´Ø§Ø¡ Ø´Ø­Ù†Ø© ZR Express" : language === "fr" ? "CrÃ©er un colis ZR" : "Create ZR Express Parcel",
       message: language === "ar"
-        ? `هل تريد إنشاء شحنة ZR Express للطلب ${orderNumber}؟`
+        ? `Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¥Ù†Ø´Ø§Ø¡ Ø´Ø­Ù†Ø© ZR Express Ù„Ù„Ø·Ù„Ø¨ ${orderNumber}ØŸ`
         : language === "fr"
-          ? `Créer un colis ZR Express pour la commande ${orderNumber} ?`
+          ? `CrÃ©er un colis ZR Express pour la commande ${orderNumber} ?`
           : `Create a ZR Express parcel for order ${orderNumber}?`,
-      confirmLabel: language === "ar" ? "إنشاء" : language === "fr" ? "Créer" : "Create",
+      confirmLabel: language === "ar" ? "Ø¥Ù†Ø´Ø§Ø¡" : language === "fr" ? "CrÃ©er" : "Create",
       tone: "info",
       onConfirm: () => void createZRParcelAction(orderId),
     });
@@ -2204,7 +2264,7 @@ export function AdminDashboardPage() {
     setZrSyncingId(orderId);
     try {
       const result = await adminService.syncZRParcelStatus(token, orderId);
-      pushToast(`ZR: ${result.zrState} → ${result.orderStatus}`, "success");
+      pushToast(`ZR: ${result.zrState} â†’ ${result.orderStatus}`, "success");
       await loadAll();
     } catch (error) {
       pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
@@ -2217,7 +2277,7 @@ export function AdminDashboardPage() {
     setZrStateChangingId(orderId);
     try {
       await adminService.setZRParcelState(token, orderId, stateId);
-      pushToast(language === "ar" ? `تم تغيير حالة ZR إلى: ${stateLabel}` : `ZR state changed to: ${stateLabel}`, "success");
+      pushToast(language === "ar" ? `ØªÙ… ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© ZR Ø¥Ù„Ù‰: ${stateLabel}` : `ZR state changed to: ${stateLabel}`, "success");
       await loadAll();
     } catch (error) {
       pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
@@ -2228,15 +2288,15 @@ export function AdminDashboardPage() {
 
   const cancelZRParcelAction = (orderId: string, orderNumber: string) => {
     setConfirmModal({
-      title: language === "ar" ? "إلغاء شحنة ZR" : "Cancel ZR Parcel",
-      message: language === "ar" ? `هل تريد إلغاء شحنة ZR للطلب ${orderNumber}؟` : `Cancel ZR parcel for order ${orderNumber}?`,
-      confirmLabel: language === "ar" ? "إلغاء الشحنة" : "Cancel Parcel",
+      title: language === "ar" ? "Ø¥Ù„ØºØ§Ø¡ Ø´Ø­Ù†Ø© ZR" : "Cancel ZR Parcel",
+      message: language === "ar" ? `Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¥Ù„ØºØ§Ø¡ Ø´Ø­Ù†Ø© ZR Ù„Ù„Ø·Ù„Ø¨ ${orderNumber}ØŸ` : `Cancel ZR parcel for order ${orderNumber}?`,
+      confirmLabel: language === "ar" ? "Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø´Ø­Ù†Ø©" : "Cancel Parcel",
       tone: "danger",
       onConfirm: async () => {
         setZrCancellingId(orderId);
         try {
           await adminService.cancelZRParcel(token, orderId);
-          pushToast(language === "ar" ? "تم إلغاء شحنة ZR ✓" : "ZR parcel cancelled", "success");
+          pushToast(language === "ar" ? "ØªÙ… Ø¥Ù„ØºØ§Ø¡ Ø´Ø­Ù†Ø© ZR âœ“" : "ZR parcel cancelled", "success");
           await loadAll();
         } catch (error) {
           pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
@@ -2250,7 +2310,7 @@ export function AdminDashboardPage() {
   const saveOrderNote = async (orderId: string, note: string) => {
     try {
       await adminService.saveOrderNote(token, orderId, note);
-      pushToast(language === "ar" ? "تم حفظ الملاحظة ✓" : "Note saved", "success");
+      pushToast(language === "ar" ? "ØªÙ… Ø­ÙØ¸ Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø© âœ“" : "Note saved", "success");
       setOrderNoteEditing(null);
       await loadAll();
     } catch (error) {
@@ -2265,6 +2325,21 @@ export function AdminDashboardPage() {
 
   const saveOrderEdit = async (order: Order) => {
     if (!orderEditDraft) {
+      return;
+    }
+
+    if (!orderEditDraft.customer.wilayaCode.trim()) {
+      pushToast(language === "ar" ? "Ø§Ø®ØªØ± Ø§Ù„ÙˆÙ„Ø§ÙŠØ© Ø£ÙˆÙ„Ø§Ù‹" : "Select a wilaya first", "error");
+      return;
+    }
+
+    if (!orderEditDraft.customer.commune.trim()) {
+      pushToast(language === "ar" ? "Ø§Ø®ØªØ± Ø§Ù„Ø¨Ù„Ø¯ÙŠØ© Ø£Ùˆ Ø¬Ù‡Ø© Ø§Ù„Ø´Ø­Ù†" : "Select a commune / shipping destination", "error");
+      return;
+    }
+
+    if (selectedOrderEditZrTerritories.length > 0 && !orderEditDraft.zrTerritoryId.trim()) {
+      pushToast(language === "ar" ? "Ø§Ø®ØªØ± Ø§Ù„Ø¨Ù„Ø¯ÙŠØ© Ù…Ù† Ù‚Ø§Ø¦Ù…Ø© ZR" : "Select the ZR commune for this wilaya", "error");
       return;
     }
 
@@ -2299,7 +2374,7 @@ export function AdminDashboardPage() {
           },
         })),
       });
-      pushToast(language === "ar" ? "تم تحديث الطلب ✓" : language === "fr" ? "Commande mise à jour" : "Order updated", "success");
+      pushToast(language === "ar" ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø·Ù„Ø¨ âœ“" : language === "fr" ? "Commande mise Ã  jour" : "Order updated", "success");
       setOrderEditingId(null);
       setOrderEditDraft(null);
       await loadAll();
@@ -2354,7 +2429,7 @@ export function AdminDashboardPage() {
       const result = await adminService.bulkReadyToShip(token, ids);
       pushToast(
         language === "ar"
-          ? `جاهز للشحن: ${result.succeeded.length} ✓، ${result.failed.length} فشل`
+          ? `Ø¬Ø§Ù‡Ø² Ù„Ù„Ø´Ø­Ù†: ${result.succeeded.length} âœ“ØŒ ${result.failed.length} ÙØ´Ù„`
           : `Ready to ship: ${result.succeeded.length} ok, ${result.failed.length} failed`,
         result.failed.length === 0 ? "success" : "error",
       );
@@ -2370,7 +2445,7 @@ export function AdminDashboardPage() {
     setTelegramLabelId(orderId);
     try {
       await adminService.sendLabelToTelegram(token, orderId);
-      pushToast(language === "ar" ? "تم إرسال الوصل إلى Telegram ✓" : language === "fr" ? "Bon envoyé sur Telegram ✓" : "Waybill sent to Telegram ✓", "success");
+      pushToast(language === "ar" ? "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ÙˆØµÙ„ Ø¥Ù„Ù‰ Telegram âœ“" : language === "fr" ? "Bon envoyÃ© sur Telegram âœ“" : "Waybill sent to Telegram âœ“", "success");
     } catch (error) {
       pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error");
     } finally {
@@ -2382,7 +2457,7 @@ export function AdminDashboardPage() {
     const wilayaLabel = typeof order.customer.wilaya === "string"
       ? order.customer.wilaya
       : order.customer.wilaya.name.ar || order.customer.wilaya.name.fr || order.customer.wilaya.name.en;
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>وصل طلب ${order.orderNumber}</title>
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ÙˆØµÙ„ Ø·Ù„Ø¨ ${order.orderNumber}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; background: #fff; padding: 32px; font-size: 14px; }
@@ -2416,39 +2491,39 @@ export function AdminDashboardPage() {
 </div>
 <div class="grid2">
   <div class="info-box">
-    <div class="section-title">بيانات الزبون</div>
+    <div class="section-title">Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø²Ø¨ÙˆÙ†</div>
     <p><strong>${order.customer.fullName}</strong></p>
     <p>${order.customer.phone}${order.customer.phone2 ? ` / ${order.customer.phone2}` : ""}</p>
-    <p>${wilayaLabel}${order.customer.commune ? ` — ${order.customer.commune}` : ""}</p>
+    <p>${wilayaLabel}${order.customer.commune ? ` â€” ${order.customer.commune}` : ""}</p>
     ${order.customer.address ? `<p>${order.customer.address}</p>` : ""}
   </div>
   <div class="info-box">
-    <div class="section-title">بيانات التسليم</div>
-    <p><strong>${order.deliveryType === "HOME_DELIVERY" ? "توصيل للمنزل" : "استلام من المكتب"}</strong></p>
-    <p>طريقة الدفع: <strong>COD — الدفع عند التسليم</strong></p>
-    <p>الحالة: <span class="badge">${order.status}</span></p>
+    <div class="section-title">Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ³Ù„ÙŠÙ…</div>
+    <p><strong>${order.deliveryType === "HOME_DELIVERY" ? "ØªÙˆØµÙŠÙ„ Ù„Ù„Ù…Ù†Ø²Ù„" : "Ø§Ø³ØªÙ„Ø§Ù… Ù…Ù† Ø§Ù„Ù…ÙƒØªØ¨"}</strong></p>
+    <p>Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ø¯ÙØ¹: <strong>COD â€” Ø§Ù„Ø¯ÙØ¹ Ø¹Ù†Ø¯ Ø§Ù„ØªØ³Ù„ÙŠÙ…</strong></p>
+    <p>Ø§Ù„Ø­Ø§Ù„Ø©: <span class="badge">${order.status}</span></p>
   </div>
 </div>
-<div class="section-title">المنتجات</div>
+<div class="section-title">Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª</div>
 <table>
-  <thead><tr><th>المنتج</th><th>المتغير</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr></thead>
+  <thead><tr><th>Ø§Ù„Ù…Ù†ØªØ¬</th><th>Ø§Ù„Ù…ØªØºÙŠØ±</th><th>Ø§Ù„ÙƒÙ…ÙŠØ©</th><th>Ø§Ù„Ø³Ø¹Ø±</th><th>Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹</th></tr></thead>
   <tbody>
     ${order.items.map((item) => `<tr>
       <td>${typeof item.productName === "object" ? (item.productName.ar || item.productName.fr || item.productName.en) : item.productName}</td>
-      <td style="color:#888">${item.variantLabel ?? "—"}</td>
+      <td style="color:#888">${item.variantLabel ?? "â€”"}</td>
       <td style="text-align:center">${item.quantity}</td>
-      <td>${item.unitPrice.toLocaleString("fr-DZ")} دج</td>
-      <td style="font-weight:600">${item.lineTotal.toLocaleString("fr-DZ")} دج</td>
+      <td>${item.unitPrice.toLocaleString("fr-DZ")} Ø¯Ø¬</td>
+      <td style="font-weight:600">${item.lineTotal.toLocaleString("fr-DZ")} Ø¯Ø¬</td>
     </tr>`).join("")}
   </tbody>
 </table>
 <table class="totals">
-  <tr><td>المبلغ الفرعي</td><td>${order.subtotal.toLocaleString("fr-DZ")} دج</td></tr>
-  ${order.discount > 0 ? `<tr><td>الخصم</td><td>- ${order.discount.toLocaleString("fr-DZ")} دج</td></tr>` : ""}
-  <tr><td>رسوم التوصيل</td><td>${order.shippingFee.toLocaleString("fr-DZ")} دج</td></tr>
-  <tr class="grand"><td>الإجمالي</td><td>${order.total.toLocaleString("fr-DZ")} دج</td></tr>
+  <tr><td>Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„ÙØ±Ø¹ÙŠ</td><td>${order.subtotal.toLocaleString("fr-DZ")} Ø¯Ø¬</td></tr>
+  ${order.discount > 0 ? `<tr><td>Ø§Ù„Ø®ØµÙ…</td><td>- ${order.discount.toLocaleString("fr-DZ")} Ø¯Ø¬</td></tr>` : ""}
+  <tr><td>Ø±Ø³ÙˆÙ… Ø§Ù„ØªÙˆØµÙŠÙ„</td><td>${order.shippingFee.toLocaleString("fr-DZ")} Ø¯Ø¬</td></tr>
+  <tr class="grand"><td>Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ</td><td>${order.total.toLocaleString("fr-DZ")} Ø¯Ø¬</td></tr>
 </table>
-<div class="footer">VisaDZ · visadz.store · شكراً لتسوقك معنا</div>
+<div class="footer">VisaDZ Â· visadz.store Â· Ø´ÙƒØ±Ø§Ù‹ Ù„ØªØ³ÙˆÙ‚Ùƒ Ù…Ø¹Ù†Ø§</div>
 <script>window.onload = () => { window.print(); }</script>
 </body></html>`;
     const w = window.open("", "_blank");
@@ -2473,13 +2548,13 @@ export function AdminDashboardPage() {
   };
 
   const renderOrders = () => {
-    const colOrder = language === "ar" ? "الطلب" : language === "fr" ? "Commande" : "Order";
-    const colCustomer = language === "ar" ? "العميل" : language === "fr" ? "Client" : "Customer";
-    const colPhone = language === "ar" ? "الهاتف" : language === "fr" ? "Téléphone" : "Phone";
-    const colStatus = language === "ar" ? "الحالة" : language === "fr" ? "Statut" : "Status";
-    const colTotal = language === "ar" ? "المبلغ" : language === "fr" ? "Total" : "Total";
-    const colDate = language === "ar" ? "التاريخ" : language === "fr" ? "Date" : "Date";
-    const emptyText = language === "ar" ? "لا توجد طلبات" : language === "fr" ? "Aucune commande" : "No orders found";
+    const colOrder = language === "ar" ? "Ø§Ù„Ø·Ù„Ø¨" : language === "fr" ? "Commande" : "Order";
+    const colCustomer = language === "ar" ? "Ø§Ù„Ø¹Ù…ÙŠÙ„" : language === "fr" ? "Client" : "Customer";
+    const colPhone = language === "ar" ? "Ø§Ù„Ù‡Ø§ØªÙ" : language === "fr" ? "TÃ©lÃ©phone" : "Phone";
+    const colStatus = language === "ar" ? "Ø§Ù„Ø­Ø§Ù„Ø©" : language === "fr" ? "Statut" : "Status";
+    const colTotal = language === "ar" ? "Ø§Ù„Ù…Ø¨Ù„Øº" : language === "fr" ? "Total" : "Total";
+    const colDate = language === "ar" ? "Ø§Ù„ØªØ§Ø±ÙŠØ®" : language === "fr" ? "Date" : "Date";
+    const emptyText = language === "ar" ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª" : language === "fr" ? "Aucune commande" : "No orders found";
 
     const webhookAlreadyRegistered = zrStatus?.webhooks.some((wh) =>
       wh.url === zrStatus.webhookUrl || wh.url?.includes("/webhooks/zrexpress"),
@@ -2487,7 +2562,7 @@ export function AdminDashboardPage() {
 
     return (
       <div className="space-y-4">
-        {/* ZR Express Status Panel — always visible */}
+        {/* ZR Express Status Panel â€” always visible */}
         <div className={`rounded-2xl border px-5 py-4 ${
           zrStatus === null
             ? "border-slate-200 bg-slate-50 animate-pulse"
@@ -2508,16 +2583,16 @@ export function AdminDashboardPage() {
                   zrStatus === null ? "text-slate-400" : zrStatus.configured ? "text-emerald-800" : "text-rose-700"
                 }`}>
                   {zrStatus === null
-                    ? (language === "ar" ? "جارٍ التحقق من ZR Express..." : "Checking ZR Express...")
+                    ? (language === "ar" ? "Ø¬Ø§Ø±Ù Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ZR Express..." : "Checking ZR Express...")
                     : zrStatus.configured
-                      ? (language === "ar" ? "ZR Express — متصل ✓" : language === "fr" ? "ZR Express — Connecté ✓" : "ZR Express — Connected ✓")
-                      : (language === "ar" ? "ZR Express — غير مُفعّل" : "ZR Express — Not configured")}
+                      ? (language === "ar" ? "ZR Express â€” Ù…ØªØµÙ„ âœ“" : language === "fr" ? "ZR Express â€” ConnectÃ© âœ“" : "ZR Express â€” Connected âœ“")
+                      : (language === "ar" ? "ZR Express â€” ØºÙŠØ± Ù…ÙÙØ¹Ù‘Ù„" : "ZR Express â€” Not configured")}
                 </div>
                 {zrStatus?.configured && (
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-emerald-700">
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {language === "ar" ? "الـ API تعمل" : "API active"}
+                      {language === "ar" ? "Ø§Ù„Ù€ API ØªØ¹Ù…Ù„" : "API active"}
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 font-semibold">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -2528,7 +2603,7 @@ export function AdminDashboardPage() {
                 )}
                 {zrStatus && !zrStatus.configured && (
                   <div className="mt-0.5 text-xs text-rose-600">
-                    {language === "ar" ? "أضف ZR_EXPRESS_TENANT_ID و ZR_EXPRESS_SECRET_KEY في ملف .env على الخادم" : "Add ZR_EXPRESS_TENANT_ID and ZR_EXPRESS_SECRET_KEY to server .env"}
+                    {language === "ar" ? "Ø£Ø¶Ù ZR_EXPRESS_TENANT_ID Ùˆ ZR_EXPRESS_SECRET_KEY ÙÙŠ Ù…Ù„Ù .env Ø¹Ù„Ù‰ Ø§Ù„Ø®Ø§Ø¯Ù…" : "Add ZR_EXPRESS_TENANT_ID and ZR_EXPRESS_SECRET_KEY to server .env"}
                   </div>
                 )}
               </div>
@@ -2542,10 +2617,10 @@ export function AdminDashboardPage() {
                   adminService.getZRStatus(token).then(setZrStatus).catch(() => setZrStatus({ configured: false, webhookUrl: "", webhooks: [] }));
                 }}
                 className="ghost-button gap-1.5 px-3 py-2 text-xs"
-                title={language === "ar" ? "تحديث" : "Refresh"}
+                title={language === "ar" ? "ØªØ­Ø¯ÙŠØ«" : "Refresh"}
               >
                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-                {language === "ar" ? "تحديث" : "Refresh"}
+                {language === "ar" ? "ØªØ­Ø¯ÙŠØ«" : "Refresh"}
               </button>
               {/* Register webhook if not found via API (may be registered via ZR panel) */}
               {zrStatus?.configured && !webhookAlreadyRegistered && (
@@ -2556,7 +2631,7 @@ export function AdminDashboardPage() {
                     setZrWebhookRegistering(true);
                     adminService.registerZRWebhook(token, zrStatus.webhookUrl)
                       .then(() => {
-                        pushToast(language === "ar" ? "تم تسجيل الـ Webhook بنجاح" : "Webhook registered successfully", "success");
+                        pushToast(language === "ar" ? "ØªÙ… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ù€ Webhook Ø¨Ù†Ø¬Ø§Ø­" : "Webhook registered successfully", "success");
                         return adminService.getZRStatus(token).then(setZrStatus);
                       })
                       .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : "Webhook registration failed", "error"))
@@ -2566,8 +2641,8 @@ export function AdminDashboardPage() {
                 >
                   <Package className="h-4 w-4" />
                   {zrWebhookRegistering
-                    ? (language === "ar" ? "جارٍ..." : "Registering...")
-                    : (language === "ar" ? "ربط Webhook" : language === "fr" ? "Enregistrer" : "Register Webhook")}
+                    ? (language === "ar" ? "Ø¬Ø§Ø±Ù..." : "Registering...")
+                    : (language === "ar" ? "Ø±Ø¨Ø· Webhook" : language === "fr" ? "Enregistrer" : "Register Webhook")}
                 </button>
               )}
             </div>
@@ -2600,8 +2675,8 @@ export function AdminDashboardPage() {
         <div className="admin-panel px-5 py-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-base font-semibold text-slate-900">طلب محلي (بدون موقع)</h3>
-              <p className="mt-0.5 text-xs text-slate-500">أنشئ طلباً يدوياً من رسالة أو مكالمة دون أن يمر بالموقع</p>
+              <h3 className="text-base font-semibold text-slate-900">Ø·Ù„Ø¨ Ù…Ø­Ù„ÙŠ (Ø¨Ø¯ÙˆÙ† Ù…ÙˆÙ‚Ø¹)</h3>
+              <p className="mt-0.5 text-xs text-slate-500">Ø£Ù†Ø´Ø¦ Ø·Ù„Ø¨Ø§Ù‹ ÙŠØ¯ÙˆÙŠØ§Ù‹ Ù…Ù† Ø±Ø³Ø§Ù„Ø© Ø£Ùˆ Ù…ÙƒØ§Ù„Ù…Ø© Ø¯ÙˆÙ† Ø£Ù† ÙŠÙ…Ø± Ø¨Ø§Ù„Ù…ÙˆÙ‚Ø¹</p>
             </div>
             <button
               type="button"
@@ -2609,7 +2684,7 @@ export function AdminDashboardPage() {
               className="primary-button gap-2 shrink-0"
             >
               <Package className="h-4 w-4" />
-              {showManualOrderForm ? "إخفاء النموذج" : "إنشاء طلب محلي"}
+              {showManualOrderForm ? "Ø¥Ø®ÙØ§Ø¡ Ø§Ù„Ù†Ù…ÙˆØ°Ø¬" : "Ø¥Ù†Ø´Ø§Ø¡ Ø·Ù„Ø¨ Ù…Ø­Ù„ÙŠ"}
             </button>
           </div>
 
@@ -2621,26 +2696,26 @@ export function AdminDashboardPage() {
                   value={manualOrderForm.fullName}
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, fullName: e.target.value }))}
                   className="field-input"
-                  placeholder="اسم العميل *"
+                  placeholder="Ø§Ø³Ù… Ø§Ù„Ø¹Ù…ÙŠÙ„ *"
                 />
                 <input
                   value={manualOrderForm.phone}
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, phone: e.target.value }))}
                   className="field-input"
-                  placeholder="الهاتف * (05xxxxxxxx)"
+                  placeholder="Ø§Ù„Ù‡Ø§ØªÙ * (05xxxxxxxx)"
                 />
                 <input
                   value={manualOrderForm.phone2}
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, phone2: e.target.value }))}
                   className="field-input"
-                  placeholder="هاتف ثانٍ (اختياري)"
+                  placeholder="Ù‡Ø§ØªÙ Ø«Ø§Ù†Ù (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)"
                 />
                 <select
                   value={manualOrderForm.wilayaCode}
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, wilayaCode: e.target.value, commune: "" }))}
                   className="field-select"
                 >
-                  <option value="">اختر الولاية *</option>
+                  <option value="">Ø§Ø®ØªØ± Ø§Ù„ÙˆÙ„Ø§ÙŠØ© *</option>
                   {wilayas.map((w) => (
                     <option key={w.code} value={w.code}>{w.code} - {w.name.ar}</option>
                   ))}
@@ -2651,7 +2726,7 @@ export function AdminDashboardPage() {
                   className="field-select"
                   disabled={!manualOrderForm.wilayaCode}
                 >
-                  <option value="">اختر البلدية *</option>
+                  <option value="">Ø§Ø®ØªØ± Ø§Ù„Ø¨Ù„Ø¯ÙŠØ© *</option>
                   {(wilayas.find((w) => w.code === manualOrderForm.wilayaCode)?.communes || []).map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -2660,7 +2735,7 @@ export function AdminDashboardPage() {
                   value={manualOrderForm.address}
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, address: e.target.value }))}
                   className="field-input"
-                  placeholder="العنوان التفصيلي"
+                  placeholder="Ø§Ù„Ø¹Ù†ÙˆØ§Ù† Ø§Ù„ØªÙØµÙŠÙ„ÙŠ"
                 />
               </div>
 
@@ -2671,20 +2746,20 @@ export function AdminDashboardPage() {
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, deliveryType: e.target.value as "HOME_DELIVERY" | "DESK_PICKUP" }))}
                   className="field-select max-w-[180px]"
                 >
-                  <option value="HOME_DELIVERY">توصيل للمنزل</option>
-                  <option value="DESK_PICKUP">سحب من المكتب</option>
+                  <option value="HOME_DELIVERY">ØªÙˆØµÙŠÙ„ Ù„Ù„Ù…Ù†Ø²Ù„</option>
+                  <option value="DESK_PICKUP">Ø³Ø­Ø¨ Ù…Ù† Ø§Ù„Ù…ÙƒØªØ¨</option>
                 </select>
                 <input
                   value={manualOrderForm.promoCode}
                   onChange={(e) => setManualOrderForm((f) => ({ ...f, promoCode: e.target.value.toUpperCase() }))}
                   className="field-input max-w-[180px] uppercase"
-                  placeholder="كود تخفيض (اختياري)"
+                  placeholder="ÙƒÙˆØ¯ ØªØ®ÙÙŠØ¶ (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)"
                 />
               </div>
 
               {/* Items */}
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-slate-700">المنتجات</div>
+                <div className="text-sm font-semibold text-slate-700">Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª</div>
                 {manualOrderForm.items.map((item, idx) => {
                   const selectedProduct = products.find((p) => p._id === item.productId);
                   return (
@@ -2698,7 +2773,7 @@ export function AdminDashboardPage() {
                         })}
                         className="field-select flex-1 min-w-[180px]"
                       >
-                        <option value="">اختر المنتج</option>
+                        <option value="">Ø§Ø®ØªØ± Ø§Ù„Ù…Ù†ØªØ¬</option>
                         {products.map((p) => (
                           <option key={p._id} value={p._id}>{getLocalizedText(p.name, language)}</option>
                         ))}
@@ -2713,9 +2788,9 @@ export function AdminDashboardPage() {
                           })}
                           className="field-select max-w-[180px]"
                         >
-                          <option value="">اختر الخيار</option>
+                          <option value="">Ø§Ø®ØªØ± Ø§Ù„Ø®ÙŠØ§Ø±</option>
                           {selectedProduct.variants.map((v) => (
-                            <option key={v._id} value={v._id}>{v.ram} {v.storage} {v.color} - {v.price} دج</option>
+                            <option key={v._id} value={v._id}>{v.ram} {v.storage} {v.color} - {v.price} Ø¯Ø¬</option>
                           ))}
                         </select>
                       ) : null}
@@ -2729,7 +2804,7 @@ export function AdminDashboardPage() {
                           return { ...f, items: updated };
                         })}
                         className="field-input w-20"
-                        placeholder="الكمية"
+                        placeholder="Ø§Ù„ÙƒÙ…ÙŠØ©"
                       />
                       {manualOrderForm.items.length > 1 ? (
                         <button
@@ -2748,7 +2823,7 @@ export function AdminDashboardPage() {
                   onClick={() => setManualOrderForm((f) => ({ ...f, items: [...f.items, { productId: "", variantId: "", quantity: "1" }] }))}
                   className="ghost-button gap-2 text-sm"
                 >
-                  + إضافة منتج آخر
+                  + Ø¥Ø¶Ø§ÙØ© Ù…Ù†ØªØ¬ Ø¢Ø®Ø±
                 </button>
               </div>
 
@@ -2759,11 +2834,11 @@ export function AdminDashboardPage() {
                   disabled={manualOrderSaving}
                   onClick={async () => {
                     if (!manualOrderForm.fullName || !manualOrderForm.phone || !manualOrderForm.wilayaCode || !manualOrderForm.commune) {
-                      pushToast("يرجى ملء جميع الحقول المطلوبة", "error");
+                      pushToast("ÙŠØ±Ø¬Ù‰ Ù…Ù„Ø¡ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©", "error");
                       return;
                     }
                     if (manualOrderForm.items.some((i) => !i.productId)) {
-                      pushToast("يرجى اختيار منتج لكل سطر", "error");
+                      pushToast("ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ù…Ù†ØªØ¬ Ù„ÙƒÙ„ Ø³Ø·Ø±", "error");
                       return;
                     }
                     setManualOrderSaving(true);
@@ -2786,7 +2861,7 @@ export function AdminDashboardPage() {
                         promoCode: manualOrderForm.promoCode || undefined,
                         manualConfirm: true,
                       });
-                      pushToast("تم إنشاء الطلب بنجاح", "success");
+                      pushToast("ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø·Ù„Ø¨ Ø¨Ù†Ø¬Ø§Ø­", "success");
                       setManualOrderForm({ fullName: "", phone: "", phone2: "", wilayaCode: "", commune: "", address: "", deliveryType: "HOME_DELIVERY", promoCode: "", items: [{ productId: "", variantId: "", quantity: "1" }] });
                       setShowManualOrderForm(false);
                       await loadAll();
@@ -2798,10 +2873,10 @@ export function AdminDashboardPage() {
                   }}
                   className="primary-button gap-2"
                 >
-                  {manualOrderSaving ? "جارٍ الحفظ..." : "إنشاء الطلب"}
+                  {manualOrderSaving ? "Ø¬Ø§Ø±Ù Ø§Ù„Ø­ÙØ¸..." : "Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø·Ù„Ø¨"}
                 </button>
                 <button type="button" onClick={() => setShowManualOrderForm(false)} className="ghost-button">
-                  إلغاء
+                  Ø¥Ù„ØºØ§Ø¡
                 </button>
               </div>
             </div>
@@ -2865,8 +2940,8 @@ export function AdminDashboardPage() {
                 >
                   <Printer className="h-4 w-4" />
                   {bulkLabelPrinting
-                    ? (language === "ar" ? "جارٍ التحميل..." : language === "fr" ? "Chargement..." : "Downloading...")
-                    : `${language === "ar" ? "طباعة" : language === "fr" ? "Imprimer" : "Print"} ${selectedOrderIds.size} ${language === "ar" ? "وصل" : language === "fr" ? "bons" : "labels"}`}
+                    ? (language === "ar" ? "Ø¬Ø§Ø±Ù Ø§Ù„ØªØ­Ù…ÙŠÙ„..." : language === "fr" ? "Chargement..." : "Downloading...")
+                    : `${language === "ar" ? "Ø·Ø¨Ø§Ø¹Ø©" : language === "fr" ? "Imprimer" : "Print"} ${selectedOrderIds.size} ${language === "ar" ? "ÙˆØµÙ„" : language === "fr" ? "bons" : "labels"}`}
                 </button>
               )}
               {selectedOrderIds.size > 0 && (
@@ -2875,7 +2950,7 @@ export function AdminDashboardPage() {
                   onChange={(e) => {
                     const newStatus = e.target.value;
                     if (!newStatus) return;
-                    if (!window.confirm(language === "ar" ? `تغيير حالة ${selectedOrderIds.size} طلب إلى "${newStatus}"؟` : `Change ${selectedOrderIds.size} orders to "${newStatus}"?`)) return;
+                    if (!window.confirm(language === "ar" ? `ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© ${selectedOrderIds.size} Ø·Ù„Ø¨ Ø¥Ù„Ù‰ "${newStatus}"ØŸ` : `Change ${selectedOrderIds.size} orders to "${newStatus}"?`)) return;
                     void Promise.all([...selectedOrderIds].map((id) => adminService.updateOrderStatus(token, id, newStatus)))
                       .then(loadAll)
                       .catch((err: unknown) => pushToast(err instanceof ApiError ? err.message : translate(language, "adminActionError"), "error"));
@@ -2883,7 +2958,7 @@ export function AdminDashboardPage() {
                   }}
                   className="field-select py-2 text-sm max-w-[160px]"
                 >
-                  <option value="">{language === "ar" ? `تغيير الحالة (${selectedOrderIds.size})` : `Bulk status (${selectedOrderIds.size})`}</option>
+                  <option value="">{language === "ar" ? `ØªØºÙŠÙŠØ± Ø§Ù„Ø­Ø§Ù„Ø© (${selectedOrderIds.size})` : `Bulk status (${selectedOrderIds.size})`}</option>
                   {["CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -2897,7 +2972,7 @@ export function AdminDashboardPage() {
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"
                 >
                   <Truck className="h-4 w-4" />
-                  {bulkReadyToShipping ? "جارٍ..." : `جاهز للشحن للكل (${selectedOrderIds.size})`}
+                  {bulkReadyToShipping ? "Ø¬Ø§Ø±Ù..." : `Ø¬Ø§Ù‡Ø² Ù„Ù„Ø´Ø­Ù† Ù„Ù„ÙƒÙ„ (${selectedOrderIds.size})`}
                 </button>
               )}
             </div>
@@ -2922,7 +2997,7 @@ export function AdminDashboardPage() {
                         const withTracking = filteredOrders.filter((o) => o.zrTrackingNumber).map((o) => o._id);
                         setSelectedOrderIds(e.target.checked ? new Set(withTracking) : new Set());
                       }}
-                      title={language === "ar" ? "تحديد كل الطلبات بوصل" : "Select all with tracking"}
+                      title={language === "ar" ? "ØªØ­Ø¯ÙŠØ¯ ÙƒÙ„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø¨ÙˆØµÙ„" : "Select all with tracking"}
                     />
                   </th>
                   <th>{colOrder}</th>
@@ -3000,7 +3075,7 @@ export function AdminDashboardPage() {
                         <td className="py-3.5 font-mono text-xs font-semibold text-slate-600">{order.orderNumber}</td>
                         <td className="py-3.5">
                           <div className="text-sm font-semibold leading-tight text-slate-950">{order.customer.fullName}</div>
-                          <div className="mt-0.5 text-xs text-slate-400">{wilayaLabel}{order.customer.commune ? ` · ${order.customer.commune}` : ""}</div>
+                          <div className="mt-0.5 text-xs text-slate-400">{wilayaLabel}{order.customer.commune ? ` Â· ${order.customer.commune}` : ""}</div>
                         </td>
                         <td className="py-3.5">
                           <a
@@ -3033,8 +3108,8 @@ export function AdminDashboardPage() {
                                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm"
                                 >
                                   {getLocalizedText(item.productName, language)}
-                                  {item.variantLabel ? <span className="text-slate-400">· {item.variantLabel}</span> : null}
-                                  <span className="ms-0.5 font-bold text-slate-950">×{item.quantity}</span>
+                                  {item.variantLabel ? <span className="text-slate-400">Â· {item.variantLabel}</span> : null}
+                                  <span className="ms-0.5 font-bold text-slate-950">Ã—{item.quantity}</span>
                                 </span>
                               ))}
                             </div>
@@ -3059,7 +3134,7 @@ export function AdminDashboardPage() {
                                     {printLabelId === order._id
                                       ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
                                       : <Printer className="h-3.5 w-3.5" />}
-                                    {language === "ar" ? "طباعة الوصل" : language === "fr" ? "Imprimer le bon" : "Print Waybill"}
+                                    {language === "ar" ? "Ø·Ø¨Ø§Ø¹Ø© Ø§Ù„ÙˆØµÙ„" : language === "fr" ? "Imprimer le bon" : "Print Waybill"}
                                   </button>
 
                                   {/* Send to Telegram */}
@@ -3075,7 +3150,7 @@ export function AdminDashboardPage() {
                                     ) : (
                                       <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
                                     )}
-                                    {language === "ar" ? "إرسال إلى Telegram" : language === "fr" ? "Envoyer Telegram" : "Send to Telegram"}
+                                    {language === "ar" ? "Ø¥Ø±Ø³Ø§Ù„ Ø¥Ù„Ù‰ Telegram" : language === "fr" ? "Envoyer Telegram" : "Send to Telegram"}
                                   </button>
 
                                   {/* Sync from ZR */}
@@ -3087,7 +3162,7 @@ export function AdminDashboardPage() {
                                     title="Refresh status from ZR"
                                   >
                                     <svg className={`h-3.5 w-3.5 ${zrSyncingId === order._id ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-                                    {language === "ar" ? "تحديث الحالة" : language === "fr" ? "Actualiser" : "Sync Status"}
+                                    {language === "ar" ? "ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø­Ø§Ù„Ø©" : language === "fr" ? "Actualiser" : "Sync Status"}
                                   </button>
 
                                   {/* Change ZR state directly */}
@@ -3099,7 +3174,7 @@ export function AdminDashboardPage() {
                                         const stateId = e.target.value;
                                         if (!stateId) return;
                                         const labels: Record<string, string> = {
-                                          "8a948c66-1ab7-4433-aeb0-94219125d134": "جاهز للشحن",
+                                          "8a948c66-1ab7-4433-aeb0-94219125d134": "Ø¬Ø§Ù‡Ø² Ù„Ù„Ø´Ø­Ù†",
                                         };
                                         void setZRStateAction(order._id, stateId, labels[stateId] ?? stateId);
                                         e.target.value = "";
@@ -3108,10 +3183,10 @@ export function AdminDashboardPage() {
                                     >
                                       <option value="" disabled>
                                         {zrStateChangingId === order._id
-                                          ? (language === "ar" ? "جارٍ التغيير..." : "Changing...")
-                                          : (language === "ar" ? "تغيير حالة ZR" : "Set ZR State")}
+                                          ? (language === "ar" ? "Ø¬Ø§Ø±Ù Ø§Ù„ØªØºÙŠÙŠØ±..." : "Changing...")
+                                          : (language === "ar" ? "ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© ZR" : "Set ZR State")}
                                       </option>
-                                      <option value="8a948c66-1ab7-4433-aeb0-94219125d134">جاهز للشحن (Prêt à expédier)</option>
+                                      <option value="8a948c66-1ab7-4433-aeb0-94219125d134">Ø¬Ø§Ù‡Ø² Ù„Ù„Ø´Ø­Ù† (PrÃªt Ã  expÃ©dier)</option>
                                     </select>
                                   </div>
 
@@ -3125,7 +3200,7 @@ export function AdminDashboardPage() {
                                     {zrCancellingId === order._id
                                       ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-600" />
                                       : <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>}
-                                    {language === "ar" ? "إلغاء ZR" : "Cancel ZR"}
+                                    {language === "ar" ? "Ø¥Ù„ØºØ§Ø¡ ZR" : "Cancel ZR"}
                                   </button>
 
                                   {/* Toggle history */}
@@ -3137,10 +3212,10 @@ export function AdminDashboardPage() {
                                   >
                                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                     {zrHistoryLoading === order._id
-                                      ? (language === "ar" ? "جارٍ التحميل..." : "Loading...")
+                                      ? (language === "ar" ? "Ø¬Ø§Ø±Ù Ø§Ù„ØªØ­Ù…ÙŠÙ„..." : "Loading...")
                                       : zrHistory[order._id]
-                                        ? (language === "ar" ? "إخفاء السجل" : language === "fr" ? "Masquer l'historique" : "Hide History")
-                                        : (language === "ar" ? "سجل التتبع" : language === "fr" ? "Historique" : "Track History")}
+                                        ? (language === "ar" ? "Ø¥Ø®ÙØ§Ø¡ Ø§Ù„Ø³Ø¬Ù„" : language === "fr" ? "Masquer l'historique" : "Hide History")
+                                        : (language === "ar" ? "Ø³Ø¬Ù„ Ø§Ù„ØªØªØ¨Ø¹" : language === "fr" ? "Historique" : "Track History")}
                                   </button>
                                 </div>
 
@@ -3148,7 +3223,7 @@ export function AdminDashboardPage() {
                                 {zrHistory[order._id] && (
                                   <div className="ms-1 border-s-2 border-emerald-100 ps-4 space-y-2">
                                     {zrHistory[order._id].length === 0 ? (
-                                      <p className="text-xs text-slate-400">{language === "ar" ? "لا يوجد سجل بعد" : "No history yet"}</p>
+                                      <p className="text-xs text-slate-400">{language === "ar" ? "Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø³Ø¬Ù„ Ø¨Ø¹Ø¯" : "No history yet"}</p>
                                     ) : (
                                       zrHistory[order._id].map((entry, idx) => (
                                         <div key={idx} className="flex items-start gap-2">
@@ -3174,7 +3249,7 @@ export function AdminDashboardPage() {
                                   className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
                                 >
                                   <Package className="h-3.5 w-3.5" />
-                                  {language === "ar" ? "إنشاء شحنة ZR" : language === "fr" ? "Créer colis ZR" : "Create ZR parcel"}
+                                  {language === "ar" ? "Ø¥Ù†Ø´Ø§Ø¡ Ø´Ø­Ù†Ø© ZR" : language === "fr" ? "CrÃ©er colis ZR" : "Create ZR parcel"}
                                 </button>
                               </div>
                             ) : null}
@@ -3184,7 +3259,7 @@ export function AdminDashboardPage() {
                               <div className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
                                 <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                                 <a href={`tel:${order.customer.phone2}`} className="font-medium text-teal-600 hover:underline" dir="ltr" onClick={(e) => e.stopPropagation()}>{order.customer.phone2}</a>
-                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-400">{language === "ar" ? "رقم بديل" : language === "fr" ? "N° alternatif" : "Backup"}</span>
+                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-400">{language === "ar" ? "Ø±Ù‚Ù… Ø¨Ø¯ÙŠÙ„" : language === "fr" ? "NÂ° alternatif" : "Backup"}</span>
                               </div>
                             ) : null}
 
@@ -3203,7 +3278,7 @@ export function AdminDashboardPage() {
                             {(order as Order & { customerIp?: string; ipCountry?: string; userAgent?: string }).customerIp ? (
                               <div className="mb-3 flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 font-mono text-[10px] text-slate-600">
-                                  🌐 {(order as Order & { customerIp?: string }).customerIp}
+                                  ðŸŒ {(order as Order & { customerIp?: string }).customerIp}
                                   {(order as Order & { ipCountry?: string }).ipCountry && (
                                     <span className={`ms-1 font-bold ${(order as Order & { ipCountry?: string }).ipCountry !== "DZ" ? "text-rose-600" : "text-emerald-600"}`}>
                                       ({(order as Order & { ipCountry?: string }).ipCountry})
@@ -3212,7 +3287,7 @@ export function AdminDashboardPage() {
                                 </span>
                                 {(order as Order & { userAgent?: string }).userAgent ? (
                                   <span className="text-[10px] text-slate-400 truncate max-w-[200px]" title={(order as Order & { userAgent?: string }).userAgent}>
-                                    📱 {(order as Order & { userAgent?: string }).userAgent?.slice(0, 50)}...
+                                    ðŸ“± {(order as Order & { userAgent?: string }).userAgent?.slice(0, 50)}...
                                   </span>
                                 ) : null}
                               </div>
@@ -3228,11 +3303,11 @@ export function AdminDashboardPage() {
                                     onChange={(e) => setOrderNoteDraft(e.target.value)}
                                     rows={2}
                                     className="field-input flex-1 resize-none text-xs"
-                                    placeholder={language === "ar" ? "ملاحظة على الطلب..." : "Order note..."}
+                                    placeholder={language === "ar" ? "Ù…Ù„Ø§Ø­Ø¸Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø·Ù„Ø¨..." : "Order note..."}
                                   />
                                   <div className="flex flex-col gap-1">
-                                    <button type="button" onClick={() => void saveOrderNote(order._id, orderNoteDraft)} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">{language === "ar" ? "حفظ" : "Save"}</button>
-                                    <button type="button" onClick={() => setOrderNoteEditing(null)} className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50">{language === "ar" ? "إلغاء" : "Cancel"}</button>
+                                    <button type="button" onClick={() => void saveOrderNote(order._id, orderNoteDraft)} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">{language === "ar" ? "Ø­ÙØ¸" : "Save"}</button>
+                                    <button type="button" onClick={() => setOrderNoteEditing(null)} className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50">{language === "ar" ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel"}</button>
                                   </div>
                                 </div>
                               ) : (
@@ -3242,7 +3317,7 @@ export function AdminDashboardPage() {
                                   className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition ${order.adminNote ? "border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" : "border border-dashed border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"}`}
                                 >
                                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  {order.adminNote ? order.adminNote : (language === "ar" ? "إضافة ملاحظة" : "Add note")}
+                                  {order.adminNote ? order.adminNote : (language === "ar" ? "Ø¥Ø¶Ø§ÙØ© Ù…Ù„Ø§Ø­Ø¸Ø©" : "Add note")}
                                 </button>
                               )}
                             </div>
@@ -3251,10 +3326,10 @@ export function AdminDashboardPage() {
                               <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50/60 p-4" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                   <h3 className="text-sm font-semibold text-slate-900">
-                                    {language === "ar" ? "تعديل بيانات الطلب" : language === "fr" ? "Modifier la commande" : "Edit order"}
+                                    {language === "ar" ? "ØªØ¹Ø¯ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø·Ù„Ø¨" : language === "fr" ? "Modifier la commande" : "Edit order"}
                                   </h3>
                                   <div className="text-xs text-slate-500">
-                                    {language === "ar" ? "إذا كانت شحنة ZR موجودة فسيتم تحديثها تلقائياً أو إعادة إنشائها" : "ZR parcel will be refreshed when shipping details change"}
+                                    {language === "ar" ? "Ø¥Ø°Ø§ ÙƒØ§Ù†Øª Ø´Ø­Ù†Ø© ZR Ù…ÙˆØ¬ÙˆØ¯Ø© ÙØ³ÙŠØªÙ… ØªØ­Ø¯ÙŠØ«Ù‡Ø§ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø£Ùˆ Ø¥Ø¹Ø§Ø¯Ø© Ø¥Ù†Ø´Ø§Ø¦Ù‡Ø§" : "ZR parcel will be refreshed when shipping details change"}
                                   </div>
                                 </div>
                                 <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -3262,7 +3337,7 @@ export function AdminDashboardPage() {
                                     value={orderEditDraft.customer.fullName}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, fullName: e.target.value } } : current)}
                                     className="field-input"
-                                    placeholder={language === "ar" ? "الاسم الكامل" : "Full name"}
+                                    placeholder="Full name"
                                   />
                                   <input
                                     value={orderEditDraft.customer.phone}
@@ -3275,27 +3350,64 @@ export function AdminDashboardPage() {
                                     value={orderEditDraft.customer.phone2}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, phone2: e.target.value.replace(/\D/g, "").slice(0, 10) } } : current)}
                                     className="field-input"
-                                    placeholder={language === "ar" ? "رقم احتياطي" : "Backup phone"}
+                                    placeholder="Backup phone"
                                     dir="ltr"
                                   />
                                   <select
                                     value={orderEditDraft.customer.wilayaCode}
-                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, wilayaCode: e.target.value } } : current)}
+                                    onChange={(e) => setOrderEditDraft((current) => current ? {
+                                      ...current,
+                                      zrTerritoryId: "",
+                                      customer: {
+                                        ...current.customer,
+                                        wilayaCode: e.target.value,
+                                        commune: "",
+                                      },
+                                    } : current)}
                                     className="field-select"
                                   >
-                                    <option value="">{language === "ar" ? "اختر الولاية" : "Select wilaya"}</option>
+                                    <option value="">Select wilaya</option>
                                     {wilayas.map((wilaya) => (
                                       <option key={wilaya._id} value={wilaya.code}>
                                         {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
                                       </option>
                                     ))}
                                   </select>
-                                  <input
-                                    value={orderEditDraft.customer.commune}
-                                    onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, commune: e.target.value } } : current)}
-                                    className="field-input"
-                                    placeholder={language === "ar" ? "البلدية" : "Commune"}
-                                  />
+                                  {selectedOrderEditZrTerritories.length > 0 ? (
+                                    <select
+                                      value={orderEditDraft.zrTerritoryId}
+                                      onChange={(e) => {
+                                        const territory = selectedOrderEditZrTerritories.find((entry) => entry.id === e.target.value) ?? null;
+                                        setOrderEditDraft((current) => current ? {
+                                          ...current,
+                                          zrTerritoryId: territory?.id ?? "",
+                                          customer: {
+                                            ...current.customer,
+                                            commune: territory?.name ?? "",
+                                          },
+                                        } : current);
+                                      }}
+                                      className="field-select"
+                                    >
+                                      <option value="">Select ZR commune</option>
+                                      {selectedOrderEditZrTerritories.map((territory) => (
+                                        <option key={territory.id} value={territory.id}>
+                                          {getZrTerritoryOptionLabel(territory, orderEditDraft.deliveryType, language)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      value={orderEditDraft.customer.commune}
+                                      onChange={(e) => setOrderEditDraft((current) => current ? {
+                                        ...current,
+                                        zrTerritoryId: "",
+                                        customer: { ...current.customer, commune: e.target.value },
+                                      } : current)}
+                                      className="field-input"
+                                      placeholder="Commune"
+                                    />
+                                  )}
                                   <select
                                     value={orderEditDraft.deliveryType}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, deliveryType: e.target.value as Order["deliveryType"] } : current)}
@@ -3305,38 +3417,60 @@ export function AdminDashboardPage() {
                                     <option value="DESK_PICKUP">{translate(language, "deskPickup")}</option>
                                   </select>
                                 </div>
+                                {selectedOrderEditZrTerritories.length > 0 ? (
+                                  <div className="mt-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-xs text-slate-600">
+                                    <span className="font-semibold text-slate-800">
+                                      {language === "ar" ? "ÙˆØ¬Ù‡Ø© ZR:" : "ZR destination:"}
+                                    </span>
+                                    {" "}
+                                    {selectedOrderEditTerritory
+                                      ? getZrTerritoryOptionLabel(selectedOrderEditTerritory, orderEditDraft.deliveryType, language)
+                                      : (language === "ar" ? "Ø§Ø®ØªØ± Ø§Ù„Ø¨Ù„Ø¯ÙŠØ© Ù…Ù† Ù‚Ø§Ø¦Ù…Ø© ZR Ø¨Ø¹Ø¯ ØªØºÙŠÙŠØ± Ø§Ù„ÙˆÙ„Ø§ÙŠØ©" : "Choose the ZR commune after changing wilaya")}
+                                    {selectedOrderEditTerritory ? (
+                                      <span className="ms-2 font-mono text-[11px] text-slate-400">{selectedOrderEditTerritory.id}</span>
+                                    ) : null}
+                                  </div>
+                                ) : null}
                                 <textarea
                                   value={orderEditDraft.customer.address}
                                   onChange={(e) => setOrderEditDraft((current) => current ? { ...current, customer: { ...current.customer, address: e.target.value } } : current)}
                                   rows={2}
                                   className="field-input mt-3 w-full resize-none"
-                                  placeholder={language === "ar" ? "العنوان" : "Address"}
+                                  placeholder={language === "ar" ? "Ø§Ù„Ø¹Ù†ÙˆØ§Ù†" : "Address"}
                                 />
                                 <div className="mt-3 grid gap-3 md:grid-cols-4">
                                   <input
                                     value={orderEditDraft.shippingFee}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, shippingFee: e.target.value } : current)}
                                     className="field-input"
-                                    placeholder={language === "ar" ? "رسوم التوصيل" : "Shipping fee"}
+                                    placeholder={language === "ar" ? "Ø±Ø³ÙˆÙ… Ø§Ù„ØªÙˆØµÙŠÙ„" : "Shipping fee"}
                                   />
                                   <input
                                     value={orderEditDraft.discount}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, discount: e.target.value } : current)}
                                     className="field-input"
-                                    placeholder={language === "ar" ? "الخصم" : "Discount"}
+                                    placeholder={language === "ar" ? "Ø§Ù„Ø®ØµÙ…" : "Discount"}
                                   />
                                   <input
                                     value={orderEditDraft.promoCode}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, promoCode: e.target.value.toUpperCase() } : current)}
                                     className="field-input"
-                                    placeholder={language === "ar" ? "كود الخصم" : "Promo code"}
+                                    placeholder={language === "ar" ? "ÙƒÙˆØ¯ Ø§Ù„Ø®ØµÙ…" : "Promo code"}
                                   />
-                                  <input
+                                  {selectedOrderEditZrTerritories.length === 0 ? (
+                                    <input
                                     value={orderEditDraft.zrTerritoryId}
                                     onChange={(e) => setOrderEditDraft((current) => current ? { ...current, zrTerritoryId: e.target.value } : current)}
                                     className="field-input"
                                     placeholder="ZR territory ID"
-                                  />
+                                    />
+                                  ) : (
+                                    <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-500">
+                                      {selectedOrderEditTerritory
+                                        ? `ZR ID: ${selectedOrderEditTerritory.id}`
+                                        : (language === "ar" ? "Ø­Ø¯Ø¯ Ø§Ù„Ø¨Ù„Ø¯ÙŠØ© Ù…Ù† ZR" : "Pick the ZR commune")}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="mt-4 space-y-3">
                                   {orderEditDraft.items.map((item, itemIndex) => (
@@ -3349,7 +3483,7 @@ export function AdminDashboardPage() {
                                             items: current.items.map((entry, index) => index === itemIndex ? { ...entry, productName: { ...entry.productName, ar: e.target.value } } : entry),
                                           } : current)}
                                           className="field-input"
-                                          placeholder="اسم المنتج AR"
+                                          placeholder="Ø§Ø³Ù… Ø§Ù„Ù…Ù†ØªØ¬ AR"
                                         />
                                         <input
                                           value={item.productName.fr}
@@ -3376,7 +3510,7 @@ export function AdminDashboardPage() {
                                             items: current.items.map((entry, index) => index === itemIndex ? { ...entry, variantLabel: e.target.value } : entry),
                                           } : current)}
                                           className="field-input"
-                                          placeholder={language === "ar" ? "المتغير" : "Variant"}
+                                          placeholder={language === "ar" ? "Ø§Ù„Ù…ØªØºÙŠØ±" : "Variant"}
                                         />
                                         <input
                                           value={item.quantity}
@@ -3385,7 +3519,7 @@ export function AdminDashboardPage() {
                                             items: current.items.map((entry, index) => index === itemIndex ? { ...entry, quantity: e.target.value } : entry),
                                           } : current)}
                                           className="field-input"
-                                          placeholder={language === "ar" ? "الكمية" : "Qty"}
+                                          placeholder={language === "ar" ? "Ø§Ù„ÙƒÙ…ÙŠØ©" : "Qty"}
                                         />
                                         <input
                                           value={item.unitPrice}
@@ -3394,13 +3528,13 @@ export function AdminDashboardPage() {
                                             items: current.items.map((entry, index) => index === itemIndex ? { ...entry, unitPrice: e.target.value } : entry),
                                           } : current)}
                                           className="field-input"
-                                          placeholder={language === "ar" ? "سعر الوحدة" : "Unit price"}
+                                          placeholder={language === "ar" ? "Ø³Ø¹Ø± Ø§Ù„ÙˆØ­Ø¯Ø©" : "Unit price"}
                                         />
                                         <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
                                           SKU: <span className="font-mono">{item.variantId}</span>
                                         </div>
                                         <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                                          {language === "ar" ? "المجموع" : "Line total"}:{" "}
+                                          {language === "ar" ? "Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹" : "Line total"}:{" "}
                                           <span className="font-semibold text-slate-900">
                                             {formatCurrency(Number(item.quantity || 0) * Number(item.unitPrice || 0), language)}
                                           </span>
@@ -3411,7 +3545,7 @@ export function AdminDashboardPage() {
                                 </div>
                                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                                   <div className="text-sm font-semibold text-slate-700">
-                                    {language === "ar" ? "الإجمالي الجديد" : language === "fr" ? "Nouveau total" : "Updated total"}:{" "}
+                                    {language === "ar" ? "Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø¬Ø¯ÙŠØ¯" : language === "fr" ? "Nouveau total" : "Updated total"}:{" "}
                                     <span className="text-slate-950">
                                       {formatCurrency(
                                         orderEditDraft.items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0) +
@@ -3428,14 +3562,14 @@ export function AdminDashboardPage() {
                                       onClick={() => void saveOrderEdit(order)}
                                       className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
                                     >
-                                      {orderSavingId === order._id ? (language === "ar" ? "جارٍ الحفظ..." : "Saving...") : (language === "ar" ? "حفظ التعديل" : "Save changes")}
+                                      {orderSavingId === order._id ? (language === "ar" ? "Ø¬Ø§Ø±Ù Ø§Ù„Ø­ÙØ¸..." : "Saving...") : (language === "ar" ? "Ø­ÙØ¸ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„" : "Save changes")}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => { setOrderEditingId(null); setOrderEditDraft(null); }}
                                       className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                                     >
-                                      {language === "ar" ? "إلغاء" : "Cancel"}
+                                      {language === "ar" ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel"}
                                     </button>
                                   </div>
                                 </div>
@@ -3477,16 +3611,16 @@ export function AdminDashboardPage() {
                                 className="ghost-button gap-1.5 px-4 py-2 text-sm"
                               >
                                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                {language === "ar" ? "تعديل" : language === "fr" ? "Modifier" : "Edit"}
+                                {language === "ar" ? "ØªØ¹Ø¯ÙŠÙ„" : language === "fr" ? "Modifier" : "Edit"}
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); printReceiptAction(order); }}
                                 className="ghost-button gap-1.5 px-4 py-2 text-sm"
-                                title={language === "ar" ? "طباعة الوصل" : language === "fr" ? "Imprimer le reçu" : "Print Receipt"}
+                                title={language === "ar" ? "Ø·Ø¨Ø§Ø¹Ø© Ø§Ù„ÙˆØµÙ„" : language === "fr" ? "Imprimer le reÃ§u" : "Print Receipt"}
                               >
                                 <Printer className="h-4 w-4" />
-                                {language === "ar" ? "وصل" : language === "fr" ? "Reçu" : "Receipt"}
+                                {language === "ar" ? "ÙˆØµÙ„" : language === "fr" ? "ReÃ§u" : "Receipt"}
                               </button>
                               <button
                                 type="button"
@@ -3494,17 +3628,17 @@ export function AdminDashboardPage() {
                                   e.stopPropagation();
                                   const phone = order.customer?.phone;
                                   if (!phone) return;
-                                  if (window.confirm(language === "ar" ? `حظر الرقم ${phone}؟ لن يتمكن من الطلب مجدداً.` : `Block ${phone}? They won't be able to order again.`)) {
-                                    void adminService.addToBlacklist(token, phone, `Manual block — order ${order.orderNumber}`)
-                                      .then(() => pushToast(language === "ar" ? `تم حظر ${phone}` : `${phone} blocked`, "success"))
+                                  if (window.confirm(language === "ar" ? `Ø­Ø¸Ø± Ø§Ù„Ø±Ù‚Ù… ${phone}ØŸ Ù„Ù† ÙŠØªÙ…ÙƒÙ† Ù…Ù† Ø§Ù„Ø·Ù„Ø¨ Ù…Ø¬Ø¯Ø¯Ø§Ù‹.` : `Block ${phone}? They won't be able to order again.`)) {
+                                    void adminService.addToBlacklist(token, phone, `Manual block â€” order ${order.orderNumber}`)
+                                      .then(() => pushToast(language === "ar" ? `ØªÙ… Ø­Ø¸Ø± ${phone}` : `${phone} blocked`, "success"))
                                       .catch((err: unknown) => pushToast(err instanceof ApiError ? err.message : "Error", "error"));
                                   }
                                 }}
                                 disabled={busy}
                                 className="rounded-full px-3 py-2 text-sm font-semibold text-amber-600 transition hover:bg-amber-50 disabled:opacity-60"
-                                title={language === "ar" ? "حظر رقم الهاتف" : "Block phone"}
+                                title={language === "ar" ? "Ø­Ø¸Ø± Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ" : "Block phone"}
                               >
-                                🚫 {language === "ar" ? "حظر" : "Block"}
+                                ðŸš« {language === "ar" ? "Ø­Ø¸Ø±" : "Block"}
                               </button>
                               <button
                                 type="button"
@@ -3530,7 +3664,7 @@ export function AdminDashboardPage() {
         {orders.length < ordersTotal && (
           <div className="mt-4 flex items-center justify-center gap-4">
             <span className="text-sm text-slate-400">
-              {language === "ar" ? `${orders.length} من ${ordersTotal} طلب` : language === "fr" ? `${orders.length} sur ${ordersTotal} commandes` : `${orders.length} of ${ordersTotal} orders`}
+              {language === "ar" ? `${orders.length} Ù…Ù† ${ordersTotal} Ø·Ù„Ø¨` : language === "fr" ? `${orders.length} sur ${ordersTotal} commandes` : `${orders.length} of ${ordersTotal} orders`}
             </span>
             <button
               type="button"
@@ -3548,8 +3682,8 @@ export function AdminDashboardPage() {
               className="ghost-button gap-2 px-4 py-2 text-sm"
             >
               {ordersLoadingMore
-                ? (language === "ar" ? "جارٍ التحميل..." : language === "fr" ? "Chargement..." : "Loading...")
-                : (language === "ar" ? "تحميل المزيد" : language === "fr" ? "Charger plus" : "Load more")}
+                ? (language === "ar" ? "Ø¬Ø§Ø±Ù Ø§Ù„ØªØ­Ù…ÙŠÙ„..." : language === "fr" ? "Chargement..." : "Loading...")
+                : (language === "ar" ? "ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø²ÙŠØ¯" : language === "fr" ? "Charger plus" : "Load more")}
             </button>
           </div>
         )}
@@ -3562,7 +3696,7 @@ export function AdminDashboardPage() {
       {wilayas.map((wilaya) => (
         <div key={wilaya._id} className="surface-card p-5">
           <div className="text-lg font-semibold text-slate-950">
-            {wilaya.code} · {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
+            {wilaya.code} Â· {language === "ar" ? wilaya.name.ar : language === "fr" ? wilaya.name.fr : wilaya.name.en}
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <input
@@ -3671,12 +3805,12 @@ export function AdminDashboardPage() {
           value={promoSearch}
           onChange={(event) => setPromoSearch(event.target.value)}
           className="field-input max-w-xs"
-          placeholder="بحث بالكود..."
+          placeholder="Ø¨Ø­Ø« Ø¨Ø§Ù„ÙƒÙˆØ¯..."
         />
         <select value={promoStatusFilter} onChange={(event) => setPromoStatusFilter(event.target.value)} className="field-select max-w-[10rem]">
-          <option value="all">جميع الحالات</option>
-          <option value="active">مفعّل</option>
-          <option value="inactive">معطّل</option>
+          <option value="all">Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª</option>
+          <option value="active">Ù…ÙØ¹Ù‘Ù„</option>
+          <option value="inactive">Ù…Ø¹Ø·Ù‘Ù„</option>
         </select>
         <span className="text-sm text-slate-500">
           {promos.filter((promo) => {
@@ -3687,7 +3821,7 @@ export function AdminDashboardPage() {
             if (promoStatusFilter === "active" && !isActive) return false;
             if (promoStatusFilter === "inactive" && isActive) return false;
             return !q || promo.code.toLowerCase().includes(q);
-          }).length} نتيجة
+          }).length} Ù†ØªÙŠØ¬Ø©
         </span>
       </div>
 
@@ -3780,8 +3914,8 @@ export function AdminDashboardPage() {
                 )}
               </div>
               <div className="mt-1 text-sm text-slate-500">
-                {promo.type} · {promo.value}
-                {promo.minimumOrderAmount ? ` · ${translate(language, "subtotal")} >= ${formatCurrency(promo.minimumOrderAmount, language)}` : ""}
+                {promo.type} Â· {promo.value}
+                {promo.minimumOrderAmount ? ` Â· ${translate(language, "subtotal")} >= ${formatCurrency(promo.minimumOrderAmount, language)}` : ""}
               </div>
               <div className="mt-2 text-sm text-slate-500">
                 {translate(language, "adminPromoUsageLimit")}: {promo.usedCount}{promo.usageLimit ? ` / ${promo.usageLimit}` : ` (${translate(language, "adminPromoUnlimited")})`}
@@ -3834,15 +3968,15 @@ export function AdminDashboardPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="surface-card p-4 text-center">
           <div className="text-2xl font-bold text-teal-600">{activeAffiliates.length}</div>
-          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "نشط" : "Active"}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "Ù†Ø´Ø·" : "Active"}</div>
         </div>
         <div className="surface-card p-4 text-center">
           <div className="text-2xl font-bold text-amber-600">{pendingAffiliates.length}</div>
-          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "في الانتظار" : "Pending"}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "ÙÙŠ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±" : "Pending"}</div>
         </div>
         <div className="surface-card p-4 text-center">
           <div className="text-2xl font-bold text-slate-800">{affiliates.length}</div>
-          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "إجمالي" : "Total"}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "Ø¥Ø¬Ù…Ø§Ù„ÙŠ" : "Total"}</div>
         </div>
       </div>
 
@@ -3852,13 +3986,13 @@ export function AdminDashboardPage() {
           value={affiliateSearch}
           onChange={(event) => setAffiliateSearch(event.target.value)}
           className="field-input min-w-[200px] flex-1 py-2 text-sm"
-          placeholder={language === "ar" ? "بحث بالاسم أو البريد أو الكود..." : "Search name, email, code..."}
+          placeholder={language === "ar" ? "Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù… Ø£Ùˆ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø£Ùˆ Ø§Ù„ÙƒÙˆØ¯..." : "Search name, email, code..."}
         />
         <select value={affiliateStatusFilter} onChange={(event) => setAffiliateStatusFilter(event.target.value)} className="field-select py-2 text-sm max-w-[130px]">
-          <option value="all">{language === "ar" ? "الكل" : "All"}</option>
-          <option value="PENDING">{language === "ar" ? "انتظار" : "Pending"}</option>
-          <option value="ACTIVE">{language === "ar" ? "نشط" : "Active"}</option>
-          <option value="BLOCKED">{language === "ar" ? "محظور" : "Blocked"}</option>
+          <option value="all">{language === "ar" ? "Ø§Ù„ÙƒÙ„" : "All"}</option>
+          <option value="PENDING">{language === "ar" ? "Ø§Ù†ØªØ¸Ø§Ø±" : "Pending"}</option>
+          <option value="ACTIVE">{language === "ar" ? "Ù†Ø´Ø·" : "Active"}</option>
+          <option value="BLOCKED">{language === "ar" ? "Ù…Ø­Ø¸ÙˆØ±" : "Blocked"}</option>
         </select>
         {pendingAffiliates.length > 0 && (
           <button
@@ -3868,10 +4002,10 @@ export function AdminDashboardPage() {
             className="inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
           >
             <Check className="h-4 w-4" />
-            {language === "ar" ? `قبول الكل (${pendingAffiliates.length})` : `Approve all (${pendingAffiliates.length})`}
+            {language === "ar" ? `Ù‚Ø¨ÙˆÙ„ Ø§Ù„ÙƒÙ„ (${pendingAffiliates.length})` : `Approve all (${pendingAffiliates.length})`}
           </button>
         )}
-        <span className="text-sm text-slate-400">{filteredAffiliates.length} {language === "ar" ? "مسوّق" : "affiliates"}</span>
+        <span className="text-sm text-slate-400">{filteredAffiliates.length} {language === "ar" ? "Ù…Ø³ÙˆÙ‘Ù‚" : "affiliates"}</span>
       </div>
 
       {/* Table */}
@@ -3879,13 +4013,13 @@ export function AdminDashboardPage() {
         <table className="table-base">
           <thead>
             <tr>
-              <th className="ps-5">{language === "ar" ? "المسوّق" : "Affiliate"}</th>
-              <th>{language === "ar" ? "المستوى" : "Level"}</th>
-              <th>{language === "ar" ? "الرصيد" : "Balance"}</th>
-              <th className="hidden md:table-cell">{language === "ar" ? "الكود" : "Code"}</th>
-              <th className="hidden lg:table-cell">{language === "ar" ? "المحوِّل" : "Referred by"}</th>
-              <th>{language === "ar" ? "الحالة" : "Status"}</th>
-              <th>{language === "ar" ? "إجراء" : "Actions"}</th>
+              <th className="ps-5">{language === "ar" ? "Ø§Ù„Ù…Ø³ÙˆÙ‘Ù‚" : "Affiliate"}</th>
+              <th>{language === "ar" ? "Ø§Ù„Ù…Ø³ØªÙˆÙ‰" : "Level"}</th>
+              <th>{language === "ar" ? "Ø§Ù„Ø±ØµÙŠØ¯" : "Balance"}</th>
+              <th className="hidden md:table-cell">{language === "ar" ? "Ø§Ù„ÙƒÙˆØ¯" : "Code"}</th>
+              <th className="hidden lg:table-cell">{language === "ar" ? "Ø§Ù„Ù…Ø­ÙˆÙÙ‘Ù„" : "Referred by"}</th>
+              <th>{language === "ar" ? "Ø§Ù„Ø­Ø§Ù„Ø©" : "Status"}</th>
+              <th>{language === "ar" ? "Ø¥Ø¬Ø±Ø§Ø¡" : "Actions"}</th>
             </tr>
           </thead>
           <tbody>
@@ -3925,7 +4059,7 @@ export function AdminDashboardPage() {
                   <td>
                     <div className="text-sm font-bold text-slate-950">{formatCurrency(totalBalance, language)}</div>
                     {affiliate.balancePaid > 0 && (
-                      <div className="text-[10px] text-slate-400">{language === "ar" ? "مدفوع:" : "Paid:"} {formatCurrency(affiliate.balancePaid, language)}</div>
+                      <div className="text-[10px] text-slate-400">{language === "ar" ? "Ù…Ø¯ÙÙˆØ¹:" : "Paid:"} {formatCurrency(affiliate.balancePaid, language)}</div>
                     )}
                   </td>
 
@@ -3937,9 +4071,9 @@ export function AdminDashboardPage() {
                   {/* Referred by */}
                   <td className="hidden lg:table-cell">
                     {referrer ? (
-                      <span className="text-xs text-teal-700 font-medium">↑ {referrer.name}</span>
+                      <span className="text-xs text-teal-700 font-medium">â†‘ {referrer.name}</span>
                     ) : (
-                      <span className="text-xs text-slate-300">—</span>
+                      <span className="text-xs text-slate-300">â€”</span>
                     )}
                   </td>
 
@@ -3973,7 +4107,7 @@ export function AdminDashboardPage() {
           </tbody>
         </table>
         {filteredAffiliates.length === 0 && (
-          <div className="py-12 text-center text-sm text-slate-400">{language === "ar" ? "لا يوجد مسوّقون" : "No affiliates found"}</div>
+          <div className="py-12 text-center text-sm text-slate-400">{language === "ar" ? "Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³ÙˆÙ‘Ù‚ÙˆÙ†" : "No affiliates found"}</div>
         )}
       </div>
     </div>
@@ -3989,10 +4123,10 @@ export function AdminDashboardPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <select value={commissionStatusFilter} onChange={(event) => setCommissionStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
-          <option value="all">جميع الحالات</option>
-          <option value="PENDING">في الانتظار</option>
-          <option value="APPROVED">موافق عليه</option>
-          <option value="PAID">مدفوع</option>
+          <option value="all">Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª</option>
+          <option value="PENDING">ÙÙŠ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±</option>
+          <option value="APPROVED">Ù…ÙˆØ§ÙÙ‚ Ø¹Ù„ÙŠÙ‡</option>
+          <option value="PAID">Ù…Ø¯ÙÙˆØ¹</option>
         </select>
         {pendingCommissions.length > 0 ? (
           <button
@@ -4004,10 +4138,10 @@ export function AdminDashboardPage() {
             className="primary-button gap-2"
           >
             <Check className="h-4 w-4" />
-            تحديد الكل مدفوع ({pendingCommissions.length})
+            ØªØ­Ø¯ÙŠØ¯ Ø§Ù„ÙƒÙ„ Ù…Ø¯ÙÙˆØ¹ ({pendingCommissions.length})
           </button>
         ) : null}
-        <span className="text-sm text-slate-500">{filteredCommissions.length} عمولة</span>
+        <span className="text-sm text-slate-500">{filteredCommissions.length} Ø¹Ù…ÙˆÙ„Ø©</span>
       </div>
     <div className="grid gap-4 xl:grid-cols-2">
       {filteredCommissions.map((commission) => {
@@ -4049,13 +4183,13 @@ export function AdminDashboardPage() {
       <Panel title={translate(language, "adminWithdrawalsTitle")} description={translate(language, "adminWithdrawalsDescription")}>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <select value={withdrawalStatusFilter} onChange={(event) => setWithdrawalStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
-            <option value="all">جميع الحالات</option>
-            <option value="PENDING">في الانتظار</option>
-            <option value="APPROVED">موافق عليه</option>
-            <option value="PAID">مدفوع</option>
-            <option value="REJECTED">مرفوض</option>
+            <option value="all">Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª</option>
+            <option value="PENDING">ÙÙŠ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±</option>
+            <option value="APPROVED">Ù…ÙˆØ§ÙÙ‚ Ø¹Ù„ÙŠÙ‡</option>
+            <option value="PAID">Ù…Ø¯ÙÙˆØ¹</option>
+            <option value="REJECTED">Ù…Ø±ÙÙˆØ¶</option>
           </select>
-          <span className="text-sm text-slate-500">{filteredWithdrawals.length} طلب</span>
+          <span className="text-sm text-slate-500">{filteredWithdrawals.length} Ø·Ù„Ø¨</span>
         </div>
         {filteredWithdrawals.length ? (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -4180,12 +4314,12 @@ export function AdminDashboardPage() {
       <Panel title={translate(language, "adminCouponRequestsTitle")} description={translate(language, "adminCouponRequestsDescription")}>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <select value={couponStatusFilter} onChange={(event) => setCouponStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
-            <option value="PENDING">في الانتظار</option>
-            <option value="APPROVED">موافق عليه</option>
-            <option value="REJECTED">مرفوض</option>
-            <option value="all">الكل</option>
+            <option value="PENDING">ÙÙŠ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±</option>
+            <option value="APPROVED">Ù…ÙˆØ§ÙÙ‚ Ø¹Ù„ÙŠÙ‡</option>
+            <option value="REJECTED">Ù…Ø±ÙÙˆØ¶</option>
+            <option value="all">Ø§Ù„ÙƒÙ„</option>
           </select>
-          <span className="text-sm text-slate-500">{filteredCoupons.length} طلب</span>
+          <span className="text-sm text-slate-500">{filteredCoupons.length} Ø·Ù„Ø¨</span>
         </div>
         {filteredCoupons.length ? (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -4204,7 +4338,7 @@ export function AdminDashboardPage() {
                       : request.type === "PERCENTAGE"
                         ? `${request.value}%`
                         : formatCurrency(request.value, language)}
-                    {request.desiredCode ? ` · ${request.desiredCode}` : ""}
+                    {request.desiredCode ? ` Â· ${request.desiredCode}` : ""}
                   </div>
                   <div className="mt-1 text-sm text-slate-500">{request.reason}</div>
                   <div className="mt-1 text-xs text-slate-400">{formatDate(request.createdAt, language)}</div>
@@ -4355,39 +4489,39 @@ export function AdminDashboardPage() {
               className={`ghost-button gap-2 ${settings.directOrderMode ? "border-teal-400 bg-teal-50 text-teal-800" : ""}`}
             >
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.directOrderMode ? "bg-teal-500" : "bg-slate-300"}`} />
-              {language === "ar" ? "الطلب المباشر من صفحة المنتج" : "Direct order on product page"}:
-              <strong>{settings.directOrderMode ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+              {language === "ar" ? "Ø§Ù„Ø·Ù„Ø¨ Ø§Ù„Ù…Ø¨Ø§Ø´Ø± Ù…Ù† ØµÙØ­Ø© Ø§Ù„Ù…Ù†ØªØ¬" : "Direct order on product page"}:
+              <strong>{settings.directOrderMode ? (language === "ar" ? "Ù…ÙØ¹Ù‘Ù„" : "ON") : (language === "ar" ? "Ù…Ø¹Ø·Ù‘Ù„" : "OFF")}</strong>
             </button>
             <button
               onClick={() => setSettings({ ...settings, whatsappFloat: settings.whatsappFloat !== false ? false : true })}
               className={`ghost-button gap-2 ${settings.whatsappFloat !== false ? "border-green-400 bg-green-50 text-green-800" : ""}`}
             >
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.whatsappFloat !== false ? "bg-green-500" : "bg-slate-300"}`} />
-              {language === "ar" ? "زر واتساب العائم" : "Floating WhatsApp button"}:
-              <strong>{settings.whatsappFloat !== false ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+              {language === "ar" ? "Ø²Ø± ÙˆØ§ØªØ³Ø§Ø¨ Ø§Ù„Ø¹Ø§Ø¦Ù…" : "Floating WhatsApp button"}:
+              <strong>{settings.whatsappFloat !== false ? (language === "ar" ? "Ù…ÙØ¹Ù‘Ù„" : "ON") : (language === "ar" ? "Ù…Ø¹Ø·Ù‘Ù„" : "OFF")}</strong>
             </button>
 
             {/* OTP verification toggle */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <div className="text-sm font-bold text-slate-700">{language === "ar" ? "إعدادات التحقق (OTP)" : "OTP Verification Settings"}</div>
+              <div className="text-sm font-bold text-slate-700">{language === "ar" ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ØªØ­Ù‚Ù‚ (OTP)" : "OTP Verification Settings"}</div>
               <button onClick={() => setSettings({ ...settings, otpEnabled: settings.otpEnabled !== false ? false : true })}
                 className={`ghost-button gap-2 ${settings.otpEnabled !== false ? "border-teal-400 bg-teal-50 text-teal-800" : "border-rose-300 bg-rose-50 text-rose-700"}`}>
                 <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.otpEnabled !== false ? "bg-teal-500" : "bg-rose-400"}`} />
-                {language === "ar" ? "التحقق قبل الطلب" : "OTP before order"}:
-                <strong>{settings.otpEnabled !== false ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+                {language === "ar" ? "Ø§Ù„ØªØ­Ù‚Ù‚ Ù‚Ø¨Ù„ Ø§Ù„Ø·Ù„Ø¨" : "OTP before order"}:
+                <strong>{settings.otpEnabled !== false ? (language === "ar" ? "Ù…ÙØ¹Ù‘Ù„" : "ON") : (language === "ar" ? "Ù…Ø¹Ø·Ù‘Ù„" : "OFF")}</strong>
               </button>
               {settings.otpEnabled !== false && (
                 <>
                   <button onClick={() => setSettings({ ...settings, otpWhatsappEnabled: settings.otpWhatsappEnabled !== false ? false : true })}
                     className={`ghost-button gap-2 ${settings.otpWhatsappEnabled !== false ? "border-green-400 bg-green-50 text-green-800" : ""}`}>
                     <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.otpWhatsappEnabled !== false ? "bg-green-500" : "bg-slate-300"}`} />
-                    {language === "ar" ? "قناة واتساب" : "WhatsApp channel"}:
+                    {language === "ar" ? "Ù‚Ù†Ø§Ø© ÙˆØ§ØªØ³Ø§Ø¨" : "WhatsApp channel"}:
                     <strong>{settings.otpWhatsappEnabled !== false ? "ON" : "OFF"}</strong>
                   </button>
                   <button onClick={() => setSettings({ ...settings, otpEmailEnabled: settings.otpEmailEnabled !== false ? false : true })}
                     className={`ghost-button gap-2 ${settings.otpEmailEnabled !== false ? "border-blue-400 bg-blue-50 text-blue-800" : ""}`}>
                     <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.otpEmailEnabled !== false ? "bg-blue-500" : "bg-slate-300"}`} />
-                    {language === "ar" ? "قناة البريد الإلكتروني" : "Email channel"}:
+                    {language === "ar" ? "Ù‚Ù†Ø§Ø© Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ" : "Email channel"}:
                     <strong>{settings.otpEmailEnabled !== false ? "ON" : "OFF"}</strong>
                   </button>
                 </>
@@ -4395,7 +4529,7 @@ export function AdminDashboardPage() {
             </div>
             <button
               onClick={() => void adminService.updateSettings(token, settings)
-                .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "تم الحفظ ✓" : "Saved ✓", "success"); })
+                .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "ØªÙ… Ø§Ù„Ø­ÙØ¸ âœ“" : "Saved âœ“", "success"); })
                 .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
               className="primary-button"
             >
@@ -4404,8 +4538,8 @@ export function AdminDashboardPage() {
           </div>
         </Panel>
 
-        {/* ── COUPON CAMPAIGN PANEL ── */}
-        <Panel title={language === "ar" ? "🎟️ حملة الكوبون (Get-Coupon)" : "🎟️ Coupon Campaign"} description={language === "ar" ? `رابط الصفحة: visadz.store/get-coupon` : "Landing page: visadz.store/get-coupon"}>
+        {/* â”€â”€ COUPON CAMPAIGN PANEL â”€â”€ */}
+        <Panel title={language === "ar" ? "ðŸŽŸï¸ Ø­Ù…Ù„Ø© Ø§Ù„ÙƒÙˆØ¨ÙˆÙ† (Get-Coupon)" : "ðŸŽŸï¸ Coupon Campaign"} description={language === "ar" ? `Ø±Ø§Ø¨Ø· Ø§Ù„ØµÙØ­Ø©: visadz.store/get-coupon` : "Landing page: visadz.store/get-coupon"}>
           <div className="space-y-4">
             {/* Master toggle */}
             <button
@@ -4413,39 +4547,39 @@ export function AdminDashboardPage() {
               className={`ghost-button gap-2 ${settings.couponCampaignEnabled ? "border-amber-400 bg-amber-50 text-amber-800" : ""}`}
             >
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${settings.couponCampaignEnabled ? "bg-amber-500" : "bg-slate-300"}`} />
-              {language === "ar" ? "حملة الكوبون" : "Coupon Campaign"}:
-              <strong>{settings.couponCampaignEnabled ? (language === "ar" ? "مفعّل" : "ON") : (language === "ar" ? "معطّل" : "OFF")}</strong>
+              {language === "ar" ? "Ø­Ù…Ù„Ø© Ø§Ù„ÙƒÙˆØ¨ÙˆÙ†" : "Coupon Campaign"}:
+              <strong>{settings.couponCampaignEnabled ? (language === "ar" ? "Ù…ÙØ¹Ù‘Ù„" : "ON") : (language === "ar" ? "Ù…Ø¹Ø·Ù‘Ù„" : "OFF")}</strong>
             </button>
 
             {settings.couponCampaignEnabled && (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {/* Discount type + value */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "نوع الخصم" : "Discount type"}</label>
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "Ù†ÙˆØ¹ Ø§Ù„Ø®ØµÙ…" : "Discount type"}</label>
                   <select value={settings.couponDiscountType ?? "PERCENTAGE"} onChange={(e) => setSettings({ ...settings, couponDiscountType: e.target.value as "PERCENTAGE" | "FIXED" })} className="field-select">
-                    <option value="PERCENTAGE">% نسبة مئوية</option>
-                    <option value="FIXED">دج مبلغ ثابت</option>
+                    <option value="PERCENTAGE">% Ù†Ø³Ø¨Ø© Ù…Ø¦ÙˆÙŠØ©</option>
+                    <option value="FIXED">Ø¯Ø¬ Ù…Ø¨Ù„Øº Ø«Ø§Ø¨Øª</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "قيمة الخصم" : "Discount value"}</label>
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "Ù‚ÙŠÙ…Ø© Ø§Ù„Ø®ØµÙ…" : "Discount value"}</label>
                   <input type="number" min={1} value={settings.couponDiscountValue ?? 10} onChange={(e) => setSettings({ ...settings, couponDiscountValue: Number(e.target.value) })} className="field-input" placeholder="10" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "صلاحية الكوبون (أيام)" : "Expires (days)"}</label>
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "ØµÙ„Ø§Ø­ÙŠØ© Ø§Ù„ÙƒÙˆØ¨ÙˆÙ† (Ø£ÙŠØ§Ù…)" : "Expires (days)"}</label>
                   <input type="number" min={1} max={365} value={settings.couponExpiryDays ?? 7} onChange={(e) => setSettings({ ...settings, couponExpiryDays: Number(e.target.value) })} className="field-input" placeholder="7" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "الحد الأدنى للطلب (دج)" : "Min order (DA)"}</label>
-                  <input type="number" min={0} value={settings.couponMinOrder ?? 0} onChange={(e) => setSettings({ ...settings, couponMinOrder: Number(e.target.value) })} className="field-input" placeholder="0 = بدون حد" />
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰ Ù„Ù„Ø·Ù„Ø¨ (Ø¯Ø¬)" : "Min order (DA)"}</label>
+                  <input type="number" min={0} value={settings.couponMinOrder ?? 0} onChange={(e) => setSettings({ ...settings, couponMinOrder: Number(e.target.value) })} className="field-input" placeholder="0 = Ø¨Ø¯ÙˆÙ† Ø­Ø¯" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "شرط المتابعة (اختياري) — اتركه فارغاً إذا لا تريد شرطاً" : "Follow condition text (optional)"}</label>
-                  <input value={settings.couponConditionText ?? ""} onChange={(e) => setSettings({ ...settings, couponConditionText: e.target.value })} className="field-input" placeholder={language === "ar" ? "مثال: تابعنا على TikTok للحصول على الخصم" : "e.g. Follow us on TikTok to get the discount"} />
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "Ø´Ø±Ø· Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø© (Ø§Ø®ØªÙŠØ§Ø±ÙŠ) â€” Ø§ØªØ±ÙƒÙ‡ ÙØ§Ø±ØºØ§Ù‹ Ø¥Ø°Ø§ Ù„Ø§ ØªØ±ÙŠØ¯ Ø´Ø±Ø·Ø§Ù‹" : "Follow condition text (optional)"}</label>
+                  <input value={settings.couponConditionText ?? ""} onChange={(e) => setSettings({ ...settings, couponConditionText: e.target.value })} className="field-input" placeholder={language === "ar" ? "Ù…Ø«Ø§Ù„: ØªØ§Ø¨Ø¹Ù†Ø§ Ø¹Ù„Ù‰ TikTok Ù„Ù„Ø­ØµÙˆÙ„ Ø¹Ù„Ù‰ Ø§Ù„Ø®ØµÙ…" : "e.g. Follow us on TikTok to get the discount"} />
                 </div>
                 {/* Social links */}
                 <div className="space-y-2 md:col-span-2 xl:col-span-3">
-                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "روابط التواصل الاجتماعي (للأزرار)" : "Social links (for buttons)"}</label>
+                  <label className="text-xs font-semibold text-slate-600">{language === "ar" ? "Ø±ÙˆØ§Ø¨Ø· Ø§Ù„ØªÙˆØ§ØµÙ„ Ø§Ù„Ø§Ø¬ØªÙ…Ø§Ø¹ÙŠ (Ù„Ù„Ø£Ø²Ø±Ø§Ø±)" : "Social links (for buttons)"}</label>
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                     {["tiktok", "facebook", "instagram", "youtube"].map((platform) => (
                       <div key={platform} className="flex items-center gap-2">
@@ -4464,7 +4598,7 @@ export function AdminDashboardPage() {
                 {/* Preview link */}
                 <div className="md:col-span-2 xl:col-span-3">
                   <a href="https://visadz.store/get-coupon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100">
-                    🔗 visadz.store/get-coupon — {language === "ar" ? "معاينة الصفحة" : "Preview page"}
+                    ðŸ”— visadz.store/get-coupon â€” {language === "ar" ? "Ù…Ø¹Ø§ÙŠÙ†Ø© Ø§Ù„ØµÙØ­Ø©" : "Preview page"}
                   </a>
                 </div>
               </div>
@@ -4472,7 +4606,7 @@ export function AdminDashboardPage() {
 
             <button
               onClick={() => void adminService.updateSettings(token, settings as Parameters<typeof adminService.updateSettings>[1])
-                .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "تم الحفظ ✓" : "Saved ✓", "success"); })
+                .then(() => { void loadAll(); refreshSiteSettings(); pushToast(language === "ar" ? "ØªÙ… Ø§Ù„Ø­ÙØ¸ âœ“" : "Saved âœ“", "success"); })
                 .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
               className="primary-button"
             >
@@ -4706,9 +4840,9 @@ export function AdminDashboardPage() {
             value={subAdminSearch}
             onChange={(event) => setSubAdminSearch(event.target.value)}
             className="field-input max-w-xs"
-            placeholder="بحث بالاسم أو البريد..."
+            placeholder="Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù… Ø£Ùˆ Ø§Ù„Ø¨Ø±ÙŠØ¯..."
           />
-          <span className="text-sm text-slate-500">{filteredSubAdmins.length} مشرف</span>
+          <span className="text-sm text-slate-500">{filteredSubAdmins.length} Ù…Ø´Ø±Ù</span>
         </div>
         <div className="grid gap-4">
           {filteredSubAdmins.map((subAdmin) => {
@@ -4810,13 +4944,13 @@ export function AdminDashboardPage() {
 
   const renderBlacklist = () => (
     <div className="space-y-6">
-      <Panel title={language === "ar" ? "قائمة الأرقام المحظورة" : "Phone Blacklist"} description={language === "ar" ? "الأرقام المحظورة لا تستطيع إتمام أي طلب" : "Blacklisted phones cannot place orders"}>
+      <Panel title={language === "ar" ? "Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø£Ø±Ù‚Ø§Ù… Ø§Ù„Ù…Ø­Ø¸ÙˆØ±Ø©" : "Phone Blacklist"} description={language === "ar" ? "Ø§Ù„Ø£Ø±Ù‚Ø§Ù… Ø§Ù„Ù…Ø­Ø¸ÙˆØ±Ø© Ù„Ø§ ØªØ³ØªØ·ÙŠØ¹ Ø¥ØªÙ…Ø§Ù… Ø£ÙŠ Ø·Ù„Ø¨" : "Blacklisted phones cannot place orders"}>
         {/* Add form */}
         <div className="flex flex-wrap gap-3">
           <input value={blacklistPhone} onChange={(e) => setBlacklistPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
             className="field-input min-w-[160px] flex-1 py-2 text-sm" placeholder="05XXXXXXXX" dir="ltr" />
           <input value={blacklistReason} onChange={(e) => setBlacklistReason(e.target.value)}
-            className="field-input flex-1 py-2 text-sm" placeholder={language === "ar" ? "سبب الحظر" : "Reason"} />
+            className="field-input flex-1 py-2 text-sm" placeholder={language === "ar" ? "Ø³Ø¨Ø¨ Ø§Ù„Ø­Ø¸Ø±" : "Reason"} />
           <button type="button"
             disabled={blacklistLoading || !/^(05|06|07)\d{8}$/.test(blacklistPhone)}
             onClick={() => {
@@ -4828,26 +4962,26 @@ export function AdminDashboardPage() {
                 .finally(() => setBlacklistLoading(false));
             }}
             className="primary-button gap-2 py-2 text-sm">
-            🚫 {language === "ar" ? "إضافة للحظر" : "Add to blacklist"}
+            ðŸš« {language === "ar" ? "Ø¥Ø¶Ø§ÙØ© Ù„Ù„Ø­Ø¸Ø±" : "Add to blacklist"}
           </button>
           <button type="button" onClick={() => adminService.getBlacklist(token).then(setBlacklist).catch(() => undefined)}
             className="ghost-button py-2 text-sm">
-            {language === "ar" ? "تحديث" : "Refresh"}
+            {language === "ar" ? "ØªØ­Ø¯ÙŠØ«" : "Refresh"}
           </button>
         </div>
 
         {/* List */}
         <div className="table-wrap mt-4">
           <table className="table-base">
-            <thead><tr><th className="ps-4">{language === "ar" ? "الرقم" : "Phone"}</th><th>{language === "ar" ? "السبب" : "Reason"}</th><th>{language === "ar" ? "التاريخ" : "Date"}</th><th /></tr></thead>
+            <thead><tr><th className="ps-4">{language === "ar" ? "Ø§Ù„Ø±Ù‚Ù…" : "Phone"}</th><th>{language === "ar" ? "Ø§Ù„Ø³Ø¨Ø¨" : "Reason"}</th><th>{language === "ar" ? "Ø§Ù„ØªØ§Ø±ÙŠØ®" : "Date"}</th><th /></tr></thead>
             <tbody>
               {blacklist.length === 0 && (
-                <tr><td colSpan={4} className="py-8 text-center text-sm text-slate-400">{language === "ar" ? "لا توجد أرقام محظورة" : "No blocked numbers"}</td></tr>
+                <tr><td colSpan={4} className="py-8 text-center text-sm text-slate-400">{language === "ar" ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£Ø±Ù‚Ø§Ù… Ù…Ø­Ø¸ÙˆØ±Ø©" : "No blocked numbers"}</td></tr>
               )}
               {blacklist.map((b) => (
                 <tr key={b._id}>
                   <td className="ps-4 font-mono font-bold text-slate-900" dir="ltr">{b.phone}</td>
-                  <td className="text-sm text-slate-500">{b.reason || "—"}</td>
+                  <td className="text-sm text-slate-500">{b.reason || "â€”"}</td>
                   <td className="text-xs text-slate-400">{new Date(b.createdAt).toLocaleDateString("ar-DZ")}</td>
                   <td>
                     <button type="button"
@@ -4856,7 +4990,7 @@ export function AdminDashboardPage() {
                         .then(setBlacklist)
                         .catch(() => undefined)}
                       className="rounded-full px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50">
-                      {language === "ar" ? "رفع الحظر" : "Unblock"}
+                      {language === "ar" ? "Ø±ÙØ¹ Ø§Ù„Ø­Ø¸Ø±" : "Unblock"}
                     </button>
                   </td>
                 </tr>
@@ -4879,24 +5013,24 @@ export function AdminDashboardPage() {
           <input
             value={customerSearch}
             onChange={(e) => setCustomerSearch(e.target.value)}
-            placeholder="بحث بالاسم أو رقم الهاتف..."
+            placeholder="Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù… Ø£Ùˆ Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ..."
             className="field-input min-w-[220px] flex-1 py-2 text-sm"
           />
-          <span className="text-sm text-slate-400">{filteredCustomers.length} عميل</span>
+          <span className="text-sm text-slate-400">{filteredCustomers.length} Ø¹Ù…ÙŠÙ„</span>
         </div>
         <div className="table-wrap">
           {filteredCustomers.length === 0 ? (
-            <div className="py-16 text-center text-sm text-slate-400">لا يوجد عملاء</div>
+            <div className="py-16 text-center text-sm text-slate-400">Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø¹Ù…Ù„Ø§Ø¡</div>
           ) : (
             <table className="table-base">
               <thead>
                 <tr>
-                  <th>الهاتف</th>
-                  <th>الاسم</th>
-                  <th>عدد الطلبات</th>
-                  <th>المجموع</th>
-                  <th>آخر طلب</th>
-                  <th>الحالات</th>
+                  <th>Ø§Ù„Ù‡Ø§ØªÙ</th>
+                  <th>Ø§Ù„Ø§Ø³Ù…</th>
+                  <th>Ø¹Ø¯Ø¯ Ø§Ù„Ø·Ù„Ø¨Ø§Øª</th>
+                  <th>Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹</th>
+                  <th>Ø¢Ø®Ø± Ø·Ù„Ø¨</th>
+                  <th>Ø§Ù„Ø­Ø§Ù„Ø§Øª</th>
                 </tr>
               </thead>
               <tbody>
@@ -4997,8 +5131,8 @@ export function AdminDashboardPage() {
     },
     customers: {
       icon: Users,
-      title: "العملاء",
-      description: "قاعدة بيانات العملاء مجمّعة من الطلبات",
+      title: "Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡",
+      description: "Ù‚Ø§Ø¹Ø¯Ø© Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡ Ù…Ø¬Ù…Ù‘Ø¹Ø© Ù…Ù† Ø§Ù„Ø·Ù„Ø¨Ø§Øª",
     },
   };
 
@@ -5139,7 +5273,7 @@ export function AdminDashboardPage() {
                 onClick={() => setConfirmModal(null)}
                 className="ghost-button px-5 py-2.5 text-sm"
               >
-                {language === "ar" ? "إلغاء" : language === "fr" ? "Annuler" : "Cancel"}
+                {language === "ar" ? "Ø¥Ù„ØºØ§Ø¡" : language === "fr" ? "Annuler" : "Cancel"}
               </button>
               <button
                 type="button"
@@ -5150,7 +5284,7 @@ export function AdminDashboardPage() {
                     : "bg-slate-900 hover:bg-slate-700"
                 }`}
               >
-                {confirmModal.confirmLabel ?? (language === "ar" ? "تأكيد" : language === "fr" ? "Confirmer" : "Confirm")}
+                {confirmModal.confirmLabel ?? (language === "ar" ? "ØªØ£ÙƒÙŠØ¯" : language === "fr" ? "Confirmer" : "Confirm")}
               </button>
             </div>
           </div>

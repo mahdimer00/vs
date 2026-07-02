@@ -56,11 +56,42 @@ interface ZRParcelResponse {
   deliveredAt?: string;
 }
 
+interface ZRHubSearchItem {
+  id: string;
+  name: string;
+  isPickupPoint?: boolean;
+  isVisible?: boolean;
+  address?: {
+    city?: string;
+    cityTerritoryId?: string;
+    district?: string;
+    districtTerritoryId?: string;
+  };
+}
+
+interface ZRHubSearchResponse {
+  items?: ZRHubSearchItem[];
+  hasNext?: boolean;
+}
+
 function humanizeSlug(slug?: string): string {
   return String(slug ?? "")
     .replace(/[-_]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function shortHash(value: string): string {
+  return crypto.createHash("sha1").update(value).digest("hex").slice(0, 8);
+}
+
+function fitZrSku(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= 50) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, 41)}-${shortHash(trimmed)}`.slice(0, 50);
 }
 
 function pickZrProductName(item: {
@@ -86,6 +117,7 @@ let ratesCache: ZRTerritory[] | null = null;
 let ratesCacheTime = 0;
 const RATES_CACHE_TTL_MS = 30 * 60 * 1000;
 let territorySearchCache: ZRTerritorySearchItem[] | null = null;
+let hubsCache: ZRHubSearchItem[] | null = null;
 
 // phone (international) → ZR customer UUID
 const customerIdCache = new Map<string, string>();
@@ -152,6 +184,30 @@ async function fetchTerritories(): Promise<ZRTerritorySearchItem[]> {
   }
 
   territorySearchCache = items;
+  return items;
+}
+
+async function fetchHubs(): Promise<ZRHubSearchItem[]> {
+  if (hubsCache) return hubsCache;
+
+  const items: ZRHubSearchItem[] = [];
+  let pageNumber = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    const res = await fetch(`${ZR_BASE}/hubs/search`, {
+      method: "POST",
+      headers: zrHeaders(),
+      body: JSON.stringify({ pageNumber, pageSize: 1000, includeUnavailable: true }),
+    });
+    if (!res.ok) throw new Error(`ZR hubs fetch failed: ${res.status}`);
+    const json = (await res.json()) as ZRHubSearchResponse;
+    items.push(...(json.items ?? []));
+    hasNext = Boolean(json.hasNext);
+    pageNumber += 1;
+  }
+
+  hubsCache = items;
   return items;
 }
 
@@ -249,6 +305,33 @@ async function lookupTerritoryById(communeId: string): Promise<ZRTerritory | nul
   }
 }
 
+async function lookupPickupHub(input: {
+  communeId: string;
+  wilayaId: string;
+  communeName: string;
+}): Promise<ZRHubSearchItem | null> {
+  try {
+    const hubs = await fetchHubs();
+    const pickupHubs = hubs.filter((hub) => hub.isPickupPoint !== false && hub.isVisible !== false);
+
+    const exactDistrict = pickupHubs.find((hub) => hub.address?.districtTerritoryId === input.communeId);
+    if (exactDistrict) return exactDistrict;
+
+    const sameCity = pickupHubs.find((hub) => hub.address?.cityTerritoryId === input.wilayaId);
+    if (sameCity) return sameCity;
+
+    const normalizedCommune = normalizeTerritory(input.communeName);
+    return pickupHubs.find((hub) => {
+      const district = normalizeTerritory(hub.address?.district ?? "");
+      const city = normalizeTerritory(hub.address?.city ?? "");
+      const name = normalizeTerritory(hub.name);
+      return district === normalizedCommune || city === normalizedCommune || name.includes(normalizedCommune);
+    }) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ZR customer API: POST /customers/individual with { name, phone: { number1 } }
 // Returns a customer UUID that must go inside customer.customerId in the parcel body.
 async function getOrCreateZRCustomer(fullName: string, intlPhone: string): Promise<string> {
@@ -317,10 +400,22 @@ export async function createZRParcel(order: {
 
   const intlPhone = toInternationalPhone(order.customer.phone);
   const customerId = await getOrCreateZRCustomer(order.customer.fullName, intlPhone);
+  const pickupHub =
+    order.deliveryType === "DESK_PICKUP"
+      ? await lookupPickupHub({
+          communeId,
+          wilayaId,
+          communeName: order.customer.commune,
+        })
+      : null;
+
+  if (order.deliveryType === "DESK_PICKUP" && !pickupHub?.id) {
+    throw new Error(`ZR pickup hub not found for commune: ${order.customer.commune}`);
+  }
 
   const orderedProducts = order.items.map((item) => {
     const productName = pickZrProductName(item);
-    const sku = item.variantLabel ?? productName;
+    const sku = fitZrSku(item.variantLabel ?? productName);
     return {
       productId: deterministicUUID(`zr-product:${sku}`),
       productName,
@@ -341,6 +436,7 @@ export async function createZRParcel(order: {
     externalId: order.orderNumber,
     amount: order.total,
     deliveryType: order.deliveryType === "HOME_DELIVERY" ? "home" : "pickup-point",
+    ...(pickupHub?.id ? { hubId: pickupHub.id } : {}),
     description,
     customer: {
       customerId,                                          // must be INSIDE customer object
@@ -351,6 +447,7 @@ export async function createZRParcel(order: {
       street: order.customer.address || order.customer.commune,
       cityTerritoryId: wilayaId,                          // wilaya
       districtTerritoryId: communeId,                     // commune
+      ...(pickupHub?.id ? { hubId: pickupHub.id } : {}),
     },
     weight: { weight: 0.5 },
     orderedProducts,
@@ -537,4 +634,5 @@ export function resetTerritoriesCache(): void {
   ratesCache = null;
   ratesCacheTime = 0;
   territorySearchCache = null;
+  hubsCache = null;
 }
