@@ -3949,6 +3949,7 @@ export function AdminDashboardPage() {
   const renderAffiliates = () => {
     const pendingAffiliates = affiliates.filter((a) => a.status === "PENDING");
     const activeAffiliates = affiliates.filter((a) => a.status === "ACTIVE");
+    const totalVisitors = affiliates.reduce((sum, affiliate) => sum + (affiliate.visitorsCount ?? 0), 0);
     const filteredAffiliates = affiliates.filter((affiliate) => {
       const q = affiliateSearch.toLowerCase();
       if (affiliateStatusFilter !== "all" && affiliate.status !== affiliateStatusFilter) return false;
@@ -3965,7 +3966,7 @@ export function AdminDashboardPage() {
     return (
     <div className="space-y-4">
       {/* Summary stat cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="surface-card p-4 text-center">
           <div className="text-2xl font-bold text-teal-600">{activeAffiliates.length}</div>
           <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "نشط" : "Active"}</div>
@@ -3977,6 +3978,10 @@ export function AdminDashboardPage() {
         <div className="surface-card p-4 text-center">
           <div className="text-2xl font-bold text-slate-800">{affiliates.length}</div>
           <div className="text-xs text-slate-500 mt-0.5">{language === "ar" ? "إجمالي" : "Total"}</div>
+        </div>
+        <div className="surface-card p-4 text-center">
+          <div className="text-2xl font-bold text-sky-700">{totalVisitors}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{translate(language, "analyticsVisitors")}</div>
         </div>
       </div>
 
@@ -4036,6 +4041,9 @@ export function AdminDashboardPage() {
                     <div className="font-semibold text-slate-950">{affiliate.name}</div>
                     <div className="text-xs text-slate-400 mt-0.5">{affiliate.email}</div>
                     <div className="text-xs text-slate-400" dir="ltr">{affiliate.phone}</div>
+                    <div className="mt-1 text-xs font-medium text-sky-700">
+                      {translate(language, "analyticsVisitors")}: {(affiliate.visitorsCount ?? 0).toLocaleString(language === "ar" ? "ar-DZ" : "en-US")}
+                    </div>
                   </td>
 
                   {/* Level selector */}

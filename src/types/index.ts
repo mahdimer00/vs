@@ -131,6 +131,7 @@ export interface Affiliate {
   balancePending: number;
   balanceApproved: number;
   balancePaid: number;
+  visitorsCount?: number;
   createdAt: string;
 }
 

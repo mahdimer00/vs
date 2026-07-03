@@ -1,7 +1,6 @@
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { BackToTopButton } from "@/components/BackToTopButton";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { EarnMoneyFloat } from "@/components/EarnMoneyFloat";
 import { Footer } from "@/components/Footer";
@@ -23,7 +22,6 @@ export function MainLayout() {
         </Suspense>
       </main>
       {!isDashboard ? <Footer /> : null}
-      {!isDashboard ? <BackToTopButton /> : null}
       {!isDashboard ? <WhatsAppFloat /> : null}
       {!isDashboard ? <EarnMoneyFloat /> : null}
       <div className="fixed bottom-4 end-4 z-50 max-w-[calc(100vw-2rem)] space-y-3">

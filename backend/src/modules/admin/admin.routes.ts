@@ -4,7 +4,7 @@ import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { roleMiddleware } from "../../middleware/role.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
-import { AffiliateModel, CommissionModel, CouponRequestModel, WithdrawalRequestModel } from "../../models/affiliate.model.js";
+import { AffiliateClickModel, AffiliateModel, CommissionModel, CouponRequestModel, WithdrawalRequestModel } from "../../models/affiliate.model.js";
 import { OrderModel, PromoCodeModel } from "../../models/orders.model.js";
 import { ProductModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 import { UserModel } from "../../models/user.model.js";
@@ -164,7 +164,40 @@ router.get("/admin/wa-status", authMiddleware, permissionMiddleware("dashboard")
 }));
 
 router.get("/admin/affiliates", authMiddleware, permissionMiddleware("affiliates"), asyncHandler(async (_req, res) => {
-  return res.json(await AffiliateModel.find().select("-passwordHash").lean());
+  const [affiliates, visitorAggregation] = await Promise.all([
+    AffiliateModel.find().select("-passwordHash").lean(),
+    AffiliateClickModel.aggregate([
+      {
+        $addFields: {
+          visitorKey: {
+            $ifNull: [
+              "$visitorId",
+              {
+                $cond: [
+                  { $and: [{ $ne: ["$ip", null] }, { $ne: ["$ip", ""] }] },
+                  { $concat: ["ip:", "$ip"] },
+                  { $concat: ["anon:", { $toString: "$_id" }] },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      { $group: { _id: { affiliate: "$affiliate", visitorKey: "$visitorKey" } } },
+      { $group: { _id: "$_id.affiliate", visitorsCount: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const visitorsByAffiliate = new Map(
+    visitorAggregation.map((entry: { _id: string; visitorsCount: number }) => [String(entry._id), entry.visitorsCount]),
+  );
+
+  return res.json(
+    affiliates.map((affiliate) => ({
+      ...affiliate,
+      visitorsCount: visitorsByAffiliate.get(String(affiliate._id)) ?? 0,
+    })),
+  );
 }));
 const affiliateUpdateSchema = z.object({
   status: z.enum(["PENDING", "ACTIVE", "BLOCKED"]).optional(),

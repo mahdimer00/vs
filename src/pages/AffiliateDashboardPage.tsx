@@ -9,7 +9,7 @@ import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
 import { affiliateService } from "@/services/affiliate.service";
 import { productService } from "@/services/product.service";
-import type { Affiliate, AffiliateRecentVisitor, Commission, CouponRequest, Order, Product, PromoCode, WithdrawalRequest } from "@/types";
+import type { Affiliate, AffiliateRecentVisitor, Commission, Order, Product, PromoCode, WithdrawalRequest } from "@/types";
 import { ApiError } from "@/services/apiClient";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate, translateStatus, type TranslationKey } from "@/utils/i18n";
@@ -23,7 +23,8 @@ const levelIcons: Record<string, typeof Medal> = {
 
 export function AffiliateDashboardPage() {
   const location = useLocation();
-  const tab = location.pathname.replace("/affiliate", "").replace(/^\//, "") || "dashboard";
+  const rawTab = location.pathname.replace("/affiliate", "").replace(/^\//, "");
+  const tab = rawTab === "coupons" ? "promo-codes" : rawTab || "dashboard";
   const { affiliateSession, setAffiliateSession, language, pushToast } = useApp();
   const token = affiliateSession?.token ?? "";
 
@@ -49,8 +50,6 @@ export function AffiliateDashboardPage() {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [withdrawal, setWithdrawal] = useState({ amount: "", method: "RIP", accountInfo: "" });
   const [team, setTeam] = useState<Affiliate[]>([]);
-  const [couponRequests, setCouponRequests] = useState<CouponRequest[]>([]);
-  const [couponForm, setCouponForm] = useState({ type: "PERCENTAGE", value: "", desiredCode: "", reason: "" });
   const [profileForm, setProfileForm] = useState({ name: "", phone: "", currentPassword: "", newPassword: "" });
   const [profileSaving, setProfileSaving] = useState(false);
 
@@ -69,26 +68,20 @@ export function AffiliateDashboardPage() {
       productService.getProducts(),
       affiliateService.getWithdrawals(token),
       affiliateService.getTeam(token),
-      affiliateService.getCouponRequests(token),
     ])
-      .then(([dashboardData, orderData, commissionData, productData, withdrawalData, teamData, couponRequestData]) => {
+      .then(([dashboardData, orderData, commissionData, productData, withdrawalData, teamData]) => {
         setDashboard(dashboardData);
         setOrders(orderData);
         setCommissions(commissionData);
         setProducts(productData.filter((product) => product.affiliateEnabled));
         setWithdrawals(withdrawalData);
         setTeam(teamData);
-        setCouponRequests(couponRequestData);
       })
       .catch((loadError) => {
         setError(loadError instanceof Error ? loadError.message : "Unable to load affiliate data");
       })
       .finally(() => setLoading(false));
   }, [token]);
-
-  const reloadCouponRequests = () => {
-    void affiliateService.getCouponRequests(token).then(setCouponRequests);
-  };
 
   const links = [
     { href: "/affiliate", label: translate(language, "dashboard") },
@@ -97,7 +90,6 @@ export function AffiliateDashboardPage() {
     { href: "/affiliate/commissions", label: translate(language, "commissions") },
     { href: "/affiliate/withdrawals", label: translate(language, "withdrawals") },
     { href: "/affiliate/promo-codes", label: translate(language, "promoCodes") },
-    { href: "/affiliate/coupons", label: translate(language, "affiliateCouponRequestsTitle") },
     { href: "/affiliate/team", label: translate(language, "affiliateTeamTitle") },
     { href: "/affiliate/profile", label: translate(language, "affiliateProfile") },
   ];
@@ -107,7 +99,7 @@ export function AffiliateDashboardPage() {
     if (!code) {
       return;
     }
-    const link = `${window.location.origin}/r/${code}/products/${slug}`;
+    const link = `${window.location.origin}/r/${code}/p/${slug}`;
     await navigator.clipboard.writeText(link);
     pushToast(translate(language, "affiliateCopied"));
   };
@@ -438,7 +430,7 @@ export function AffiliateDashboardPage() {
                   </button>
                   {dashboard?.referralLink ? (
                     <a
-                      href={`https://wa.me/?text=${encodeURIComponent((language === "ar" ? "🛍️ تسوق عبر رابطي الخاص:\n" : "🛍️ Shop via my link:\n") + dashboard.referralLink)}`}
+                      href={`https://wa.me/?text=${encodeURIComponent((language === "ar" ? "تسوّق عبر رابطي الخاص:\n" : "Shop via my link:\n") + dashboard.referralLink)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ghost-button gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -531,98 +523,6 @@ export function AffiliateDashboardPage() {
             ) : (
               <EmptyState title={translate(language, "affiliateTeamTitle")} description={translate(language, "affiliateNoTeam")} />
             )}
-          </div>
-        );
-      case "coupons":
-        return (
-          <div className="space-y-6">
-            <div className="surface-card p-6">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-100 text-amber-700">
-                  <Gift className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-950">{translate(language, "affiliateCouponRequestsTitle")}</h2>
-                  <p className="mt-1 text-sm text-slate-500">{translate(language, "affiliateCouponRequestsDescription")}</p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <select value={couponForm.type} onChange={(event) => setCouponForm({ ...couponForm, type: event.target.value })} className="field-select">
-                  <option value="PERCENTAGE">{translate(language, "adminCommissionTypePercentage")}</option>
-                  <option value="FIXED">{translate(language, "adminCommissionTypeFixed")}</option>
-                  <option value="FREE_SHIPPING">{translate(language, "freeShipping")}</option>
-                </select>
-                {couponForm.type !== "FREE_SHIPPING" ? (
-                  <input value={couponForm.value} onChange={(event) => setCouponForm({ ...couponForm, value: event.target.value })} className="field-input" placeholder={translate(language, "adminCommissionValue")} />
-                ) : null}
-                <input value={couponForm.desiredCode} onChange={(event) => setCouponForm({ ...couponForm, desiredCode: event.target.value.toUpperCase() })} className="field-input uppercase" placeholder={translate(language, "affiliateDesiredCode")} />
-                <textarea value={couponForm.reason} onChange={(event) => setCouponForm({ ...couponForm, reason: event.target.value })} className="field-input md:col-span-2" rows={3} placeholder={translate(language, "affiliateCouponReason")} />
-              </div>
-              <button
-                onClick={() => {
-                  if (couponForm.type !== "FREE_SHIPPING" && !couponForm.value) {
-                    pushToast(translate(language, "adminActionError"), "error");
-                    return;
-                  }
-                  if (!couponForm.reason.trim()) {
-                    pushToast(translate(language, "adminActionError"), "error");
-                    return;
-                  }
-                  void affiliateService
-                    .requestCoupon(token, {
-                      type: couponForm.type,
-                      value: couponForm.type === "FREE_SHIPPING" ? 0 : Number(couponForm.value),
-                      desiredCode: couponForm.desiredCode.trim() || undefined,
-                      reason: couponForm.reason.trim(),
-                    })
-                    .then(() => {
-                      pushToast(translate(language, "affiliateCouponRequestSuccess"), "success");
-                      setCouponForm({ type: "PERCENTAGE", value: "", desiredCode: "", reason: "" });
-                      reloadCouponRequests();
-                    })
-                    .catch((requestError: unknown) => pushToast(requestError instanceof ApiError ? requestError.message : translate(language, "adminActionError"), "error"));
-                }}
-                className="primary-button mt-4"
-              >
-                {translate(language, "affiliateRequestCoupon")}
-              </button>
-            </div>
-
-            <div className="surface-card p-6">
-              <h2 className="text-xl font-semibold text-slate-950">{translate(language, "affiliateCouponHistoryTitle")}</h2>
-              {couponRequests.length ? (
-                <div className="mt-4 space-y-3">
-                  {couponRequests.map((request) => (
-                    <div key={request._id} className="muted-card px-4 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-950">
-                            {request.type === "FREE_SHIPPING"
-                              ? translate(language, "freeShipping")
-                              : request.type === "PERCENTAGE"
-                                ? `${request.value}%`
-                                : formatCurrency(request.value, language)}
-                            {request.desiredCode ? ` · ${request.desiredCode}` : ""}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500">{request.reason}</div>
-                          <div className="mt-1 text-xs text-slate-400">{formatDate(request.createdAt, language)}</div>
-                        </div>
-                        <StatusBadge label={request.status} language={language} />
-                      </div>
-                      {request.promoCode && typeof request.promoCode !== "string" ? (
-                        <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                          <Gift className="h-3.5 w-3.5" />
-                          {request.promoCode.code}
-                        </div>
-                      ) : null}
-                      {request.adminNote ? <p className="mt-2 text-xs leading-6 text-slate-500">{request.adminNote}</p> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-slate-500">{translate(language, "affiliateNoCouponRequests")}</p>
-              )}
-            </div>
           </div>
         );
       case "profile":
@@ -806,7 +706,7 @@ export function AffiliateDashboardPage() {
                 <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-300">{language === "ar" ? "مستواك الحالي" : "Your level"}: <strong className="text-amber-300">{current}</strong></span>
-                    {next ? <span className="text-slate-400">{language === "ar" ? `التالي: ${next} عند ${nextThreshold.toLocaleString("ar-DZ")} دج` : `Next: ${next} at ${nextThreshold.toLocaleString()} DA`}</span> : <span className="text-amber-300 font-bold">🏆 {language === "ar" ? "أعلى مستوى!" : "Max level!"}</span>}
+                    {next ? <span className="text-slate-400">{language === "ar" ? `التالي: ${next} عند ${nextThreshold.toLocaleString("ar-DZ")} دج` : `Next: ${next} at ${nextThreshold.toLocaleString()} DA`}</span> : <span className="text-amber-300 font-bold">{language === "ar" ? "أعلى مستوى!" : "Max level!"}</span>}
                   </div>
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
                     <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all" style={{ width: `${progress}%` }} />
@@ -827,7 +727,7 @@ export function AffiliateDashboardPage() {
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Users className="h-4 w-4" />
-                  {language === "ar" ? "الزوار" : language === "fr" ? "Visiteurs" : "Visitors"}
+                  {translate(language, "analyticsVisitors")}
                 </div>
                 <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.visitorsCount ?? 0}</div>
               </div>
@@ -850,7 +750,7 @@ export function AffiliateDashboardPage() {
                   <div className="mt-3 text-3xl font-bold tracking-tight">
                     {(dashboard?.affiliate.balanceApproved ?? 0).toLocaleString("ar-DZ")}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-emerald-200">دج</div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-200">{language === "ar" ? "دج" : "DZD"}</div>
                 </div>
               </div>
               {/* DZD pending balance card */}
@@ -865,7 +765,7 @@ export function AffiliateDashboardPage() {
                   <div className="mt-3 text-3xl font-bold tracking-tight">
                     {(dashboard?.affiliate.balancePending ?? 0).toLocaleString("ar-DZ")}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-amber-200">دج</div>
+                  <div className="mt-1 text-sm font-semibold text-amber-200">{language === "ar" ? "دج" : "DZD"}</div>
                 </div>
               </div>
             </div>
@@ -896,39 +796,18 @@ export function AffiliateDashboardPage() {
                     <Copy className="h-4 w-4" />
                     {language === "ar" ? "نسخ الرابط القصير" : language === "fr" ? "Copier le lien court" : "Copy short link"}
                   </button>
-                  {dashboard?.referralLink ? (
+                  {dashboard?.shortReferralLink ? (
                     <a
-                      href={`https://wa.me/?text=${encodeURIComponent((language === "ar" ? "🛍️ تسوق عبر رابطي:\n" : "🛍️ Shop via my referral link:\n") + dashboard.referralLink)}`}
+                      href={`https://wa.me/?text=${encodeURIComponent((language === "ar" ? "تسوّق عبر رابط الإحالة الخاص بي:\n" : "Shop via my referral link:\n") + dashboard.shortReferralLink)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ghost-button gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     >
                       <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.978-1.305A9.96 9.96 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.95 7.95 0 0 1-4.031-1.102l-.29-.17-2.951.773.789-2.876-.19-.3A7.959 7.959 0 0 1 4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z"/></svg>
-                      {language === "ar" ? "مشاركة واتساب" : "Share on WhatsApp"}
+                      {language === "ar" ? "مشاركة عبر واتساب" : "Share on WhatsApp"}
                     </a>
                   ) : null}
                 </div>
-                {dashboard?.recentVisitors.length ? (
-                  <div className="mt-5 space-y-3">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      {language === "ar" ? "آخر الزوار" : language === "fr" ? "Derniers visiteurs" : "Recent visitors"}
-                    </h3>
-                    {dashboard.recentVisitors.map((visitor) => (
-                      <div key={visitor.visitorKey} className="muted-card flex items-center justify-between gap-3 px-4 py-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-slate-900">{visitor.landingPath || "/"}</div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {formatDate(visitor.lastVisitedAt, language)}
-                            {visitor.visits > 1 ? ` · ${visitor.visits} ${language === "ar" ? "زيارات" : language === "fr" ? "visites" : "visits"}` : ""}
-                          </div>
-                        </div>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                          {visitor.shortCode ? "Short" : "Query"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
               </div>
 
               <div className="surface-card p-6">
