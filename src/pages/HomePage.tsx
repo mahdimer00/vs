@@ -35,9 +35,11 @@ export function HomePage() {
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories(), bannerService.getBanners(), adminService.getBrands()])
       .then(([productData, categoryData, bannerData, brandData]) => {
-        const featured = productData.filter((product) => product.isFeatured && !product.isSoldOut);
-        // Fall back to most recent active products if none are marked as featured
-        setProducts(featured.length > 0 ? featured : productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE"));
+        const allActive = productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE");
+        // Featured products come first, then the rest
+        const featured = allActive.filter((p) => p.isFeatured);
+        const nonFeatured = allActive.filter((p) => !p.isFeatured);
+        setProducts([...featured, ...nonFeatured]);
         setSoldOutProducts(productData.filter((product) => product.isSoldOut));
         setCategories(categoryData.filter((category) => category.isActive).slice(0, 4));
         setBanners(bannerData);
