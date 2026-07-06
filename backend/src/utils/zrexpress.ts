@@ -109,7 +109,7 @@ function pickZrProductName(item: {
     .map((value) => String(value ?? "").trim())
     .find(Boolean);
 
-  return (preferred ?? "Product").slice(0, 120);
+  return (preferred ?? "Product").slice(0, 80);
 }
 
 let territoriesMap: Map<string, ZRTerritory> | null = null;
@@ -427,8 +427,10 @@ export async function createZRParcel(order: {
     };
   });
 
-  const productsDesc = order.items.map((item) => `${pickZrProductName(item)} x ${item.quantity}`).join(", ");
-  const description = `${productsDesc} | قابل للكسر`;
+  const firstItemName = order.items[0] ? pickZrProductName(order.items[0]) : "Product";
+  const description = order.items.length === 1
+    ? `${firstItemName} x${order.items[0]!.quantity} | قابل للكسر`
+    : `${firstItemName} (+${order.items.length - 1}) | قابل للكسر`;
 
   const phone2 = order.customer.phone2 ? toInternationalPhone(order.customer.phone2) : undefined;
 

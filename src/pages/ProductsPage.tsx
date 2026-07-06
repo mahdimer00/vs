@@ -27,7 +27,6 @@ export function ProductsPage() {
     category: searchParams.get("category") || "all",
     brand: searchParams.get("brand") || "all",
   });
-  const [visibleCount, setVisibleCount] = useState(20);
 
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories()])
@@ -126,19 +125,10 @@ export function ProductsPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 xl:grid-cols-3">
-            {filtered.slice(0, visibleCount).map((product) => (
+            {filtered.map((product) => (
               <ProductCard key={product._id} product={product} language={language} />
             ))}
           </div>
-          {visibleCount < filtered.length && (
-            <div className="flex flex-col items-center gap-2">
-              <button type="button" onClick={() => setVisibleCount((v) => v + 20)}
-                className="primary-button px-8 py-3">
-                {language === "ar" ? `تحميل المزيد (${filtered.length - visibleCount} متبقية)` : language === "fr" ? `Voir plus (${filtered.length - visibleCount} restants)` : `Load more (${filtered.length - visibleCount} remaining)`}
-              </button>
-              <p className="text-xs text-slate-400">{language === "ar" ? `عرض ${Math.min(visibleCount, filtered.length)} من ${filtered.length}` : `Showing ${Math.min(visibleCount, filtered.length)} of ${filtered.length}`}</p>
-            </div>
-          )}
         </div>
       )}
 

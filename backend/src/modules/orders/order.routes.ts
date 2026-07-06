@@ -155,8 +155,23 @@ async function loadOrderResponse(orderId: string) {
     .lean();
 }
 
+async function autoMarkSoldOutIfNeeded(productId: string): Promise<void> {
+  const variants = await ProductVariantModel.find({ productId }).select("stock").lean();
+  if (variants.length > 0) {
+    const totalStock = variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+    if (totalStock <= 0) {
+      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: true });
+    }
+  } else {
+    const product = await ProductModel.findById(productId).select("stock").lean();
+    if (product && product.stock <= 0) {
+      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: true });
+    }
+  }
+}
+
 async function reserveStockForOrder(order: {
-  items: Array<{ variantId: string; quantity: number; productName: { en: string } }>;
+  items: Array<{ variantId: string; productId: string; quantity: number; productName: { en: string } }>;
 }) {
   for (const item of order.items) {
     const variant = await ProductVariantModel.findById(item.variantId);
@@ -165,8 +180,14 @@ async function reserveStockForOrder(order: {
     }
   }
 
+  const affectedProductIds = new Set<string>();
   for (const item of order.items) {
     await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -item.quantity } });
+    if (item.productId) affectedProductIds.add(String(item.productId));
+  }
+
+  for (const productId of affectedProductIds) {
+    void autoMarkSoldOutIfNeeded(productId);
   }
 }
 

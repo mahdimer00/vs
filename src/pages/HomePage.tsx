@@ -37,8 +37,8 @@ export function HomePage() {
       .then(([productData, categoryData, bannerData, brandData]) => {
         const featured = productData.filter((product) => product.isFeatured && !product.isSoldOut);
         // Fall back to most recent active products if none are marked as featured
-        setProducts((featured.length > 0 ? featured : productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE")).slice(0, 6));
-        setSoldOutProducts(productData.filter((product) => product.isSoldOut).slice(0, 6));
+        setProducts(featured.length > 0 ? featured : productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE"));
+        setSoldOutProducts(productData.filter((product) => product.isSoldOut));
         setCategories(categoryData.filter((category) => category.isActive).slice(0, 4));
         setBanners(bannerData);
         setBrands(brandData.filter((brand) => brand.isActive && brand.logo));

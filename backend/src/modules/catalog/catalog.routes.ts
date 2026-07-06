@@ -124,6 +124,15 @@ router.patch(
   validateObjectId,
   asyncHandler(async (req, res) => {
     const input = productSchema.partial().parse(req.body);
+
+    // Auto sold-out when stock reaches 0
+    if (typeof input.stock === "number" && input.stock <= 0) {
+      input.isSoldOut = true;
+    }
+    if (input.variants !== undefined && input.variants.length > 0 && input.variants.every((v) => v.stock <= 0)) {
+      input.isSoldOut = true;
+    }
+
     const product = await ProductModel.findByIdAndUpdate(req.params.id, input, { new: true });
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
