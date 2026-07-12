@@ -538,37 +538,39 @@ export function ProductDetailsPage() {
 
                 {/* Mobile: dot indicators + thumbnail strip */}
                 {gallery.length > 1 ? (
-                  <div className="space-y-2 lg:hidden">
-                    {/* Progress dots */}
-                    <div className="flex justify-center gap-1.5">
+                  <div className="w-full overflow-hidden lg:hidden">
+                    {/* Progress dots — wrap so they never overflow */}
+                    <div className="flex flex-wrap justify-center gap-1.5 pb-1">
                       {gallery.map((image, index) => (
                         <button
                           key={image}
                           type="button"
                           onClick={() => goTo(index)}
                           aria-label={`صورة ${index + 1}`}
-                          className={`h-2 rounded-full transition-all duration-300 ${
+                          className={`h-2 shrink-0 rounded-full transition-all duration-300 ${
                             selectedImage === image ? "w-7 bg-teal-600" : "w-2 bg-slate-300"
                           }`}
                         />
                       ))}
                     </div>
-                    {/* Thumbnail strip */}
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {gallery.map((image, index) => (
-                        <button
-                          key={image}
-                          type="button"
-                          onClick={() => goTo(index)}
-                          aria-label={`${productName} ${index + 1}`}
-                          aria-pressed={selectedImage === image}
-                          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
-                            selectedImage === image ? "border-teal-500 shadow-[0_0_0_2px_rgba(20,184,166,0.2)]" : "border-slate-200"
-                          }`}
-                        >
-                          <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
-                        </button>
-                      ))}
+                    {/* Thumbnail strip: outer bounds the viewport, inner scrolls */}
+                    <div className="w-full overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                      <div className="flex gap-2">
+                        {gallery.map((image, index) => (
+                          <button
+                            key={image}
+                            type="button"
+                            onClick={() => goTo(index)}
+                            aria-label={`${productName} ${index + 1}`}
+                            aria-pressed={selectedImage === image}
+                            className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
+                              selectedImage === image ? "border-teal-500 shadow-[0_0_0_2px_rgba(20,184,166,0.2)]" : "border-slate-200"
+                            }`}
+                          >
+                            <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ) : null}
