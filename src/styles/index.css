@@ -206,6 +206,45 @@
   .admin-action-grid {
     @apply grid gap-2 sm:grid-cols-2;
   }
+
+  /* Featured / hot-deal card effects */
+  .featured-glow {
+    animation: featured-glow-pulse 2.4s ease-in-out infinite;
+  }
+
+  .featured-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 60%
+    );
+    animation: featured-shimmer-sweep 3.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes featured-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1.5px rgba(251, 146, 60, 0.35),
+      0 4px 28px rgba(251, 146, 60, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2.5px rgba(251, 146, 60, 0.6),
+      0 8px 48px rgba(251, 146, 60, 0.52);
+  }
+}
+
+@keyframes featured-shimmer-sweep {
+  0%   { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  10%  { opacity: 1; }
+  60%  { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
 }
 
 [dir="rtl"] body {

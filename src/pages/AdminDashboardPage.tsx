@@ -177,6 +177,7 @@ type ProductFormState = {
   stock: string;
   condition: "NEW" | "USED";
   adminNote: string;
+  isFeatured: boolean;
   isSoldOut: boolean;
   localPickupOnly: boolean;
   affiliateEnabled: boolean;
@@ -201,6 +202,7 @@ const defaultProductForm: ProductFormState = {
   stock: "1",
   condition: "NEW",
   adminNote: "",
+  isFeatured: false,
   isSoldOut: false,
   localPickupOnly: false,
   affiliateEnabled: false,
@@ -973,6 +975,7 @@ export function AdminDashboardPage() {
       stock: String(product.stock),
       condition: product.condition || "NEW",
       adminNote: product.adminNote || "",
+      isFeatured: product.isFeatured ?? false,
       isSoldOut: product.isSoldOut ?? false,
       localPickupOnly: product.localPickupOnly ?? false,
       affiliateEnabled: product.affiliateEnabled,
@@ -1032,7 +1035,7 @@ export function AdminDashboardPage() {
       condition: productForm.condition,
       adminNote: productForm.adminNote.trim() || undefined,
       status: "ACTIVE",
-      isFeatured: false,
+      isFeatured: productForm.isFeatured,
       isSoldOut: productForm.isSoldOut,
       localPickupOnly: productForm.localPickupOnly,
       affiliateEnabled: productForm.affiliateEnabled,
@@ -1883,6 +1886,15 @@ export function AdminDashboardPage() {
           />
 
           <div className="md:col-span-2 xl:col-span-4 flex flex-wrap gap-4">
+            <label className="flex items-center gap-3 rounded-2xl border border-orange-300 bg-gradient-to-r from-orange-50 to-rose-50 px-4 py-3 text-sm font-semibold text-orange-800 cursor-pointer shadow-[0_2px_12px_rgba(251,146,60,0.18)]">
+              <input
+                type="checkbox"
+                checked={productForm.isFeatured}
+                onChange={(event) => setProductForm({ ...productForm, isFeatured: event.target.checked })}
+                className="h-4 w-4 rounded border-orange-300 accent-orange-500"
+              />
+              🔥 {language === "ar" ? "عرض حار — يُظهر شارة وإطار مميّز مع تأثير متحرك على المنتج" : "Hot Deal — shows animated glow + ribbon on the product card"}
+            </label>
             <label className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 cursor-pointer">
               <input
                 type="checkbox"
@@ -2006,6 +2018,9 @@ export function AdminDashboardPage() {
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>
                   )}
+                  {product.isFeatured && !product.isSoldOut ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">🔥 {language === "ar" ? "عرض حار" : "Hot Deal"}</span>
+                  ) : null}
                   {product.localPickupOnly ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">متجر فقط</span>
                   ) : null}

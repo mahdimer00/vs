@@ -20,7 +20,7 @@ export function ProductCard({ product, language }: { product: Product; language:
   return (
     <article className={`group relative flex flex-col overflow-hidden rounded-[1.6rem] bg-white border transition duration-200 hover:-translate-y-0.5 ${
       isFeatured
-        ? "border-orange-300 shadow-[0_2px_20px_rgba(251,146,60,0.25)] hover:shadow-[0_8px_35px_rgba(251,146,60,0.4)]"
+        ? "border-orange-300 featured-glow"
         : "border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.07)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.13)]"
     }`}>
       <Link
@@ -30,13 +30,20 @@ export function ProductCard({ product, language }: { product: Product; language:
         className="flex flex-1 flex-col"
       >
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-50 to-white">
+        <div className={`relative aspect-square overflow-hidden bg-gradient-to-br from-slate-50 to-white${isFeatured ? " featured-shimmer" : ""}`}>
           <img
             src={product.images[0]}
             alt={getLocalizedText(product.name, language)}
             loading="lazy"
             className={`h-full w-full object-contain p-3 transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-40 grayscale" : ""}`}
           />
+
+          {/* Corner ribbon for featured products */}
+          {isFeatured ? (
+            <div className="pointer-events-none absolute -end-7 top-4 rotate-45 bg-gradient-to-r from-orange-500 to-rose-500 px-10 py-1 text-center text-[10px] font-extrabold uppercase tracking-widest text-white shadow-md rtl:-start-7 rtl:end-auto rtl:-rotate-45">
+              {language === "ar" ? "خاص" : language === "fr" ? "Promo" : "Special"}
+            </div>
+          ) : null}
 
           {/* Sold out overlay */}
           {soldOut ? (
