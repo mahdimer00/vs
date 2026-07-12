@@ -1644,6 +1644,42 @@ export function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* ── AFFILIATE PROGRAM SUMMARY ── */}
+        {affiliates.length > 0 && (() => {
+          const activeAff = affiliates.filter((a) => a.status === "ACTIVE").length;
+          const pendingAff = affiliates.filter((a) => a.status === "PENDING").length;
+          const totalPendingComm = commissions.filter((c) => c.status === "PENDING").reduce((sum, c) => sum + c.amount, 0);
+          const totalPaidComm = commissions.filter((c) => c.status === "PAID").reduce((sum, c) => sum + c.amount, 0);
+          const totalAffVisitors = affiliates.reduce((sum, a) => sum + (a.visitorsCount ?? 0), 0);
+          const affOrdersCount = new Set(commissions.map((c) => (c.order && typeof c.order !== "string" ? c.order._id : null)).filter(Boolean)).size;
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Users className="h-4 w-4 text-teal-600" />
+                  {isAr ? "برنامج المسوّقين" : "Affiliate Program"}
+                </div>
+                <Link to="/gestion/affiliates" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "إدارة" : "Manage"}</Link>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-3 md:grid-cols-6 rtl:divide-x-reverse">
+                {[
+                  { label: isAr ? "نشط" : "Active", value: activeAff, color: "text-teal-700" },
+                  { label: isAr ? "انتظار" : "Pending", value: pendingAff, color: pendingAff > 0 ? "text-amber-600" : "text-slate-700" },
+                  { label: isAr ? "إجمالي" : "Total", value: affiliates.length, color: "text-slate-700" },
+                  { label: isAr ? "زوار" : "Visitors", value: totalAffVisitors.toLocaleString(), color: "text-sky-700" },
+                  { label: isAr ? "طلبات المسوّقين" : "Aff. orders", value: affOrdersCount, color: "text-slate-700" },
+                  { label: isAr ? "عمولات معلّقة" : "Pending comm.", value: formatCurrency(totalPendingComm, language), color: "text-amber-700" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="px-4 py-3 text-center">
+                    <div className={`text-xl font-black ${color}`}>{value}</div>
+                    <div className="mt-0.5 text-[10px] text-slate-400 uppercase tracking-wider">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── ABANDONED ORDERS DETAIL ── */}
         {stats.abandonedOrderDetails.length > 0 && (
           <div className="surface-card overflow-hidden p-0">
@@ -3950,6 +3986,16 @@ export function AdminDashboardPage() {
     const pendingAffiliates = affiliates.filter((a) => a.status === "PENDING");
     const activeAffiliates = affiliates.filter((a) => a.status === "ACTIVE");
     const totalVisitors = affiliates.reduce((sum, affiliate) => sum + (affiliate.visitorsCount ?? 0), 0);
+    // Build per-affiliate order counts from commissions (sale type only, unique orders)
+    const ordersByAffiliate = new Map<string, Set<string>>();
+    for (const comm of commissions) {
+      if (comm.type !== "REFERRAL_BONUS" && comm.order) {
+        const affId = typeof comm.affiliate === "string" ? comm.affiliate : comm.affiliate._id;
+        const orderId = typeof comm.order === "string" ? comm.order : comm.order._id;
+        if (!ordersByAffiliate.has(affId)) ordersByAffiliate.set(affId, new Set());
+        ordersByAffiliate.get(affId)!.add(orderId);
+      }
+    }
     const filteredAffiliates = affiliates.filter((affiliate) => {
       const q = affiliateSearch.toLowerCase();
       if (affiliateStatusFilter !== "all" && affiliate.status !== affiliateStatusFilter) return false;
@@ -4021,6 +4067,7 @@ export function AdminDashboardPage() {
               <th className="ps-5">{language === "ar" ? "المسوّق" : "Affiliate"}</th>
               <th>{language === "ar" ? "المستوى" : "Level"}</th>
               <th>{language === "ar" ? "الرصيد" : "Balance"}</th>
+              <th className="hidden md:table-cell">{language === "ar" ? "أداء" : "Performance"}</th>
               <th className="hidden md:table-cell">{language === "ar" ? "الكود" : "Code"}</th>
               <th className="hidden lg:table-cell">{language === "ar" ? "المحوِّل" : "Referred by"}</th>
               <th>{language === "ar" ? "الحالة" : "Status"}</th>
@@ -4034,6 +4081,9 @@ export function AdminDashboardPage() {
               const LevelIcon = levelIcons[level];
               const referrer = typeof affiliate.referredBy === "string" ? null : affiliate.referredBy;
               const totalBalance = affiliate.balancePending + affiliate.balanceApproved;
+              const affOrderCount = ordersByAffiliate.get(affiliate._id)?.size ?? 0;
+              const affVisitors = affiliate.visitorsCount ?? 0;
+              const convRate = affVisitors > 0 ? Math.round((affOrderCount / affVisitors) * 100) : 0;
               return (
                 <tr key={affiliate._id} className={affiliate.status === "PENDING" ? "bg-amber-50/60" : ""}>
                   {/* Name + contact */}
@@ -4041,9 +4091,6 @@ export function AdminDashboardPage() {
                     <div className="font-semibold text-slate-950">{affiliate.name}</div>
                     <div className="text-xs text-slate-400 mt-0.5">{affiliate.email}</div>
                     <div className="text-xs text-slate-400" dir="ltr">{affiliate.phone}</div>
-                    <div className="mt-1 text-xs font-medium text-sky-700">
-                      {translate(language, "analyticsVisitors")}: {(affiliate.visitorsCount ?? 0).toLocaleString(language === "ar" ? "ar-DZ" : "en-US")}
-                    </div>
                   </td>
 
                   {/* Level selector */}
@@ -4069,6 +4116,17 @@ export function AdminDashboardPage() {
                     {affiliate.balancePaid > 0 && (
                       <div className="text-[10px] text-slate-400">{language === "ar" ? "مدفوع:" : "Paid:"} {formatCurrency(affiliate.balancePaid, language)}</div>
                     )}
+                  </td>
+
+                  {/* Performance: visitors + orders + conversion */}
+                  <td className="hidden md:table-cell">
+                    <div className="space-y-0.5 text-xs">
+                      <div className="text-slate-500">{language === "ar" ? "زوار:" : "Visitors:"} <span className="font-semibold text-sky-700">{affVisitors.toLocaleString()}</span></div>
+                      <div className="text-slate-500">{language === "ar" ? "طلبات:" : "Orders:"} <span className="font-semibold text-teal-700">{affOrderCount}</span></div>
+                      {affVisitors > 0 && (
+                        <div className="text-slate-500">{language === "ar" ? "تحويل:" : "Conv.:"} <span className={`font-semibold ${convRate >= 5 ? "text-emerald-700" : "text-slate-600"}`}>{convRate}%</span></div>
+                      )}
+                    </div>
                   </td>
 
                   {/* Code */}

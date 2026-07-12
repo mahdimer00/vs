@@ -1,4 +1,4 @@
-import { Award, Banknote, Clock, Copy, Crown, Gift, KeyRound, Link2, Medal, MousePointerClick, PackageSearch, Phone, Settings, ShoppingBag, Sparkles, Users, WalletCards } from "lucide-react";
+import { Award, Banknote, Clock, Copy, Crown, Gift, KeyRound, Link2, Medal, MousePointerClick, PackageSearch, Phone, Settings, ShoppingBag, Sparkles, TrendingUp, Users, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -319,31 +319,60 @@ export function AffiliateDashboardPage() {
           <EmptyState title={translate(language, "affiliateOrdersTitle")} description={translate(language, "affiliateNoOrders")} />
         );
       }
-      case "commissions":
+      case "commissions": {
+        const totalApproved = commissions.filter((c) => c.status === "APPROVED" || c.status === "PAID").reduce((sum, c) => sum + c.amount, 0);
+        const totalPending = commissions.filter((c) => c.status === "PENDING").reduce((sum, c) => sum + c.amount, 0);
         return commissions.length ? (
           <div className="space-y-4">
-            {commissions.map((commission) => (
-              <div key={commission._id} className="surface-card p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="text-lg font-semibold text-slate-950">{formatCurrency(commission.amount, language)}</div>
-                    {commission.type === "REFERRAL_BONUS" ? (
-                      <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                        <Gift className="h-3.5 w-3.5" />
-                        {translate(language, "affiliateReferralBonus")}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-sm text-slate-500">{commission.rate}% {translate(language, "affiliateCommission")}</div>
-                    )}
-                  </div>
-                  <StatusBadge label={commission.status} language={language} />
-                </div>
+            {/* Summary row */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="stat-card">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{language === "ar" ? "إجمالي العمولات" : "Total earned"}</div>
+                <div className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(commissions.reduce((sum, c) => sum + c.amount, 0), language)}</div>
               </div>
-            ))}
+              <div className="stat-card">
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">{language === "ar" ? "مقبول / مدفوع" : "Approved / paid"}</div>
+                <div className="mt-2 text-2xl font-black text-emerald-700">{formatCurrency(totalApproved, language)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="text-xs font-bold uppercase tracking-wider text-amber-600">{language === "ar" ? "قيد الانتظار" : "Pending"}</div>
+                <div className="mt-2 text-2xl font-black text-amber-700">{formatCurrency(totalPending, language)}</div>
+              </div>
+            </div>
+            {commissions.map((commission) => {
+              const orderRef = commission.order && typeof commission.order !== "string" ? commission.order : null;
+              return (
+                <div key={commission._id} className="surface-card p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-lg font-semibold text-slate-950">{formatCurrency(commission.amount, language)}</div>
+                      {commission.type === "REFERRAL_BONUS" ? (
+                        <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                          <Gift className="h-3.5 w-3.5" />
+                          {translate(language, "affiliateReferralBonus")}
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-sm text-slate-500">{commission.rate}% {translate(language, "affiliateCommission")}</div>
+                      )}
+                      {orderRef ? (
+                        <div className="mt-1 text-xs text-slate-400">{language === "ar" ? "طلب:" : "Order:"} {orderRef.orderNumber} · {formatDate(orderRef.createdAt, language)}</div>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-col items-start gap-2 sm:items-end shrink-0">
+                      <StatusBadge label={commission.status} language={language} />
+                      {commission.status === "APPROVED" && (
+                        <div className="text-xs text-emerald-700">{language === "ar" ? "جاهز للسحب" : "Ready to withdraw"}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <EmptyState title={translate(language, "affiliateCommissionsTitle")} description={translate(language, "affiliateNoCommissions")} />
         );
+      }
       case "withdrawals":
         return (
           <div className="space-y-6">
@@ -753,13 +782,14 @@ export function AffiliateDashboardPage() {
               );
             })()}
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <MousePointerClick className="h-4 w-4" />
                   {translate(language, "affiliateClicks")}
                 </div>
                 <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.clicksCount ?? 0}</div>
+                <div className="mt-1 text-xs text-slate-400">{language === "ar" ? "إجمالي النقرات" : "Total link clicks"}</div>
               </div>
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -767,6 +797,7 @@ export function AffiliateDashboardPage() {
                   {translate(language, "analyticsVisitors")}
                 </div>
                 <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.visitorsCount ?? 0}</div>
+                <div className="mt-1 text-xs text-slate-400">{language === "ar" ? "زوار فريدون" : "Unique visitors"}</div>
               </div>
               <div className="stat-card">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -774,6 +805,24 @@ export function AffiliateDashboardPage() {
                   {translate(language, "affiliateOrders")}
                 </div>
                 <div className="mt-3 text-3xl font-semibold text-slate-950">{dashboard?.ordersCount ?? 0}</div>
+                <div className="mt-1 text-xs text-slate-400">{language === "ar" ? "طلبات من رابطك" : "Orders via your link"}</div>
+              </div>
+            </div>
+
+            {/* Earnings + conversion row */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {/* Conversion rate */}
+              <div className="stat-card">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <TrendingUp className="h-4 w-4" />
+                  {language === "ar" ? "نسبة التحويل" : language === "fr" ? "Taux de conversion" : "Conversion rate"}
+                </div>
+                <div className="mt-3 text-3xl font-semibold text-slate-950">
+                  {dashboard && dashboard.visitorsCount > 0
+                    ? `${Math.round((dashboard.ordersCount / dashboard.visitorsCount) * 100)}%`
+                    : "—"}
+                </div>
+                <div className="mt-1 text-xs text-slate-400">{language === "ar" ? "طلبات ÷ زوار" : "Orders ÷ visitors"}</div>
               </div>
               {/* DZD approved balance card */}
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg">
@@ -787,7 +836,7 @@ export function AffiliateDashboardPage() {
                   <div className="mt-3 text-3xl font-bold tracking-tight">
                     {(dashboard?.affiliate.balanceApproved ?? 0).toLocaleString("ar-DZ")}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-emerald-200">{language === "ar" ? "دج" : "DZD"}</div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-200">{language === "ar" ? "دج — جاهز للسحب" : "DZD — ready to withdraw"}</div>
                 </div>
               </div>
               {/* DZD pending balance card */}
@@ -802,7 +851,7 @@ export function AffiliateDashboardPage() {
                   <div className="mt-3 text-3xl font-bold tracking-tight">
                     {(dashboard?.affiliate.balancePending ?? 0).toLocaleString("ar-DZ")}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-amber-200">{language === "ar" ? "دج" : "DZD"}</div>
+                  <div className="mt-1 text-sm font-semibold text-amber-200">{language === "ar" ? "دج — قيد المراجعة" : "DZD — under review"}</div>
                 </div>
               </div>
             </div>
@@ -858,6 +907,52 @@ export function AffiliateDashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Recent commissions */}
+            {commissions.length > 0 && (
+              <div className="surface-card p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    {language === "ar" ? "آخر العمولات" : language === "fr" ? "Dernières commissions" : "Recent commissions"}
+                  </h2>
+                  <a href="/affiliate/commissions" className="text-sm font-semibold text-teal-700 hover:underline">
+                    {language === "ar" ? "عرض الكل" : "View all"}
+                  </a>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {commissions.slice(0, 5).map((commission) => {
+                    const orderNum = commission.order && typeof commission.order !== "string" ? commission.order.orderNumber : null;
+                    return (
+                      <div key={commission._id} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-950">{formatCurrency(commission.amount, language)}</div>
+                          {orderNum ? (
+                            <div className="mt-0.5 text-xs text-slate-500">{orderNum}</div>
+                          ) : commission.type === "REFERRAL_BONUS" ? (
+                            <div className="mt-0.5 flex items-center gap-1 text-xs text-amber-700">
+                              <Gift className="h-3 w-3" />
+                              {translate(language, "affiliateReferralBonus")}
+                            </div>
+                          ) : null}
+                        </div>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                          commission.status === "APPROVED" || commission.status === "PAID"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : commission.status === "REJECTED"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {commission.status === "APPROVED" ? (language === "ar" ? "مقبول" : "Approved")
+                            : commission.status === "PAID" ? (language === "ar" ? "مدفوع" : "Paid")
+                            : commission.status === "REJECTED" ? (language === "ar" ? "مرفوض" : "Rejected")
+                            : (language === "ar" ? "قيد الانتظار" : "Pending")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         );
     }
