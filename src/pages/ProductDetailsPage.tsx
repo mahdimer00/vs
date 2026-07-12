@@ -462,7 +462,8 @@ export function ProductDetailsPage() {
                   {/* Main image — sliding strip */}
                   <div className="surface-card flex-1 overflow-hidden p-3">
                     <div
-                      className="relative overflow-hidden rounded-[1.6rem] bg-slate-50"
+                      className="relative rounded-[1.6rem] bg-slate-50"
+                      style={{ overflow: "hidden", contain: "paint" }}
                       onTouchStart={handleTouchStart}
                       onTouchEnd={handleTouchEnd}
                     >
@@ -474,6 +475,7 @@ export function ProductDetailsPage() {
                           transform: `translateX(-${safeIndex * 100}%)`,
                           transition: "transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
                           willChange: "transform",
+                          width: "100%",
                         }}
                       >
                         {gallery.map((image, index) => (
