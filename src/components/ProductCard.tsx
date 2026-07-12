@@ -18,11 +18,18 @@ export function ProductCard({ product, language }: { product: Product; language:
   const isFeatured = product.isFeatured && !soldOut;
 
   return (
-    <article className={`group relative flex flex-col overflow-hidden rounded-[1.6rem] bg-white border transition duration-200 hover:-translate-y-0.5 ${
+    <article className={`group relative flex flex-col overflow-hidden rounded-[1.6rem] border-2 transition duration-200 hover:-translate-y-0.5 ${
       isFeatured
-        ? "border-orange-300 featured-glow"
-        : "border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.07)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.13)]"
+        ? "border-orange-400 featured-glow bg-gradient-to-b from-orange-50/70 via-white to-white"
+        : "border-slate-100 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.07)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.13)]"
     }`}>
+      {/* Featured top banner */}
+      {isFeatured ? (
+        <div className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-500 to-rose-500 px-3 py-1.5 text-center text-[11px] font-extrabold uppercase tracking-widest text-white">
+          🔥 {language === "ar" ? "عرض مميز اليوم" : language === "fr" ? "Offre spéciale" : "Hot Deal"}
+        </div>
+      ) : null}
+
       <Link
         to={`/products/${product.slug}`}
         onClick={(event) => { if (soldOut) event.preventDefault(); }}
@@ -146,7 +153,9 @@ export function ProductCard({ product, language }: { product: Product; language:
             className={`mt-1 flex w-full items-center justify-center gap-1.5 rounded-full py-3 text-sm font-bold text-white transition ${
               soldOut
                 ? "bg-slate-200 text-slate-400"
-                : "bg-gradient-to-r from-teal-600 to-emerald-600 shadow-[0_4px_14px_rgba(20,184,166,0.35)] group-hover:from-teal-500 group-hover:to-emerald-500 group-hover:shadow-[0_6px_20px_rgba(20,184,166,0.45)]"
+                : isFeatured
+                  ? "bg-gradient-to-r from-orange-500 to-rose-500 shadow-[0_4px_14px_rgba(251,146,60,0.4)] group-hover:from-orange-400 group-hover:to-rose-400 group-hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)]"
+                  : "bg-gradient-to-r from-teal-600 to-emerald-600 shadow-[0_4px_14px_rgba(20,184,166,0.35)] group-hover:from-teal-500 group-hover:to-emerald-500 group-hover:shadow-[0_6px_20px_rgba(20,184,166,0.45)]"
             }`}
           >
             {!soldOut ? <Zap className="h-4 w-4 fill-current" /> : null}
