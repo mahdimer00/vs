@@ -14,7 +14,7 @@ export function MainLayout() {
   const isDashboard = location.pathname.startsWith("/gestion") || location.pathname.startsWith("/affiliate");
 
   return (
-    <div className="min-h-screen text-slate-900">
+    <div className="min-h-screen overflow-x-hidden text-slate-900">
       {!isDashboard ? <Header /> : null}
       <main className="mx-auto min-h-[calc(100vh-160px)] max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         <Suspense fallback={<LoadingState />}>

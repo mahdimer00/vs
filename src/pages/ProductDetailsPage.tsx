@@ -1,6 +1,6 @@
 import { ArrowRight, BadgePercent, ChevronLeft, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -65,11 +65,63 @@ export function ProductDetailsPage() {
   const [countdown, setCountdown] = useState(getTimeUntilMidnight());
   const [activeTab, setActiveTab] = useState<"description" | "specs">("description");
   const [showDirectForm, setShowDirectForm] = useState(false);
+  const autoSlideTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCountdown(getTimeUntilMidnight()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Gallery: computed early so hooks can use it before early return
+  const galleryForHooks = useMemo(() => {
+    if (!product) return [] as string[];
+    const v = product.variants.find((variant) => variant._id === selectedVariantId);
+    return v && v.images.length ? v.images : product.images;
+  }, [product, selectedVariantId]);
+
+  const goTo = useCallback((index: number) => {
+    const g = galleryForHooks;
+    if (!g.length) return;
+    const next = ((index % g.length) + g.length) % g.length;
+    setSelectedImage(g[next] ?? g[0] ?? "");
+    if (autoSlideTimer.current) clearInterval(autoSlideTimer.current);
+    if (g.length > 1) {
+      autoSlideTimer.current = setInterval(() => {
+        setSelectedImage((prev) => {
+          const cur = g.indexOf(prev);
+          return g[(cur + 1) % g.length] ?? prev;
+        });
+      }, 4000);
+    }
+  }, [galleryForHooks]);
+
+  useEffect(() => {
+    if (galleryForHooks.length <= 1) return;
+    autoSlideTimer.current = setInterval(() => {
+      setSelectedImage((prev) => {
+        const cur = galleryForHooks.indexOf(prev);
+        return galleryForHooks[(cur + 1) % galleryForHooks.length] ?? prev;
+      });
+    }, 4000);
+    return () => { if (autoSlideTimer.current) clearInterval(autoSlideTimer.current); };
+  }, [galleryForHooks]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]!.clientX;
+    touchStartY.current = e.touches[0]!.clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0]!.clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0]!.clientY - touchStartY.current);
+    if (Math.abs(dx) > 40 && Math.abs(dx) > dy) {
+      const g = galleryForHooks;
+      const cur = g.indexOf(selectedImage);
+      if (dx < 0) goTo(cur + 1); else goTo(cur - 1);
+    }
+  }, [galleryForHooks, selectedImage, goTo]);
 
   useEffect(() => {
     if (!slug) {
@@ -383,9 +435,7 @@ export function ProductDetailsPage() {
       <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
         <div className="space-y-3 lg:sticky lg:top-24">
           {(() => {
-            const currentIndex = gallery.indexOf(selectedImage);
-            const safeIndex = currentIndex === -1 ? 0 : currentIndex;
-            const goTo = (index: number) => setSelectedImage(gallery[((index % gallery.length) + gallery.length) % gallery.length] ?? gallery[0] ?? "");
+            const safeIndex = Math.max(0, Math.min(gallery.indexOf(selectedImage), gallery.length - 1));
             return (
               <>
                 <div className="flex gap-3">
@@ -396,7 +446,7 @@ export function ProductDetailsPage() {
                         <button
                           key={image}
                           type="button"
-                          onClick={() => setSelectedImage(image)}
+                          onClick={() => goTo(index)}
                           aria-label={`${productName} ${index + 1}`}
                           aria-pressed={selectedImage === image}
                           className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
@@ -409,10 +459,34 @@ export function ProductDetailsPage() {
                     </div>
                   ) : null}
 
-                  {/* Main image with arrows */}
+                  {/* Main image — sliding strip */}
                   <div className="surface-card flex-1 overflow-hidden p-3">
-                    <div className="relative overflow-hidden rounded-[1.6rem] bg-slate-50">
-                      <img src={selectedImage} alt={productName} className="aspect-square w-full object-contain p-4" />
+                    <div
+                      className="relative overflow-hidden rounded-[1.6rem] bg-slate-50"
+                      onTouchStart={handleTouchStart}
+                      onTouchEnd={handleTouchEnd}
+                    >
+                      {/* Sliding strip: all images in a row */}
+                      <div
+                        className="flex"
+                        dir="ltr"
+                        style={{
+                          transform: `translateX(-${safeIndex * 100}%)`,
+                          transition: "transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
+                          willChange: "transform",
+                        }}
+                      >
+                        {gallery.map((image, index) => (
+                          <div key={image} className="aspect-square w-full shrink-0">
+                            <img
+                              src={image}
+                              alt={`${productName} ${index + 1}`}
+                              loading={index === 0 ? "eager" : "lazy"}
+                              className="h-full w-full object-contain p-4"
+                            />
+                          </div>
+                        ))}
+                      </div>
 
                       {/* Discount badge */}
                       {saving > 0 ? (
@@ -435,24 +509,24 @@ export function ProductDetailsPage() {
                         </div>
                       ) : null}
 
-                      {/* Arrow buttons — always visible on mobile, hover on desktop */}
+                      {/* Arrow buttons — always visible */}
                       {gallery.length > 1 ? (
                         <>
                           <button
                             type="button"
                             onClick={() => goTo(safeIndex - 1)}
                             aria-label="الصورة السابقة"
-                            className="absolute start-2 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90 lg:opacity-0 lg:group-hover:opacity-100"
+                            className="absolute start-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90"
                           >
-                            <ChevronRight className="h-5 w-5 text-slate-700" />
+                            <ChevronRight className="h-6 w-6 text-slate-700" />
                           </button>
                           <button
                             type="button"
                             onClick={() => goTo(safeIndex + 1)}
                             aria-label="الصورة التالية"
-                            className="absolute end-2 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90 lg:opacity-0 lg:group-hover:opacity-100"
+                            className="absolute end-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90"
                           >
-                            <ChevronLeft className="h-5 w-5 text-slate-700" />
+                            <ChevronLeft className="h-6 w-6 text-slate-700" />
                           </button>
                         </>
                       ) : null}
@@ -460,19 +534,19 @@ export function ProductDetailsPage() {
                   </div>
                 </div>
 
-                {/* Mobile: dot + thumbnail row */}
+                {/* Mobile: dot indicators + thumbnail strip */}
                 {gallery.length > 1 ? (
                   <div className="space-y-2 lg:hidden">
-                    {/* Dot indicators */}
+                    {/* Progress dots */}
                     <div className="flex justify-center gap-1.5">
                       {gallery.map((image, index) => (
                         <button
                           key={image}
                           type="button"
-                          onClick={() => setSelectedImage(image)}
+                          onClick={() => goTo(index)}
                           aria-label={`صورة ${index + 1}`}
-                          className={`h-2 rounded-full transition-all ${
-                            selectedImage === image ? "w-6 bg-slate-950" : "w-2 bg-slate-300"
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            selectedImage === image ? "w-7 bg-teal-600" : "w-2 bg-slate-300"
                           }`}
                         />
                       ))}
@@ -483,7 +557,7 @@ export function ProductDetailsPage() {
                         <button
                           key={image}
                           type="button"
-                          onClick={() => setSelectedImage(image)}
+                          onClick={() => goTo(index)}
                           aria-label={`${productName} ${index + 1}`}
                           aria-pressed={selectedImage === image}
                           className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
