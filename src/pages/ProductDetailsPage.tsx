@@ -1001,7 +1001,7 @@ export function ProductDetailsPage() {
 
       {/* Mobile sticky buy bar */}
       {!adminSoldOut && !localPickupOnly && selectedVariant.stock > 0 ? (
-        <div className="fixed bottom-0 start-0 end-0 z-30 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur-md lg:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur-md lg:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-slate-950">{productName}</div>

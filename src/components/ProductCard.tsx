@@ -45,13 +45,6 @@ export function ProductCard({ product, language }: { product: Product; language:
             className={`h-full w-full object-contain p-3 transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-40 grayscale" : ""}`}
           />
 
-          {/* Corner ribbon for featured products */}
-          {isFeatured ? (
-            <div className="pointer-events-none absolute -end-7 top-4 rotate-45 bg-gradient-to-r from-orange-500 to-rose-500 px-10 py-1 text-center text-[10px] font-extrabold uppercase tracking-widest text-white shadow-md rtl:-start-7 rtl:end-auto rtl:-rotate-45">
-              {language === "ar" ? "خاص" : language === "fr" ? "Promo" : "Special"}
-            </div>
-          ) : null}
-
           {/* Sold out overlay */}
           {soldOut ? (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -61,26 +54,20 @@ export function ProductCard({ product, language }: { product: Product; language:
             </div>
           ) : null}
 
-          {/* Fire / featured offer badge */}
-          {isFeatured && !hasDiscount ? (
-            <span className="absolute start-2.5 top-2.5 flex animate-pulse items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
-              🔥 {language === "ar" ? "عرض حار" : language === "fr" ? "Offre" : "Hot Deal"}
-            </span>
-          ) : null}
-
-          {/* Discount badge */}
-          {hasDiscount && !soldOut ? (
+          {/* Single top-start badge — priority: discount > low stock > featured fire */}
+          {!soldOut && (hasDiscount ? (
             <span className="absolute start-2.5 top-2.5 flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
               🔥 -{discountPercent}%
             </span>
-          ) : null}
-
-          {/* Low stock urgency */}
-          {lowStock ? (
+          ) : lowStock ? (
             <span className="absolute start-2.5 top-2.5 animate-pulse rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
               ⚡ {translate(language, "productOnlyLeft")} {product.stock}
             </span>
-          ) : null}
+          ) : isFeatured ? (
+            <span className="absolute start-2.5 top-2.5 flex animate-pulse items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
+              🔥 {language === "ar" ? "عرض حار" : language === "fr" ? "Offre" : "Hot"}
+            </span>
+          ) : null)}
 
           {/* European origin badge */}
           {product.isEuropean && !soldOut && (
