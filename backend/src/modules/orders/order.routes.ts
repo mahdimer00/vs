@@ -12,6 +12,8 @@ import { AppError } from "../../utils/app-error.js";
 import { syncCommissionForOrder } from "../../utils/commission.js";
 import { buildOrderItems, resolveAffiliate, resolveShippingFee, validatePromoCode } from "../../utils/order.js";
 import { sendTelegramMessage } from "../../utils/telegram.js";
+import { sendAffiliateNewOrderEmail } from "../../utils/email.js";
+import { AffiliateModel } from "../../models/affiliate.model.js";
 import { sendCapiEvent } from "../../utils/capi.js";
 import { sendTikTokEvent } from "../../utils/tiktokEvents.js";
 import { env } from "../../config/env.js";
@@ -594,6 +596,29 @@ router.post(
         deliveryType: order.deliveryType,
         storeName: storeSettings?.storeName || "VisaStore",
       }).catch((err) => console.error("[WhatsApp] Order notification failed:", err));
+    }
+
+    // Email affiliate about their new order (best-effort)
+    if (affiliate) {
+      void (async () => {
+        try {
+          const aff = await AffiliateModel.findById(affiliate._id).select("name email commissionRate").lean();
+          if (aff?.email) {
+            const itemsText = order.items
+              .map((item) => `• ${item.productName.ar || item.productName.en || "منتج"} × ${item.quantity} — ${item.unitPrice.toLocaleString("ar-DZ")} دج`)
+              .join("\n");
+            const commissionAmount = Math.round(order.total * (aff.commissionRate / 100));
+            await sendAffiliateNewOrderEmail(aff.email, { name: aff.name }, {
+              orderNumber: order.orderNumber,
+              total: order.total,
+              commissionAmount,
+              itemsText,
+            });
+          }
+        } catch (err) {
+          console.error("[Affiliate Email] Failed:", err);
+        }
+      })();
     }
 
     return res.status(201).json({
@@ -1247,24 +1272,30 @@ const ZR_STATUS_RANK: Record<string, number> = {
 router.post(
   "/webhooks/zrexpress",
   asyncHandler(async (req, res) => {
+    // Respond 200 IMMEDIATELY — ZR marks endpoint as failed if it doesn't get a fast 2xx
+    res.json({ ok: true });
+
     const body = req.body as Record<string, unknown>;
     console.log("[ZR Webhook] received:", JSON.stringify(body).slice(0, 800));
 
     const eventType = ((body.eventType ?? body.type) as string | undefined) ?? "";
     const data = (body.data as Record<string, unknown> | undefined) ?? body;
 
+    // All processing is best-effort — response already sent above
+    try {
+
     // trackingNumber may be at data.trackingNumber or data.parcel.trackingNumber
     const parcelObj = data.parcel as Record<string, unknown> | undefined;
     const trackingNumber = (data.trackingNumber ?? parcelObj?.trackingNumber) as string | undefined;
     if (!trackingNumber) {
       console.log("[ZR Webhook] no trackingNumber found, keys:", Object.keys(data).join(","));
-      return res.json({ ok: true });
+      return;
     }
 
     const order = await OrderModel.findOne({ zrTrackingNumber: trackingNumber });
     if (!order) {
       console.log("[ZR Webhook] no order for tracking:", trackingNumber);
-      return res.json({ ok: true });
+      return;
     }
 
     // state may be at data.state or data.parcel.state or data.newState
@@ -1343,7 +1374,9 @@ router.post(
       }
     }
 
-    return res.json({ ok: true });
+    } catch (err) {
+      console.error("[ZR Webhook] Processing error:", err);
+    }
   }),
 );
 

@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, KeyRound, Mail, Phone, RefreshCw, Share2, ShoppingBag, Sparkles, User, UserPlus, Users } from "lucide-react";
+import { ArrowRight, CheckCircle2, KeyRound, Link2, Mail, Phone, RefreshCw, Share2, ShoppingBag, Sparkles, User, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { IconField } from "@/components/IconField";
@@ -143,6 +143,36 @@ export function AffiliateRegisterPage() {
               {text}
             </div>
           ))}
+        </div>
+
+        {/* What links you can share */}
+        <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-amber-300">
+            <Link2 className="h-4 w-4" />
+            روابطك الخاصة — ماذا تستطيع مشاركته؟
+          </div>
+          <div className="space-y-2 text-xs text-slate-300">
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              <span><strong className="text-white">رابط المتجر كاملاً</strong> — أي شخص يدخل عبر رابطك ويشتري يُحتسب لك</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              <span><strong className="text-white">رابط منتج بعينه</strong> — مثلاً laptop معين أو هاتف</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              <span><strong className="text-white">رابط تصنيف</strong> — مثلاً كل منتجات الـ Laptop دفعة واحدة</span>
+            </div>
+            <div className="mt-3 rounded-xl bg-white/10 p-3 font-mono text-[10px] text-slate-300 leading-6 break-all">
+              <div className="text-amber-300">رابط المتجر:</div>
+              visadz.store/r/<span className="text-white">كودك</span>
+              <div className="mt-1 text-amber-300">رابط منتج:</div>
+              visadz.store/r/<span className="text-white">كودك</span>/p/اسم-المنتج
+              <div className="mt-1 text-amber-300">رابط تصنيف:</div>
+              visadz.store/r/<span className="text-white">كودك</span>/products?category=Laptop
+            </div>
+          </div>
         </div>
       </section>
 

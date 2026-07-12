@@ -207,18 +207,16 @@ export async function sendWhatsAppOrderCreated(order: {
     ``,
     `مرحباً *${order.customer.fullName}*! 👋`,
     ``,
-    `تم استلام طلبك بنجاح ✅`,
+    `✅ تم استلام طلبك بنجاح!`,
     `📦 رقم الطلب: *${order.orderNumber}*`,
     ``,
-    `*الطلبية:*`,
     itemsText,
     ``,
     `💰 المجموع: *${order.total.toLocaleString("ar-DZ")} دج*`,
-    `🚚 ${delivery}`,
+    `🚚 ${delivery} — الدفع عند الاستلام`,
     ``,
-    `⏳ سيتصل بك فريقنا قريباً لتأكيد الطلب وتحديد موعد التسليم.`,
-    ``,
-    `للتأكيد أو الاستفسار: ردّ على هذه الرسالة أو تواصل معنا مباشرة. 📞`,
+    `⏳ سيتم التواصل معك قريباً لتأكيد موعد التسليم.`,
+    `📍 تتبع طلبك: https://visadz.store/track-order`,
   ].join("\n");
 
   await sendWhatsAppMessage(order.customer.phone, message);

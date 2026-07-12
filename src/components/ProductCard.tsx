@@ -15,8 +15,14 @@ export function ProductCard({ product, language }: { product: Product; language:
   const soldOut = product.stock <= 0 || !!product.isSoldOut;
   const lowStock = !soldOut && product.stock > 0 && product.stock <= 5;
 
+  const isFeatured = product.isFeatured && !soldOut;
+
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-[1.6rem] bg-white shadow-[0_2px_12px_rgba(15,23,42,0.07)] border border-slate-100 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(15,23,42,0.13)]">
+    <article className={`group relative flex flex-col overflow-hidden rounded-[1.6rem] bg-white border transition duration-200 hover:-translate-y-0.5 ${
+      isFeatured
+        ? "border-orange-300 shadow-[0_2px_20px_rgba(251,146,60,0.25)] hover:shadow-[0_8px_35px_rgba(251,146,60,0.4)]"
+        : "border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.07)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.13)]"
+    }`}>
       <Link
         to={`/products/${product.slug}`}
         onClick={(event) => { if (soldOut) event.preventDefault(); }}
@@ -41,10 +47,17 @@ export function ProductCard({ product, language }: { product: Product; language:
             </div>
           ) : null}
 
+          {/* Fire / featured offer badge */}
+          {isFeatured && !hasDiscount ? (
+            <span className="absolute start-2.5 top-2.5 flex animate-pulse items-center gap-1 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
+              🔥 {language === "ar" ? "عرض حار" : language === "fr" ? "Offre" : "Hot Deal"}
+            </span>
+          ) : null}
+
           {/* Discount badge */}
           {hasDiscount && !soldOut ? (
-            <span className="absolute start-2.5 top-2.5 rounded-full bg-rose-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
-              -{discountPercent}%
+            <span className="absolute start-2.5 top-2.5 flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow-md">
+              🔥 -{discountPercent}%
             </span>
           ) : null}
 

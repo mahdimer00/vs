@@ -382,59 +382,123 @@ export function ProductDetailsPage() {
 
       <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
         <div className="space-y-3 lg:sticky lg:top-24">
-          <div className="flex gap-3">
-            {gallery.length > 1 ? (
-              <div className="hidden flex-col gap-2 lg:flex">
-                {gallery.map((image, index) => (
-                  <button
-                    key={image}
-                    type="button"
-                    onClick={() => setSelectedImage(image)}
-                    aria-label={`${productName} ${index + 1}`}
-                    aria-pressed={selectedImage === image}
-                    className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition ${
-                      selectedImage === image ? "border-slate-900" : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <div className="surface-card flex-1 overflow-hidden p-3">
-              <div className="relative overflow-hidden rounded-[1.6rem] bg-slate-50">
-                <img src={selectedImage} alt={productName} className="aspect-square w-full object-contain p-4" />
-                {saving > 0 ? (
-                  <div className="absolute start-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
-                    -{discountPercent}%
+          {(() => {
+            const currentIndex = gallery.indexOf(selectedImage);
+            const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+            const goTo = (index: number) => setSelectedImage(gallery[((index % gallery.length) + gallery.length) % gallery.length] ?? gallery[0] ?? "");
+            return (
+              <>
+                <div className="flex gap-3">
+                  {/* Desktop: vertical thumbnails */}
+                  {gallery.length > 1 ? (
+                    <div className="hidden flex-col gap-2 lg:flex">
+                      {gallery.map((image, index) => (
+                        <button
+                          key={image}
+                          type="button"
+                          onClick={() => setSelectedImage(image)}
+                          aria-label={`${productName} ${index + 1}`}
+                          aria-pressed={selectedImage === image}
+                          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
+                            selectedImage === image ? "border-teal-500 shadow-[0_0_0_3px_rgba(20,184,166,0.15)]" : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {/* Main image with arrows */}
+                  <div className="surface-card flex-1 overflow-hidden p-3">
+                    <div className="relative overflow-hidden rounded-[1.6rem] bg-slate-50">
+                      <img src={selectedImage} alt={productName} className="aspect-square w-full object-contain p-4" />
+
+                      {/* Discount badge */}
+                      {saving > 0 ? (
+                        <div className="absolute start-4 top-4 rounded-full bg-rose-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
+                          -{discountPercent}%
+                        </div>
+                      ) : null}
+
+                      {/* Low stock badge */}
+                      {lowStock ? (
+                        <div className="absolute end-4 top-4 animate-pulse rounded-full bg-slate-950/85 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                          {translate(language, "productOnlyLeft")}
+                        </div>
+                      ) : null}
+
+                      {/* Image counter */}
+                      {gallery.length > 1 ? (
+                        <div className="absolute bottom-4 end-4 rounded-full bg-slate-950/60 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm">
+                          {safeIndex + 1} / {gallery.length}
+                        </div>
+                      ) : null}
+
+                      {/* Arrow buttons — always visible on mobile, hover on desktop */}
+                      {gallery.length > 1 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => goTo(safeIndex - 1)}
+                            aria-label="الصورة السابقة"
+                            className="absolute start-2 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90 lg:opacity-0 lg:group-hover:opacity-100"
+                          >
+                            <ChevronRight className="h-5 w-5 text-slate-700" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => goTo(safeIndex + 1)}
+                            aria-label="الصورة التالية"
+                            className="absolute end-2 top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90 lg:opacity-0 lg:group-hover:opacity-100"
+                          >
+                            <ChevronLeft className="h-5 w-5 text-slate-700" />
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile: dot + thumbnail row */}
+                {gallery.length > 1 ? (
+                  <div className="space-y-2 lg:hidden">
+                    {/* Dot indicators */}
+                    <div className="flex justify-center gap-1.5">
+                      {gallery.map((image, index) => (
+                        <button
+                          key={image}
+                          type="button"
+                          onClick={() => setSelectedImage(image)}
+                          aria-label={`صورة ${index + 1}`}
+                          className={`h-2 rounded-full transition-all ${
+                            selectedImage === image ? "w-6 bg-slate-950" : "w-2 bg-slate-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {/* Thumbnail strip */}
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {gallery.map((image, index) => (
+                        <button
+                          key={image}
+                          type="button"
+                          onClick={() => setSelectedImage(image)}
+                          aria-label={`${productName} ${index + 1}`}
+                          aria-pressed={selectedImage === image}
+                          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
+                            selectedImage === image ? "border-teal-500 shadow-[0_0_0_2px_rgba(20,184,166,0.2)]" : "border-slate-200"
+                          }`}
+                        >
+                          <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
-                {lowStock ? (
-                  <div className="absolute end-4 top-4 animate-pulse rounded-full bg-slate-950/85 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
-                    {translate(language, "productOnlyLeft")}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-          {gallery.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto lg:hidden">
-              {gallery.map((image, index) => (
-                <button
-                  key={image}
-                  type="button"
-                  onClick={() => setSelectedImage(image)}
-                  aria-label={`${productName} ${index + 1}`}
-                  aria-pressed={selectedImage === image}
-                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition ${
-                    selectedImage === image ? "border-slate-900" : "border-slate-200"
-                  }`}
-                >
-                  <img src={image} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
-                </button>
-              ))}
-            </div>
-          ) : null}
+              </>
+            );
+          })()}
         </div>
 
         <div className="surface-card p-5 sm:p-6 md:p-7">

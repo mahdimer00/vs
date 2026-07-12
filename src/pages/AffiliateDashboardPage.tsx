@@ -195,7 +195,12 @@ export function AffiliateDashboardPage() {
 
   const content = (() => {
     switch (tab) {
-      case "products":
+      case "products": {
+        const categories = [...new Set(products.map((p) => {
+          const cat = p.category;
+          return typeof cat === "string" ? null : { slug: cat.slug, name: cat.name };
+        }).filter(Boolean) as { slug: string; name: { ar: string; fr: string; en: string } }[])];
+        const uniqueCategories = [...new Map(categories.map((c) => [c.slug, c])).values()];
         return (
           <div className="space-y-6">
             <div className="surface-card flex items-start gap-4 p-6">
@@ -207,6 +212,37 @@ export function AffiliateDashboardPage() {
                 <p className="mt-1 text-sm leading-7 text-slate-500">{translate(language, "affiliateProductsDescription")}</p>
               </div>
             </div>
+
+            {/* Category link generator */}
+            {uniqueCategories.length > 0 && (
+              <div className="surface-card p-5 space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <Link2 className="h-4 w-4 text-teal-600" />
+                  {language === "ar" ? "روابط التصنيفات — شارك صفحة كاملة" : "Category links — share a full page"}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {language === "ar"
+                    ? "شارك رابط تصنيف كامل — أي منتج يُشترى من الصفحة يُحتسب لك"
+                    : "Share a full category page — any purchase counts as your commission"}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {uniqueCategories.map((cat) => {
+                    const catLink = `${window.location.origin}/r/${dashboard?.affiliate.referralCode ?? ""}/products?category=${cat.slug}`;
+                    return (
+                      <button
+                        key={cat.slug}
+                        type="button"
+                        onClick={() => { void navigator.clipboard.writeText(catLink); pushToast(translate(language, "affiliateCopied")); }}
+                        className="ghost-button justify-between gap-2 text-start"
+                      >
+                        <span className="min-w-0 truncate font-semibold">{getLocalizedText(cat.name, language)}</span>
+                        <Copy className="h-4 w-4 shrink-0 text-slate-400" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {products.length ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {products.map((product) => (
@@ -239,6 +275,7 @@ export function AffiliateDashboardPage() {
             )}
           </div>
         );
+      }
       case "orders": {
         const commissionByOrder = new Map(
           commissions
