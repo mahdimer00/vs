@@ -5,8 +5,10 @@ export function WhatsAppFloat() {
 
   // Only show when whatsappFloat is enabled AND there's a WhatsApp number configured
   if (siteSettings?.whatsappFloat === false) return null;
-  const number = siteSettings?.whatsapp?.replace(/[^0-9]/g, "");
-  if (!number) return null;
+  const raw = siteSettings?.whatsapp?.replace(/[^0-9]/g, "") ?? "";
+  if (!raw) return null;
+  // Normalize to international format (Algeria: 0XXX → 213XXX)
+  const number = raw.startsWith("213") ? raw : raw.startsWith("0") ? `213${raw.slice(1)}` : raw;
 
   const message = encodeURIComponent(
     language === "ar"

@@ -870,7 +870,7 @@ export function ProductDetailsPage() {
               <div className="grid grid-cols-2 gap-px bg-slate-200">
                 {siteSettings?.whatsapp ? (
                   <a
-                    href={`https://wa.me/${siteSettings.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(language === "ar" ? `مرحبا، أريد الاستفسار عن: ${productName}` : `Hello, I want to ask about: ${productName}`)}`}
+                    href={`https://wa.me/${(() => { const d = siteSettings.whatsapp.replace(/[^0-9]/g, ""); return d.startsWith("213") ? d : d.startsWith("0") ? `213${d.slice(1)}` : d; })()}?text=${encodeURIComponent(language === "ar" ? `مرحبا، أريد الاستفسار عن: ${productName}` : `Hello, I want to ask about: ${productName}`)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex flex-col items-center gap-1.5 bg-white px-3 py-3.5 text-center transition hover:bg-emerald-50"
