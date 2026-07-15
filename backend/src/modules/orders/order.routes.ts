@@ -175,16 +175,18 @@ async function autoMarkSoldOutIfNeeded(productId: string): Promise<void> {
 async function reserveStockForOrder(order: {
   items: Array<{ variantId: string; productId: string; quantity: number; productName: { en: string } }>;
 }) {
-  for (const item of order.items) {
-    const variant = await ProductVariantModel.findById(item.variantId);
-    if (!variant || variant.stock < item.quantity) {
-      throw new AppError(`Stock changed for ${item.productName.en}`, 400);
-    }
-  }
-
   const affectedProductIds = new Set<string>();
   for (const item of order.items) {
-    await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -item.quantity } });
+    const variant = await ProductVariantModel.findById(item.variantId);
+    if (!variant) {
+      // Variant was deleted/recreated — skip stock reservation for this item
+      console.warn(`[Stock] Variant ${item.variantId} not found for order item "${item.productName.en}" — skipping stock reservation`);
+      continue;
+    }
+    const decrement = Math.min(item.quantity, variant.stock);
+    if (decrement > 0) {
+      await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: -decrement } });
+    }
     if (item.productId) affectedProductIds.add(String(item.productId));
   }
 
@@ -225,25 +227,17 @@ async function reconcileReservedStockForOrderEdit(
     const nextQty = nextByVariant.get(variantId)?.quantity ?? 0;
     const delta = nextQty - existingQty;
 
-    if (delta <= 0) {
-      continue;
-    }
+    if (delta === 0) continue;
 
     const variant = await ProductVariantModel.findById(variantId);
-    if (!variant || variant.stock < delta) {
-      const fallbackName = nextByVariant.get(variantId)?.productName;
-      const productName = fallbackName?.en || fallbackName?.fr || fallbackName?.ar || variantId;
-      throw new AppError(`Stock changed for ${productName}`, 400);
+    if (!variant) {
+      // Variant deleted — skip silently
+      continue;
     }
-  }
-
-  for (const variantId of variantIds) {
-    const existingQty = existingByVariant.get(variantId) ?? 0;
-    const nextQty = nextByVariant.get(variantId)?.quantity ?? 0;
-    const delta = nextQty - existingQty;
-
-    if (delta !== 0) {
-      await ProductVariantModel.findByIdAndUpdate(variantId, { $inc: { stock: -delta } });
+    // Cap decrement at available stock (don't go negative)
+    const safeDecrement = delta > 0 ? Math.min(delta, variant.stock) : delta;
+    if (safeDecrement !== 0) {
+      await ProductVariantModel.findByIdAndUpdate(variantId, { $inc: { stock: -safeDecrement } });
     }
   }
 }
