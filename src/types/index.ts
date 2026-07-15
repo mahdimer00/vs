@@ -73,6 +73,7 @@ export interface Product {
   images: string[];
   basePrice: number;
   discountPrice?: number | null;
+  purchasePrice?: number | null;
   variants: ProductVariant[];
   specifications?: Record<string, string>;
   stock: number;

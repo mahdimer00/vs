@@ -17,6 +17,7 @@ const productSchema = z.object({
   images: z.array(z.string()).min(1),
   basePrice: z.number().nonnegative(),
   discountPrice: z.number().nonnegative().optional(),
+  purchasePrice: z.number().nonnegative().optional(),
   specifications: z.record(z.string(), z.string()).default({}),
   stock: z.number().nonnegative(),
   condition: z.enum(["NEW", "USED"]).default("NEW"),

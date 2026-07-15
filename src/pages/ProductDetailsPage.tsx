@@ -344,7 +344,7 @@ export function ProductDetailsPage() {
   const specifications = Object.entries(product.specifications ?? {});
 
   return (
-    <div className="space-y-8 pb-24 lg:pb-0">
+    <div className="w-full min-w-0 space-y-8 pb-24 lg:pb-0">
       <Seo
         title={productName}
         description={
@@ -432,13 +432,13 @@ export function ProductDetailsPage() {
         <span className="truncate font-medium text-slate-900">{productName}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-        <div className="space-y-3 lg:sticky lg:top-24">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+        <div className="min-w-0 space-y-3 lg:sticky lg:top-24">
           {(() => {
             const safeIndex = Math.max(0, Math.min(gallery.indexOf(selectedImage), gallery.length - 1));
             return (
               <>
-                <div className="flex gap-3">
+                <div className="flex w-full min-w-0 gap-3">
                   {/* Desktop: vertical thumbnails */}
                   {gallery.length > 1 ? (
                     <div className="hidden flex-col gap-2 lg:flex">
@@ -555,7 +555,7 @@ export function ProductDetailsPage() {
                     </div>
                     {/* Thumbnail strip: outer bounds the viewport, inner scrolls */}
                     <div className="w-full overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2" style={{ minWidth: "max-content" }}>
                         {gallery.map((image, index) => (
                           <button
                             key={image}
@@ -579,7 +579,7 @@ export function ProductDetailsPage() {
           })()}
         </div>
 
-        <div className="surface-card p-5 sm:p-6 md:p-7">
+        <div className="surface-card min-w-0 p-5 sm:p-6 md:p-7">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold uppercase tracking-wide text-slate-600">{brandName}</span>
             <span
@@ -669,9 +669,9 @@ export function ProductDetailsPage() {
           ) : null}
 
           {product.adminNote ? (
-            <div className="mt-4 whitespace-pre-line rounded-[1.4rem] border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
+            <div className="mt-4 rounded-[1.4rem] border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
               <span className="font-semibold">⚠️ {translate(language, "productAdminNoteTitle")}: </span>
-              {product.adminNote}
+              <span className="break-words whitespace-pre-line">{product.adminNote}</span>
             </div>
           ) : null}
 
@@ -963,7 +963,7 @@ export function ProductDetailsPage() {
 
         {activeTab === "description" ? (
           <div className="p-6 md:p-7">
-            <p className="whitespace-pre-line text-sm leading-8 text-slate-600">{productDescription}</p>
+            <p className="whitespace-pre-line break-words text-sm leading-8 text-slate-600">{productDescription}</p>
           </div>
         ) : (
           <div className="p-6 md:p-7">

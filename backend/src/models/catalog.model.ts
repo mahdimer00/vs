@@ -30,6 +30,7 @@ const productSchema = new Schema(
     images: [{ type: String }],
     basePrice: { type: Number, required: true },
     discountPrice: Number,
+    purchasePrice: Number,
     specifications: { type: Schema.Types.Mixed, default: {} },
     stock: { type: Number, required: true },
     condition: { type: String, enum: ["NEW", "USED"], default: "NEW" },

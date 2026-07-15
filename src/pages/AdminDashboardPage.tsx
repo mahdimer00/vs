@@ -174,6 +174,7 @@ type ProductFormState = {
   images: string[];
   basePrice: string;
   discountPrice: string;
+  purchasePrice: string;
   stock: string;
   condition: "NEW" | "USED";
   adminNote: string;
@@ -199,6 +200,7 @@ const defaultProductForm: ProductFormState = {
   images: [""],
   basePrice: "",
   discountPrice: "",
+  purchasePrice: "",
   stock: "1",
   condition: "NEW",
   adminNote: "",
@@ -972,6 +974,7 @@ export function AdminDashboardPage() {
       images: product.images.length > 0 ? product.images : [""],
       basePrice: String(product.basePrice),
       discountPrice: product.discountPrice ? String(product.discountPrice) : "",
+      purchasePrice: product.purchasePrice ? String(product.purchasePrice) : "",
       stock: String(product.stock),
       condition: product.condition || "NEW",
       adminNote: product.adminNote || "",
@@ -1025,6 +1028,7 @@ export function AdminDashboardPage() {
       images,
       basePrice: Number(productForm.basePrice),
       discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
+      purchasePrice: productForm.purchasePrice ? Number(productForm.purchasePrice) : undefined,
       specifications: Object.fromEntries(
         productForm.specifications
           .map((spec) => ({ key: spec.key.trim(), value: spec.value.trim() }))
@@ -1618,6 +1622,26 @@ export function AdminDashboardPage() {
         )}
 
         {/* ── TODAY + TOTAL STATS ── */}
+        {(() => {
+          // Compute estimated profit from products that have purchasePrice set
+          const productsWithCost = products.filter((p) => p.purchasePrice != null && p.purchasePrice > 0);
+          const hasCostData = productsWithCost.length > 0;
+          // Build a map of productId → purchasePrice for quick lookup
+          const costMap = new Map(productsWithCost.map((p) => [p._id, p.purchasePrice as number]));
+          // Estimate gross profit from delivered orders using topProducts data as proxy
+          const estimatedProfit = hasCostData && orders.length > 0
+            ? orders
+                .filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP")
+                .reduce((sum, o) => {
+                  const orderProfit = o.items.reduce((itemSum, item) => {
+                    const cost = costMap.get(item.productId);
+                    if (cost == null) return itemSum;
+                    return itemSum + (item.unitPrice - cost) * item.quantity;
+                  }, 0);
+                  return sum + orderProfit;
+                }, 0)
+            : null;
+          return (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {/* Today's orders */}
           <div className="stat-card border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-white">
@@ -1639,13 +1663,28 @@ export function AdminDashboardPage() {
             <div className="mt-2 text-3xl font-black text-emerald-700">{stats.deliveredOrders}</div>
             <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب مكتمل" : "completed"}</div>
           </div>
-          {/* Total revenue */}
+          {/* Revenue or Profit card */}
+          {estimatedProfit !== null ? (
+            <div className="stat-card border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+              <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                <TrendingUp className="mb-0.5 me-1 inline h-3.5 w-3.5" />
+                {isAr ? "صافي الربح" : "Net Profit"}
+              </div>
+              <div className="mt-2 break-words text-xl font-black text-emerald-700">{formatCurrency(estimatedProfit, language)}</div>
+              <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "من الطلبات المكتملة" : "from delivered orders"}</div>
+              <div className="mt-1 text-[11px] text-slate-400">{isAr ? `إيرادات: ${formatCurrency(stats.revenue, language)}` : `Revenue: ${formatCurrency(stats.revenue, language)}`}</div>
+            </div>
+          ) : (
           <div className="stat-card">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "الإيرادات" : "Revenue"}</div>
             <div className="mt-2 break-words text-2xl font-black text-slate-900">{formatCurrency(stats.revenue, language)}</div>
             <div className="mt-0.5 text-sm text-slate-500">{isAr ? "إجمالي" : "total"}</div>
+            <div className="mt-1 text-[11px] text-slate-400">{isAr ? "أضف سعر التكلفة للمنتجات لحساب الربح" : "Add cost price to products to see profit"}</div>
           </div>
+          )}
         </div>
+          );
+        })()}
 
         {/* ── AFFILIATE PROGRAM SUMMARY ── */}
         {affiliates.length > 0 && (() => {
@@ -1869,9 +1908,26 @@ export function AdminDashboardPage() {
             </button>
           </div>
 
-          <input value={productForm.basePrice} onChange={(event) => setProductForm({ ...productForm, basePrice: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} />
-          <input value={productForm.discountPrice} onChange={(event) => setProductForm({ ...productForm, discountPrice: event.target.value })} className="field-input" placeholder={translate(language, "adminDiscountPrice")} />
-          <input value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} className="field-input" placeholder={translate(language, "adminTotalStock")} />
+          <div className="relative">
+            <input value={productForm.basePrice} onChange={(event) => setProductForm({ ...productForm, basePrice: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} type="number" min="0" />
+            {productForm.purchasePrice && productForm.basePrice && (
+              <div className="absolute -bottom-5 start-0 text-[11px] font-semibold text-emerald-600">
+                ربح: {(Number(productForm.discountPrice || productForm.basePrice) - Number(productForm.purchasePrice)).toLocaleString("ar-DZ")} دج ({Math.round(((Number(productForm.discountPrice || productForm.basePrice) - Number(productForm.purchasePrice)) / Number(productForm.discountPrice || productForm.basePrice)) * 100)}%)
+              </div>
+            )}
+          </div>
+          <input value={productForm.discountPrice} onChange={(event) => setProductForm({ ...productForm, discountPrice: event.target.value })} className="field-input" placeholder={translate(language, "adminDiscountPrice")} type="number" min="0" />
+          <div className="relative">
+            <input
+              value={productForm.purchasePrice}
+              onChange={(event) => setProductForm({ ...productForm, purchasePrice: event.target.value })}
+              className="field-input border-amber-300 bg-amber-50/60 focus:border-amber-500 focus:ring-amber-500/12"
+              placeholder={language === "ar" ? "💰 سعر الشراء / التكلفة (سري)" : "💰 Purchase / cost price (private)"}
+              type="number"
+              min="0"
+            />
+          </div>
+          <input value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} className="field-input" placeholder={translate(language, "adminTotalStock")} type="number" min="0" />
           <select value={productForm.condition} onChange={(event) => setProductForm({ ...productForm, condition: event.target.value as "NEW" | "USED" })} className="field-select">
             <option value="NEW">{translate(language, "adminConditionNew")}</option>
             <option value="USED">{translate(language, "adminConditionUsed")}</option>
@@ -1997,17 +2053,34 @@ export function AdminDashboardPage() {
               <th>{translate(language, "products")}</th>
               <th>{translate(language, "adminBrand")}</th>
               <th>{translate(language, "adminBasePrice")}</th>
+              <th className="text-amber-600">{language === "ar" ? "التكلفة" : "Cost"}</th>
+              <th className="text-emerald-600">{language === "ar" ? "الربح" : "Margin"}</th>
               <th>{translate(language, "productStock")}</th>
               <th>Status</th>
               <th>{translate(language, "settings")}</th>
             </tr>
           </thead>
           <tbody>
-            {products.map((product) => (
+            {products.map((product) => {
+              const sellPrice = product.discountPrice ?? product.basePrice;
+              const margin = product.purchasePrice ? sellPrice - product.purchasePrice : null;
+              const marginPct = margin !== null && sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : null;
+              return (
               <tr key={product._id}>
                 <td>{getLocalizedText(product.name, language)}</td>
                 <td>{typeof product.brand === "string" ? product.brand : product.brand.name}</td>
                 <td>{formatCurrency(product.basePrice, language)}</td>
+                <td className="text-amber-700">
+                  {product.purchasePrice ? formatCurrency(product.purchasePrice, language) : <span className="text-slate-300">—</span>}
+                </td>
+                <td>
+                  {margin !== null ? (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${margin >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                      {margin >= 0 ? "+" : ""}{formatCurrency(margin, language)}
+                      {marginPct !== null ? <span className="opacity-70">({marginPct}%)</span> : null}
+                    </span>
+                  ) : <span className="text-slate-300">—</span>}
+                </td>
                 <td>{product.stock}</td>
                 <td>
                   <div className="flex flex-wrap gap-1">
@@ -2043,7 +2116,8 @@ export function AdminDashboardPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
