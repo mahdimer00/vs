@@ -1,4 +1,4 @@
-import { ArrowRight, BadgePercent, ChevronLeft, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, ChevronLeft, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, Play, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -673,6 +673,26 @@ export function ProductDetailsPage() {
               <span className="font-semibold">⚠️ {translate(language, "productAdminNoteTitle")}: </span>
               <span className="break-words whitespace-pre-line">{product.adminNote}</span>
             </div>
+          ) : null}
+
+          {product.videoUrl ? (
+            <a
+              href={product.videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-4 py-3 transition hover:border-rose-300 hover:from-rose-100"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-600 shadow">
+                <Play className="h-4 w-4 fill-white text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-rose-800">
+                  {language === "ar" ? "شاهد فيديو المنتج" : language === "fr" ? "Voir la vidéo" : "Watch product video"}
+                </div>
+                <div className="text-xs text-rose-500 truncate">{product.videoUrl.includes("tiktok") ? "TikTok" : product.videoUrl.includes("facebook") || product.videoUrl.includes("fb.") ? "Facebook" : language === "ar" ? "اضغط للمشاهدة" : "Tap to watch"}</div>
+              </div>
+              <Play className="h-4 w-4 shrink-0 text-rose-400" />
+            </a>
           ) : null}
 
           {/* Shipping + return info */}

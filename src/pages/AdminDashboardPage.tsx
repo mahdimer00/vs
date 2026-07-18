@@ -6,12 +6,16 @@ import {
   Building2,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   Download,
   Facebook,
   Gift,
+  Images,
   Instagram,
   Link2,
+  Loader2,
   Mail,
   MapPin,
   Medal,
@@ -22,12 +26,14 @@ import {
   Printer,
   Shield,
   Sparkles,
+  Star,
   Store,
   Tag,
   TicketPercent,
   TrendingUp,
   Truck,
   Users,
+  Video,
   Wallet,
   X,
   Youtube,
@@ -172,6 +178,7 @@ type ProductFormState = {
   categoryId: string;
   brandId: string;
   images: string[];
+  videoUrl: string;
   basePrice: string;
   discountPrice: string;
   purchasePrice: string;
@@ -198,6 +205,7 @@ const defaultProductForm: ProductFormState = {
   categoryId: "",
   brandId: "",
   images: [""],
+  videoUrl: "",
   basePrice: "",
   discountPrice: "",
   purchasePrice: "",
@@ -972,6 +980,7 @@ export function AdminDashboardPage() {
       categoryId: typeof product.category === "string" ? product.category : product.category._id,
       brandId: typeof product.brand === "string" ? product.brand : product.brand._id,
       images: product.images.length > 0 ? product.images : [""],
+      videoUrl: product.videoUrl || "",
       basePrice: String(product.basePrice),
       discountPrice: product.discountPrice ? String(product.discountPrice) : "",
       purchasePrice: product.purchasePrice ? String(product.purchasePrice) : "",
@@ -1029,6 +1038,7 @@ export function AdminDashboardPage() {
       basePrice: Number(productForm.basePrice),
       discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
       purchasePrice: productForm.purchasePrice ? Number(productForm.purchasePrice) : undefined,
+      videoUrl: productForm.videoUrl.trim() || undefined,
       specifications: Object.fromEntries(
         productForm.specifications
           .map((spec) => ({ key: spec.key.trim(), value: spec.value.trim() }))
@@ -1089,6 +1099,49 @@ export function AdminDashboardPage() {
       ...current,
       images: current.images.length > 1 ? current.images.filter((_, imageIndex) => imageIndex !== index) : current.images,
     }));
+  };
+
+  const setCoverImage = (index: number) => {
+    setProductForm((current) => {
+      const next = [...current.images];
+      const [picked] = next.splice(index, 1);
+      return { ...current, images: [picked, ...next] };
+    });
+  };
+
+  const moveProductImage = (index: number, direction: -1 | 1) => {
+    setProductForm((current) => {
+      const next = [...current.images];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target], next[index]];
+      return { ...current, images: next };
+    });
+  };
+
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [addImageUrl, setAddImageUrl] = useState("");
+  const commitAddImageUrl = () => {
+    const url = addImageUrl.trim();
+    if (!url) return;
+    setProductForm((c) => ({ ...c, images: [...c.images.filter(Boolean), url] }));
+    setAddImageUrl("");
+  };
+  const handleBulkUpload = async (files: FileList) => {
+    if (!files.length) return;
+    setBulkUploading(true);
+    try {
+      const result = await adminService.uploadImages(token, Array.from(files));
+      setProductForm((current) => ({
+        ...current,
+        images: [...current.images.filter(Boolean), ...result.urls],
+      }));
+      pushToast(translate(language, "adminImageUploadSuccess"), "success");
+    } catch (error) {
+      pushToast(error instanceof ApiError ? error.message : translate(language, "adminImageUploadError"), "error");
+    } finally {
+      setBulkUploading(false);
+    }
   };
 
   const updateProductSpec = (index: number, patch: Partial<{ key: string; value: string }>) => {
@@ -1686,6 +1739,31 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── INVENTORY STATS ── */}
+        {(stats.totalAvailableUnits > 0 || stats.totalSoldUnits > 0) && (
+          <div className="surface-card overflow-hidden p-0">
+            <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5 font-bold text-slate-800">
+              <Package className="h-4 w-4 text-indigo-500" />
+              {isAr ? "إحصائيات المخزون" : "Inventory Stats"}
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-3 lg:grid-cols-5 rtl:divide-x-reverse">
+              {[
+                { label: isAr ? "وحدات متاحة" : "In stock", value: stats.totalAvailableUnits.toLocaleString("ar-DZ"), color: "text-teal-700", hint: isAr ? "إجمالي مخزون المنتجات" : "Total stock units" },
+                { label: isAr ? "مُبَاع (مُسلَّم)" : "Sold (delivered)", value: stats.totalSoldUnits.toLocaleString("ar-DZ"), color: "text-slate-700", hint: isAr ? "من الطلبات المكتملة" : "From delivered orders" },
+                { label: isAr ? "تكلفة المخزون" : "Inventory cost", value: stats.inventoryCost > 0 ? formatCurrency(stats.inventoryCost, language) : "—", color: "text-rose-700", hint: isAr ? "سعر الشراء × الكمية" : "Purchase price × qty" },
+                { label: isAr ? "إيرادات متوقعة" : "Potential revenue", value: stats.potentialRevenue > 0 ? formatCurrency(stats.potentialRevenue, language) : "—", color: "text-sky-700", hint: isAr ? "سعر البيع × الكمية" : "Sell price × qty" },
+                { label: isAr ? "ربح متوقع" : "Potential profit", value: stats.potentialProfit > 0 ? formatCurrency(stats.potentialProfit, language) : (stats.inventoryCost > 0 ? formatCurrency(stats.potentialProfit, language) : "—"), color: stats.potentialProfit >= 0 ? "text-emerald-700" : "text-rose-700", hint: isAr ? "الإيرادات − التكلفة" : "Revenue − cost" },
+              ].map(({ label, value, color, hint }) => (
+                <div key={label} className="px-4 py-3.5 text-center">
+                  <div className={`text-lg font-black lg:text-xl ${color}`}>{value}</div>
+                  <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</div>
+                  <div className="mt-0.5 text-[9px] text-slate-300">{hint}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── AFFILIATE PROGRAM SUMMARY ── */}
         {affiliates.length > 0 && (() => {
           const activeAff = affiliates.filter((a) => a.status === "ACTIVE").length;
@@ -1852,26 +1930,99 @@ export function AdminDashboardPage() {
           <textarea value={productForm.descriptionFr} onChange={(event) => setProductForm({ ...productForm, descriptionFr: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionFr")} />
           <textarea value={productForm.descriptionEn} onChange={(event) => setProductForm({ ...productForm, descriptionEn: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionEn")} />
 
-          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
-            <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductImages")}</div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {productForm.images.map((image, index) => (
-                <div key={index} className="space-y-2">
-                  <ImageUploadField token={token} value={image} onChange={(url) => updateProductImage(index, url)} />
-                  <button
-                    type="button"
-                    onClick={() => removeProductImage(index)}
-                    disabled={productForm.images.length <= 1}
-                    className="text-sm font-semibold text-rose-600 disabled:opacity-30"
-                  >
-                    {translate(language, "adminRemoveImage")}
-                  </button>
-                </div>
-              ))}
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Images className="h-4 w-4 text-slate-500" />
+                {translate(language, "adminProductImages")}
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">{productForm.images.filter(Boolean).length}</span>
+              </div>
+              <label className={`ghost-button cursor-pointer ${bulkUploading ? "opacity-60 pointer-events-none" : ""}`}>
+                {bulkUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Images className="h-4 w-4" />}
+                <span className="ms-2 text-xs">{language === "ar" ? "رفع متعدد" : "Upload multiple"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files) { void handleBulkUpload(e.target.files); e.target.value = ""; } }}
+                />
+              </label>
             </div>
-            <button type="button" onClick={addProductImage} className="ghost-button">
-              {translate(language, "adminAddImage")}
-            </button>
+
+            {/* Image thumbnails grid with cover + reorder controls */}
+            {productForm.images.filter(Boolean).length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {productForm.images.map((image, index) => image ? (
+                  <div key={index} className={`relative overflow-hidden rounded-2xl border-2 ${index === 0 ? "border-teal-400" : "border-slate-200"} bg-slate-50`}>
+                    {/* Cover badge */}
+                    {index === 0 && (
+                      <div className="absolute start-2 top-2 z-10 flex items-center gap-1 rounded-full bg-teal-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <Star className="h-2.5 w-2.5" />
+                        {language === "ar" ? "غلاف" : "Cover"}
+                      </div>
+                    )}
+                    {/* Image preview */}
+                    <img src={image} alt="" className="h-32 w-full object-cover" />
+                    {/* Controls */}
+                    <div className="flex items-center gap-1 border-t border-slate-100 bg-white px-2 py-1.5">
+                      <button type="button" onClick={() => moveProductImage(index, -1)} disabled={index === 0} className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-20" title={language === "ar" ? "تقديم" : "Move left"}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={() => moveProductImage(index, 1)} disabled={index === productForm.images.filter(Boolean).length - 1} className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-20" title={language === "ar" ? "تأخير" : "Move right"}>
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                      {index !== 0 && (
+                        <button type="button" onClick={() => setCoverImage(index)} className="grid h-7 w-7 place-items-center rounded-lg text-amber-500 hover:bg-amber-50" title={language === "ar" ? "تعيين غلاف" : "Set as cover"}>
+                          <Star className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => removeProductImage(index)} disabled={productForm.images.filter(Boolean).length <= 1} className="ms-auto grid h-7 w-7 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 disabled:opacity-20">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : null)}
+              </div>
+            )}
+
+            {/* Add individual image by URL or upload */}
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{language === "ar" ? "إضافة صورة" : "Add image"}</div>
+              <div className="flex gap-2">
+                <input
+                  value={addImageUrl}
+                  onChange={(e) => setAddImageUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitAddImageUrl(); } }}
+                  className="field-input flex-1 text-sm"
+                  placeholder={language === "ar" ? "رابط الصورة..." : "Image URL..."}
+                />
+                <button type="button" onClick={commitAddImageUrl} className="ghost-button shrink-0" disabled={!addImageUrl.trim()}>
+                  {language === "ar" ? "إضافة" : "Add"}
+                </button>
+                <label className="ghost-button cursor-pointer shrink-0">
+                  <Loader2 className={`h-4 w-4 ${bulkUploading ? "animate-spin" : "hidden"}`} />
+                  <span>{language === "ar" ? "رفع" : "Upload"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const result = await adminService.uploadImage(token, file);
+                        setProductForm((c) => ({ ...c, images: [...c.images.filter(Boolean), result.url] }));
+                        pushToast(translate(language, "adminImageUploadSuccess"), "success");
+                      } catch (error) {
+                        pushToast(error instanceof ApiError ? error.message : translate(language, "adminImageUploadError"), "error");
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
@@ -1940,6 +2091,23 @@ export function AdminDashboardPage() {
             rows={2}
             placeholder={translate(language, "adminNotePlaceholder")}
           />
+
+          <div className="md:col-span-2 xl:col-span-4">
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+              <Video className="h-4 w-4 shrink-0 text-slate-400" />
+              <input
+                value={productForm.videoUrl}
+                onChange={(event) => setProductForm({ ...productForm, videoUrl: event.target.value })}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                placeholder={language === "ar" ? "رابط فيديو المنتج (Facebook / TikTok) — اختياري" : "Product video link (Facebook / TikTok) — optional"}
+              />
+              {productForm.videoUrl && (
+                <a href={productForm.videoUrl} target="_blank" rel="noreferrer" className="shrink-0 text-xs font-semibold text-teal-700 hover:underline">
+                  {language === "ar" ? "معاينة" : "Preview"}
+                </a>
+              )}
+            </div>
+          </div>
 
           <div className="md:col-span-2 xl:col-span-4 flex flex-wrap gap-4">
             <label className="flex items-center gap-3 rounded-2xl border border-orange-300 bg-gradient-to-r from-orange-50 to-rose-50 px-4 py-3 text-sm font-semibold text-orange-800 cursor-pointer shadow-[0_2px_12px_rgba(251,146,60,0.18)]">

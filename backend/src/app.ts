@@ -96,6 +96,16 @@ app.post("/api/admin/uploads", authMiddleware, roleMiddleware(["SUPER_ADMIN", "A
   });
 });
 
+app.post("/api/admin/uploads/bulk", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), upload.array("files", 20), (req, res) => {
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || files.length === 0) {
+    return res.status(400).json({ message: "No files uploaded" });
+  }
+  return res.status(201).json({
+    urls: files.map((f) => `${env.BACKEND_URL}/uploads/${f.filename}`),
+  });
+});
+
 // ──────────────────────────────────────────────────────────────────
 // 🔥 HACKER HELL — فخ الهاكرز مع رسائل ساخرة
 // ──────────────────────────────────────────────────────────────────

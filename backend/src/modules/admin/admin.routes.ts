@@ -96,6 +96,22 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const deliveredStatuses = new Set(["DELIVERED", "PICKED_UP"]);
   const cancelledStatuses = new Set(["CANCELLED", "RETURNED", "FAILED"]);
 
+  // Inventory stats — computed from product catalog
+  const activeProducts = products.filter((p) => p.status !== "ARCHIVED");
+  const totalAvailableUnits = activeProducts.reduce((sum, p) => sum + Math.max(0, p.stock ?? 0), 0);
+  const totalSoldUnits = orders
+    .filter((o) => deliveredStatuses.has(o.status))
+    .reduce((sum, o) => sum + o.items.reduce((s, item) => s + (item.quantity ?? 0), 0), 0);
+  const inventoryCost = activeProducts
+    .filter((p) => p.purchasePrice != null && (p.purchasePrice as number) > 0 && (p.stock ?? 0) > 0)
+    .reduce((sum, p) => sum + (p.purchasePrice as number) * (p.stock ?? 0), 0);
+  const potentialRevenue = activeProducts
+    .filter((p) => (p.stock ?? 0) > 0)
+    .reduce((sum, p) => sum + ((p.discountPrice as number | undefined) ?? (p.basePrice as number)) * (p.stock ?? 0), 0);
+  const potentialProfit = activeProducts
+    .filter((p) => p.purchasePrice != null && (p.purchasePrice as number) > 0 && (p.stock ?? 0) > 0)
+    .reduce((sum, p) => sum + (((p.discountPrice as number | undefined) ?? (p.basePrice as number)) - (p.purchasePrice as number)) * (p.stock ?? 0), 0);
+
   const deliveredOrders = orders.filter((o) => deliveredStatuses.has(o.status));
   const todayOrders = orders.filter((o) => new Date(o.createdAt as Date) >= todayStart);
   const weekOrders = orders.filter((o) => new Date(o.createdAt as Date) >= weekStart);
@@ -143,6 +159,12 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     promoUsage: promos.map((p) => ({ code: p.code, count: p.usedCount })),
     lowStockProducts: products.filter((p) => p.stock > 0 && p.stock <= 5 && !p.isSoldOut),
     outOfStockProducts: products.filter((p) => p.stock === 0 && !p.isSoldOut).length,
+    // Inventory analytics
+    totalAvailableUnits,
+    totalSoldUnits,
+    inventoryCost,
+    potentialRevenue,
+    potentialProfit,
   });
 }));
 

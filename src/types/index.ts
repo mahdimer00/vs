@@ -74,6 +74,7 @@ export interface Product {
   basePrice: number;
   discountPrice?: number | null;
   purchasePrice?: number | null;
+  videoUrl?: string;
   variants: ProductVariant[];
   specifications?: Record<string, string>;
   stock: number;
@@ -319,6 +320,11 @@ export interface DashboardStats {
   promoUsage: Array<{ code: string; count: number }>;
   lowStockProducts: Product[];
   outOfStockProducts: number;
+  totalAvailableUnits: number;
+  totalSoldUnits: number;
+  inventoryCost: number;
+  potentialRevenue: number;
+  potentialProfit: number;
 }
 
 export interface CartItem {

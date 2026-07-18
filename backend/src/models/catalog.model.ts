@@ -31,6 +31,7 @@ const productSchema = new Schema(
     basePrice: { type: Number, required: true },
     discountPrice: Number,
     purchasePrice: Number,
+    videoUrl: String,
     specifications: { type: Schema.Types.Mixed, default: {} },
     stock: { type: Number, required: true },
     condition: { type: String, enum: ["NEW", "USED"], default: "NEW" },

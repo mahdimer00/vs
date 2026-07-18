@@ -1,4 +1,4 @@
-import { apiRequest, apiUpload } from "@/services/apiClient";
+import { apiRequest, apiUpload, apiUploadMultiple } from "@/services/apiClient";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -87,6 +87,9 @@ export const adminService = {
   },
   uploadImage(token: string, file: File) {
     return apiUpload<{ url: string; filename: string }>("/api/admin/uploads", file, token);
+  },
+  uploadImages(token: string, files: File[]) {
+    return apiUploadMultiple<{ urls: string[] }>("/api/admin/uploads/bulk", files, token);
   },
   createProduct(token: string, payload: Record<string, unknown>) {
     return apiRequest<Product>("/api/admin/products", {

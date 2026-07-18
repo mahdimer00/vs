@@ -113,6 +113,44 @@ export async function apiUpload<T>(path: string, file: File, token: string): Pro
   return payload as T;
 }
 
+export async function apiUploadMultiple<T>(path: string, files: File[], token: string): Promise<T> {
+  const url = API_BASE_URL.startsWith("http")
+    ? new URL(`${API_BASE_URL}${path}`)
+    : new URL(`${API_BASE_URL}${path}`, window.location.origin);
+
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  const text = await response.text();
+  let payload: unknown = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = text;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof payload === "object" && payload !== null
+        ? (payload as { message?: string; error?: string }).message ||
+          (payload as { message?: string; error?: string }).error
+        : undefined;
+    throw new ApiError(message || "Upload failed", response.status);
+  }
+
+  return payload as T;
+}
+
 export function tokenFromSession(session: AuthSession | null): string | undefined {
   return session?.token;
 }
