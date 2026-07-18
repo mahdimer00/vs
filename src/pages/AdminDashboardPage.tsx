@@ -1740,7 +1740,14 @@ export function AdminDashboardPage() {
         })()}
 
         {/* ── INVENTORY STATS ── */}
-        {(stats.totalAvailableUnits > 0 || stats.totalSoldUnits > 0) && (
+        {(() => {
+          const isAr = language === "ar";
+          const totalUnits = stats.totalAvailableUnits ?? 0;
+          const soldUnits = stats.totalSoldUnits ?? 0;
+          const invCost = stats.inventoryCost ?? 0;
+          const potRev = stats.potentialRevenue ?? 0;
+          const potProfit = stats.potentialProfit ?? 0;
+          return (
           <div className="surface-card overflow-hidden p-0">
             <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5 font-bold text-slate-800">
               <Package className="h-4 w-4 text-indigo-500" />
@@ -1748,11 +1755,11 @@ export function AdminDashboardPage() {
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-3 lg:grid-cols-5 rtl:divide-x-reverse">
               {[
-                { label: isAr ? "وحدات متاحة" : "In stock", value: stats.totalAvailableUnits.toLocaleString("ar-DZ"), color: "text-teal-700", hint: isAr ? "إجمالي مخزون المنتجات" : "Total stock units" },
-                { label: isAr ? "مُبَاع (مُسلَّم)" : "Sold (delivered)", value: stats.totalSoldUnits.toLocaleString("ar-DZ"), color: "text-slate-700", hint: isAr ? "من الطلبات المكتملة" : "From delivered orders" },
-                { label: isAr ? "تكلفة المخزون" : "Inventory cost", value: stats.inventoryCost > 0 ? formatCurrency(stats.inventoryCost, language) : "—", color: "text-rose-700", hint: isAr ? "سعر الشراء × الكمية" : "Purchase price × qty" },
-                { label: isAr ? "إيرادات متوقعة" : "Potential revenue", value: stats.potentialRevenue > 0 ? formatCurrency(stats.potentialRevenue, language) : "—", color: "text-sky-700", hint: isAr ? "سعر البيع × الكمية" : "Sell price × qty" },
-                { label: isAr ? "ربح متوقع" : "Potential profit", value: stats.potentialProfit > 0 ? formatCurrency(stats.potentialProfit, language) : (stats.inventoryCost > 0 ? formatCurrency(stats.potentialProfit, language) : "—"), color: stats.potentialProfit >= 0 ? "text-emerald-700" : "text-rose-700", hint: isAr ? "الإيرادات − التكلفة" : "Revenue − cost" },
+                { label: isAr ? "وحدات متاحة" : "In stock", value: totalUnits.toLocaleString("ar-DZ"), color: "text-teal-700", hint: isAr ? "إجمالي مخزون المنتجات" : "Total stock units" },
+                { label: isAr ? "مُبَاع (مُسلَّم)" : "Sold (delivered)", value: soldUnits.toLocaleString("ar-DZ"), color: "text-slate-700", hint: isAr ? "من الطلبات المكتملة" : "From delivered orders" },
+                { label: isAr ? "تكلفة المخزون" : "Inventory cost", value: invCost > 0 ? formatCurrency(invCost, language) : "—", color: "text-rose-700", hint: isAr ? "سعر الشراء × الكمية" : "Purchase price × qty" },
+                { label: isAr ? "إيرادات متوقعة" : "Potential revenue", value: potRev > 0 ? formatCurrency(potRev, language) : "—", color: "text-sky-700", hint: isAr ? "سعر البيع × الكمية" : "Sell price × qty" },
+                { label: isAr ? "ربح متوقع" : "Potential profit", value: potRev > 0 ? formatCurrency(potProfit, language) : "—", color: potProfit >= 0 ? "text-emerald-700" : "text-rose-700", hint: isAr ? "الإيرادات − التكلفة" : "Revenue − cost" },
               ].map(({ label, value, color, hint }) => (
                 <div key={label} className="px-4 py-3.5 text-center">
                   <div className={`text-lg font-black lg:text-xl ${color}`}>{value}</div>
@@ -1762,7 +1769,8 @@ export function AdminDashboardPage() {
               ))}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── AFFILIATE PROGRAM SUMMARY ── */}
         {affiliates.length > 0 && (() => {
