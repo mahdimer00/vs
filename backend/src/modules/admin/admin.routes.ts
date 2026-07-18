@@ -108,9 +108,7 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const potentialRevenue = activeProducts
     .filter((p) => (p.stock ?? 0) > 0)
     .reduce((sum, p) => sum + ((p.discountPrice as number | undefined) ?? (p.basePrice as number)) * (p.stock ?? 0), 0);
-  const potentialProfit = activeProducts
-    .filter((p) => p.purchasePrice != null && (p.purchasePrice as number) > 0 && (p.stock ?? 0) > 0)
-    .reduce((sum, p) => sum + (((p.discountPrice as number | undefined) ?? (p.basePrice as number)) - (p.purchasePrice as number)) * (p.stock ?? 0), 0);
+  const potentialProfit = potentialRevenue - inventoryCost;
 
   const deliveredOrders = orders.filter((o) => deliveredStatuses.has(o.status));
   const todayOrders = orders.filter((o) => new Date(o.createdAt as Date) >= todayStart);

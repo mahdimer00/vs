@@ -25,6 +25,7 @@ import {
   Phone,
   Printer,
   Shield,
+  ShoppingCart,
   Sparkles,
   Star,
   Store,
@@ -1739,6 +1740,141 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── ORDERS PIPELINE ── */}
+        {(() => {
+          const isAr = language === "ar";
+          const pipeline = [
+            { label: isAr ? "انتظار" : "Pending", count: orders.filter(o => o.status === "PENDING_AI_CONFIRMATION" || o.status === "AWAITING_CALL_CONFIRMATION").length, color: "bg-amber-500", text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", urgent: true },
+            { label: isAr ? "مؤكد" : "Confirmed", count: orders.filter(o => o.status === "CONFIRMED" || o.status === "PROCESSING").length, color: "bg-sky-500", text: "text-sky-700", bg: "bg-sky-50", border: "border-sky-200", urgent: false },
+            { label: isAr ? "شُحن" : "Shipped", count: orders.filter(o => o.status === "SHIPPED").length, color: "bg-indigo-500", text: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200", urgent: false },
+            { label: isAr ? "مُسلَّم" : "Delivered", count: orders.filter(o => o.status === "DELIVERED" || o.status === "PICKED_UP").length, color: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", urgent: false },
+            { label: isAr ? "ملغى" : "Cancelled", count: orders.filter(o => o.status === "CANCELLED" || o.status === "RETURNED" || o.status === "FAILED").length, color: "bg-rose-400", text: "text-rose-700", bg: "bg-rose-50", border: "border-rose-200", urgent: false },
+          ];
+          const total = orders.length || 1;
+          return (
+          <div className="surface-card overflow-hidden p-0">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <div className="flex items-center gap-2 font-bold text-slate-800">
+                <TrendingUp className="h-4 w-4 text-teal-600" />
+                {isAr ? "مسار الطلبات" : "Orders Pipeline"}
+              </div>
+              <span className="text-xs font-semibold text-slate-400">{isAr ? `${orders.length} طلب إجمالي` : `${orders.length} total`}</span>
+            </div>
+            {/* Progress bar */}
+            <div className="px-5 pt-4">
+              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
+                {pipeline.map(s => s.count > 0 && (
+                  <div key={s.label} className={`${s.color} transition-all`} style={{ width: `${(s.count / total) * 100}%` }} title={`${s.label}: ${s.count}`} />
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-px bg-slate-100 sm:grid-cols-5 mt-4 border-t border-slate-100">
+              {pipeline.map(s => (
+                <div key={s.label} className={`flex flex-col items-center gap-1 ${s.bg} px-3 py-3 text-center`}>
+                  <div className={`text-2xl font-black ${s.text} ${s.urgent && s.count > 0 ? "animate-pulse" : ""}`}>{s.count}</div>
+                  <div className={`text-[10px] font-bold uppercase tracking-wider ${s.text} opacity-70`}>{s.label}</div>
+                  <div className="text-[9px] text-slate-400">{Math.round((s.count / total) * 100)}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          );
+        })()}
+
+        {/* ── 7-DAY REVENUE SPARKLINE + RECENT ORDERS ── */}
+        {(() => {
+          const isAr = language === "ar";
+          const today = new Date();
+          const sevenDays = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(today);
+            d.setDate(d.getDate() - (6 - i));
+            return d.toLocaleDateString("en-CA");
+          });
+          const revenueByDay = sevenDays.map(day => ({
+            day,
+            label: new Date(day).toLocaleDateString(isAr ? "ar-DZ" : "fr-DZ", { weekday: "short" }),
+            revenue: orders
+              .filter(o => (o.status === "DELIVERED" || o.status === "PICKED_UP") && new Date(o.createdAt).toLocaleDateString("en-CA") === day)
+              .reduce((sum, o) => sum + o.total, 0),
+          }));
+          const maxRev = Math.max(...revenueByDay.map(d => d.revenue), 1);
+          const recentOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6);
+          const statusColors: Record<string, string> = {
+            PENDING_AI_CONFIRMATION: "bg-slate-100 text-slate-600",
+            AWAITING_CALL_CONFIRMATION: "bg-amber-100 text-amber-700",
+            CONFIRMED: "bg-sky-100 text-sky-700",
+            PROCESSING: "bg-blue-100 text-blue-700",
+            SHIPPED: "bg-indigo-100 text-indigo-700",
+            DELIVERED: "bg-emerald-100 text-emerald-700",
+            PICKED_UP: "bg-emerald-100 text-emerald-700",
+            CANCELLED: "bg-rose-100 text-rose-700",
+            RETURNED: "bg-rose-100 text-rose-700",
+            FAILED: "bg-rose-100 text-rose-700",
+          };
+          const statusAr: Record<string, string> = {
+            PENDING_AI_CONFIRMATION: "انتظار", AWAITING_CALL_CONFIRMATION: "انتظار مكالمة",
+            CONFIRMED: "مؤكد", PROCESSING: "جاري", SHIPPED: "شُحن",
+            DELIVERED: "مُسلَّم", PICKED_UP: "استُلم", CANCELLED: "ملغى",
+            RETURNED: "مُرجع", FAILED: "فشل",
+          };
+          return (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Sparkline */}
+            <div className="surface-card overflow-hidden">
+              <div className="mb-4 flex items-center gap-2 font-bold text-slate-800">
+                <BarChart3 className="h-4 w-4 text-indigo-500" />
+                {isAr ? "إيرادات آخر 7 أيام" : "Revenue last 7 days"}
+              </div>
+              <div className="flex items-end gap-1.5 h-24">
+                {revenueByDay.map((day, i) => (
+                  <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                    <div className="relative flex w-full justify-center" style={{ height: "72px" }}>
+                      <div
+                        className={`w-full rounded-t-md ${i === 6 ? "bg-teal-500" : "bg-slate-200"} transition-all`}
+                        style={{ height: `${Math.max(4, (day.revenue / maxRev) * 72)}px`, alignSelf: "flex-end" }}
+                        title={formatCurrency(day.revenue, language)}
+                      />
+                    </div>
+                    <div className="text-[9px] font-medium text-slate-400 truncate w-full text-center">{day.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-between text-xs text-slate-400">
+                <span>{isAr ? "أبعد يوم" : "7 days ago"}</span>
+                <span className="font-semibold text-teal-600">{formatCurrency(revenueByDay[6]?.revenue ?? 0, language)} {isAr ? "اليوم" : "today"}</span>
+              </div>
+            </div>
+
+            {/* Recent orders */}
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Package className="h-4 w-4 text-slate-500" />
+                  {isAr ? "آخر الطلبات" : "Recent orders"}
+                </div>
+                <Link to="/gestion/orders" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "عرض الكل" : "View all"}</Link>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {recentOrders.map(o => (
+                  <div key={o._id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 truncate">{o.customer.fullName}</div>
+                      <div className="text-[11px] text-slate-400" dir="ltr">{o.orderNumber}</div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <div className="text-sm font-bold text-slate-900">{formatCurrency(o.total, language)}</div>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${statusColors[o.status] ?? "bg-slate-100 text-slate-600"}`}>
+                        {isAr ? (statusAr[o.status] ?? o.status) : o.status.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          );
+        })()}
+
         {/* ── INVENTORY STATS ── */}
         {(() => {
           const isAr = language === "ar";
@@ -1747,26 +1883,113 @@ export function AdminDashboardPage() {
           const invCost = stats.inventoryCost ?? 0;
           const potRev = stats.potentialRevenue ?? 0;
           const potProfit = stats.potentialProfit ?? 0;
+          const marginPct = potRev > 0 ? Math.round((potProfit / potRev) * 100) : 0;
+          const costPct = potRev > 0 ? Math.round((invCost / potRev) * 100) : 0;
           return (
           <div className="surface-card overflow-hidden p-0">
-            <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5 font-bold text-slate-800">
-              <Package className="h-4 w-4 text-indigo-500" />
-              {isAr ? "إحصائيات المخزون" : "Inventory Stats"}
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <div className="flex items-center gap-2 font-bold text-slate-800">
+                <Package className="h-4 w-4 text-indigo-500" />
+                {isAr ? "إحصائيات المخزون" : "Inventory Stats"}
+              </div>
+              <span className="text-[11px] font-medium text-slate-400">
+                {isAr ? "بناءً على المخزون المتاح حالياً" : "Based on current available stock"}
+              </span>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-3 lg:grid-cols-5 rtl:divide-x-reverse">
-              {[
-                { label: isAr ? "وحدات متاحة" : "In stock", value: totalUnits.toLocaleString("ar-DZ"), color: "text-teal-700", hint: isAr ? "إجمالي مخزون المنتجات" : "Total stock units" },
-                { label: isAr ? "مُبَاع (مُسلَّم)" : "Sold (delivered)", value: soldUnits.toLocaleString("ar-DZ"), color: "text-slate-700", hint: isAr ? "من الطلبات المكتملة" : "From delivered orders" },
-                { label: isAr ? "تكلفة المخزون" : "Inventory cost", value: invCost > 0 ? formatCurrency(invCost, language) : "—", color: "text-rose-700", hint: isAr ? "سعر الشراء × الكمية" : "Purchase price × qty" },
-                { label: isAr ? "إيرادات متوقعة" : "Potential revenue", value: potRev > 0 ? formatCurrency(potRev, language) : "—", color: "text-sky-700", hint: isAr ? "سعر البيع × الكمية" : "Sell price × qty" },
-                { label: isAr ? "ربح متوقع" : "Potential profit", value: potRev > 0 ? formatCurrency(potProfit, language) : "—", color: potProfit >= 0 ? "text-emerald-700" : "text-rose-700", hint: isAr ? "الإيرادات − التكلفة" : "Revenue − cost" },
-              ].map(({ label, value, color, hint }) => (
-                <div key={label} className="px-4 py-3.5 text-center">
-                  <div className={`text-lg font-black lg:text-xl ${color}`}>{value}</div>
-                  <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</div>
-                  <div className="mt-0.5 text-[9px] text-slate-300">{hint}</div>
+
+            {/* Units row */}
+            <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 rtl:divide-x-reverse">
+              <div className="flex items-center gap-3 px-5 py-4">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-teal-50">
+                  <Package className="h-5 w-5 text-teal-600" />
                 </div>
-              ))}
+                <div>
+                  <div className="text-2xl font-black text-teal-700">{totalUnits.toLocaleString()}</div>
+                  <div className="text-[11px] font-semibold text-slate-400">{isAr ? "وحدة متاحة في المخزون" : "units in stock"}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-4">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100">
+                  <ShoppingCart className="h-5 w-5 text-slate-500" />
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-700">{soldUnits.toLocaleString()}</div>
+                  <div className="text-[11px] font-semibold text-slate-400">{isAr ? "مُباع (مُسلَّم فعلياً)" : "sold & delivered"}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Revenue equation */}
+            <div className="px-5 py-4">
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                {isAr ? "معادلة الربحية المتوقعة (من المخزون الحالي)" : "Expected profit equation (from current stock)"}
+              </div>
+
+              {/* Stacked bar */}
+              {potRev > 0 ? (
+                <div className="mb-3 overflow-hidden rounded-full" style={{ height: "10px", background: "#f1f5f9" }}>
+                  <div className="flex h-full">
+                    <div className="bg-rose-400 transition-all" style={{ width: `${costPct}%` }} title={isAr ? "التكلفة" : "Cost"} />
+                    <div className="bg-emerald-400 transition-all" style={{ width: `${Math.max(0, marginPct)}%` }} title={isAr ? "الربح" : "Profit"} />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-3 gap-3">
+                {/* Revenue */}
+                <div className="rounded-2xl border border-sky-100 bg-sky-50 px-3 py-3 text-center">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-sky-400 mb-1">
+                    {isAr ? "إيرادات متوقعة" : "Revenue"}
+                  </div>
+                  <div className="text-sm font-black text-sky-700 leading-tight break-all">
+                    {potRev > 0 ? formatCurrency(potRev, language) : "—"}
+                  </div>
+                  <div className="mt-1 text-[9px] text-sky-400">
+                    {isAr ? "سعر البيع × الكمية" : "Sell price × qty"}
+                  </div>
+                </div>
+                {/* Cost */}
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-center">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-rose-400 mb-1">
+                    {isAr ? "تكلفة الشراء" : "Cost"}
+                  </div>
+                  <div className="text-sm font-black text-rose-700 leading-tight break-all">
+                    {invCost > 0 ? formatCurrency(invCost, language) : "—"}
+                  </div>
+                  <div className="mt-1 text-[9px] text-rose-400">
+                    {isAr ? "سعر الشراء × الكمية" : "Buy price × qty"}
+                  </div>
+                </div>
+                {/* Profit */}
+                <div className={`rounded-2xl px-3 py-3 text-center border ${potProfit >= 0 ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-200"}`}>
+                  <div className={`text-[9px] font-bold uppercase tracking-wider mb-1 ${potProfit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {isAr ? "ربح صافٍ" : "Net profit"}
+                  </div>
+                  <div className={`text-sm font-black leading-tight break-all ${potProfit >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    {potRev > 0 ? formatCurrency(potProfit, language) : "—"}
+                  </div>
+                  {potRev > 0 && invCost > 0 ? (
+                    <div className={`mt-1 text-[10px] font-bold ${potProfit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {marginPct}% {isAr ? "هامش" : "margin"}
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-[9px] text-slate-400">
+                      {isAr ? "أدخل سعر الشراء" : "Add buy prices"}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Equation line */}
+              {potRev > 0 && (
+                <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-400" dir="ltr">
+                  <span className="font-semibold text-sky-600">{formatCurrency(potRev, language)}</span>
+                  <span>−</span>
+                  <span className="font-semibold text-rose-600">{formatCurrency(invCost, language)}</span>
+                  <span>=</span>
+                  <span className={`font-black ${potProfit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{formatCurrency(potProfit, language)}</span>
+                </div>
+              )}
             </div>
           </div>
           );
@@ -2257,7 +2480,17 @@ export function AdminDashboardPage() {
                     </span>
                   ) : <span className="text-slate-300">—</span>}
                 </td>
-                <td>{product.stock}</td>
+                <td>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    product.stock === 0 ? "bg-rose-100 text-rose-700" :
+                    product.stock === 1 ? "bg-orange-100 text-orange-800 ring-1 ring-orange-300" :
+                    product.stock <= 3 ? "bg-amber-100 text-amber-800" :
+                    product.stock <= 5 ? "bg-yellow-50 text-yellow-700" :
+                    "bg-emerald-50 text-emerald-700"
+                  }`}>
+                    {product.stock === 0 ? "نفد" : product.stock === 1 ? `⚠️ آخر 1` : product.stock}
+                  </span>
+                </td>
                 <td>
                   <div className="flex flex-wrap gap-1">
                   {product.isSoldOut ? (

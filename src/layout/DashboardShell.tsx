@@ -117,7 +117,7 @@ export function DashboardShell({
   );
 
   return (
-    <div className="dashboard-shell relative">
+    <div className="dashboard-shell relative min-h-screen pb-10">
       {/* Mobile top bar */}
       <div className="mb-4 flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-slate-950 px-4 py-3 text-white lg:hidden">
         <div className="flex items-center gap-3">
