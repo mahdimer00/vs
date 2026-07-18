@@ -489,7 +489,12 @@ router.post(
       customer && typeof customer.wilaya !== "string" && "name" in customer.wilaya
         ? (customer.wilaya as { name: { en: string } }).name.en
         : "";
-    const itemsList = order.items.map((item) => `- ${item.productName.en} (${item.variantLabel}) x${item.quantity}`).join("\n");
+    const itemsList = order.items.map((item) => {
+      const name = item.productName.ar || item.productName.fr || item.productName.en || "منتج";
+      const variant = item.variantLabel ? ` (${item.variantLabel})` : "";
+      const productUrl = `${env.FRONTEND_URL}/products/${item.productSlug}`;
+      return `- <a href="${productUrl}">${name}</a>${variant} x${item.quantity} — ${item.unitPrice} دج`;
+    }).join("\n");
 
     // Check for duplicate phone (same phone ordered in last 24h) — flag in Telegram
     const recentSamePhone = await OrderModel.countDocuments({

@@ -1639,6 +1639,31 @@ export function AdminDashboardPage() {
     return (
       <div className="space-y-5">
 
+        {/* ── A. QUICK ACTIONS BAR ── */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Link to="/gestion/products" className="flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 px-4 py-4 text-white shadow-md shadow-teal-100 transition hover:-translate-y-0.5 active:scale-95">
+            <Package className="h-7 w-7 opacity-90" />
+            <span className="text-center text-sm font-bold leading-tight">{isAr ? "إضافة منتج" : "Add Product"}</span>
+          </Link>
+          <Link to="/gestion/orders" className="relative flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-sky-600 px-4 py-4 text-white shadow-md shadow-sky-100 transition hover:-translate-y-0.5 active:scale-95">
+            {orders.length > 0 && (
+              <span className="absolute end-2 top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white px-1.5 text-[10px] font-black text-sky-700">
+                {orders.length > 99 ? "99+" : orders.length}
+              </span>
+            )}
+            <ShoppingCart className="h-7 w-7 opacity-90" />
+            <span className="text-center text-sm font-bold leading-tight">{isAr ? "الطلبات" : "Orders"}</span>
+          </Link>
+          <Link to="/gestion/analytics" className="flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 px-4 py-4 text-white shadow-md shadow-indigo-100 transition hover:-translate-y-0.5 active:scale-95">
+            <BarChart3 className="h-7 w-7 opacity-90" />
+            <span className="text-center text-sm font-bold leading-tight">{isAr ? "الإحصائيات" : "Analytics"}</span>
+          </Link>
+          <Link to="/gestion/promo-codes" className="flex flex-col items-center gap-2 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 px-4 py-4 text-white shadow-md shadow-amber-100 transition hover:-translate-y-0.5 active:scale-95">
+            <TicketPercent className="h-7 w-7 opacity-90" />
+            <span className="text-center text-sm font-bold leading-tight">{isAr ? "كودات الخصم" : "Promo Codes"}</span>
+          </Link>
+        </div>
+
         {/* ── URGENT ALERTS ROW ── */}
         {(stats.abandonedOrders > 0 || stats.awaitingCallOrders > 0 || alerts.length > 0) && (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1737,6 +1762,127 @@ export function AdminDashboardPage() {
           </div>
           )}
         </div>
+          );
+        })()}
+
+        {/* ── B. BUSINESS HEALTH RIBBON ── */}
+        {(() => {
+          const deliveredCount = orders.filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP").length;
+          const cancelledCount = orders.filter((o) => o.status === "CANCELLED").length;
+          const returnedCount = orders.filter((o) => o.status === "RETURNED").length;
+          const failedCount = orders.filter((o) => o.status === "FAILED").length;
+          const finishedOrders = deliveredCount + cancelledCount + returnedCount + failedCount;
+          const aov = stats.deliveredOrders > 0 ? stats.revenue / stats.deliveredOrders : 0;
+          const deliveryRate = finishedOrders > 0 ? Math.round((deliveredCount / finishedOrders) * 100) : 0;
+          const cancelRate = orders.length > 0 ? Math.round((cancelledCount / orders.length) * 100) : 0;
+          const returnRate = (deliveredCount + returnedCount) > 0 ? Math.round((returnedCount / (deliveredCount + returnedCount)) * 100) : 0;
+          const chips = [
+            {
+              label: isAr ? "متوسط قيمة الطلب" : "Avg Order Value",
+              value: aov > 0 ? formatCurrency(Math.round(aov), language) : "—",
+              tone: aov > 0 ? "bg-sky-50 border-sky-200 text-sky-800" : "bg-slate-50 border-slate-200 text-slate-500",
+              dot: "bg-sky-400",
+              sub: isAr ? "AOV" : "AOV",
+            },
+            {
+              label: isAr ? "معدل التسليم" : "Delivery Rate",
+              value: finishedOrders > 0 ? `${deliveryRate}%` : "—",
+              tone: deliveryRate >= 70 ? "bg-teal-50 border-teal-200 text-teal-800" : deliveryRate >= 50 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-rose-50 border-rose-200 text-rose-800",
+              dot: deliveryRate >= 70 ? "bg-teal-500" : deliveryRate >= 50 ? "bg-amber-500" : "bg-rose-500",
+              sub: isAr ? "من الطلبات المنتهية" : "of finished orders",
+            },
+            {
+              label: isAr ? "معدل الإلغاء" : "Cancel Rate",
+              value: orders.length > 0 ? `${cancelRate}%` : "—",
+              tone: cancelRate <= 10 ? "bg-emerald-50 border-emerald-200 text-emerald-800" : cancelRate <= 20 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-rose-50 border-rose-200 text-rose-800",
+              dot: cancelRate <= 10 ? "bg-emerald-500" : cancelRate <= 20 ? "bg-amber-500" : "bg-rose-500",
+              sub: isAr ? "من إجمالي الطلبات" : "of all orders",
+            },
+            {
+              label: isAr ? "معدل الإرجاع" : "Return Rate",
+              value: (deliveredCount + returnedCount) > 0 ? `${returnRate}%` : "—",
+              tone: returnRate <= 5 ? "bg-emerald-50 border-emerald-200 text-emerald-800" : returnRate <= 15 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-rose-50 border-rose-200 text-rose-800",
+              dot: returnRate <= 5 ? "bg-emerald-500" : returnRate <= 15 ? "bg-amber-500" : "bg-rose-500",
+              sub: isAr ? "من الطلبات المسلّمة" : "of delivered orders",
+            },
+          ];
+          return (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {chips.map((chip) => (
+                <div key={chip.label} className={`flex flex-col gap-1.5 rounded-2xl border px-4 py-3.5 ${chip.tone}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${chip.dot} shrink-0`} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{chip.sub}</span>
+                  </div>
+                  <div className="text-xl font-black">{chip.value}</div>
+                  <div className="text-[11px] font-semibold leading-tight opacity-80">{chip.label}</div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ── C. MONTH COMPARISON ── */}
+        {(() => {
+          const now = new Date();
+          const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const thisMonthOrders = orders.filter((o) => new Date(o.createdAt) >= thisMonthStart);
+          const lastMonthOrders = orders.filter((o) => {
+            const d = new Date(o.createdAt);
+            return d >= lastMonthStart && d < thisMonthStart;
+          });
+          const thisRevenue = thisMonthOrders.filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP").reduce((s, o) => s + o.total, 0);
+          const lastRevenue = lastMonthOrders.filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP").reduce((s, o) => s + o.total, 0);
+          const revenueChange = lastRevenue > 0 ? Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100) : null;
+          const ordersChange = lastMonthOrders.length > 0 ? Math.round(((thisMonthOrders.length - lastMonthOrders.length) / lastMonthOrders.length) * 100) : null;
+          const monthNames = isAr
+            ? ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
+            : ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          const thisMonthName = monthNames[now.getMonth()];
+          const lastMonthName = monthNames[(now.getMonth() + 11) % 12];
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <TrendingUp className="h-4 w-4 text-indigo-500" />
+                  {isAr ? "مقارنة الأشهر" : "Month Comparison"}
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{lastMonthName} vs {thisMonthName}</span>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-slate-100 rtl:divide-x-reverse">
+                {/* Last month */}
+                <div className="px-5 py-4">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{lastMonthName}</div>
+                  <div className="text-2xl font-black text-slate-600">{lastMonthOrders.length}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
+                  <div className="mt-2 text-base font-bold text-slate-600">{lastRevenue > 0 ? formatCurrency(lastRevenue, language) : "—"}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
+                </div>
+                {/* This month */}
+                <div className="px-5 py-4">
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-teal-500">{thisMonthName} {isAr ? "(الحالي)" : "(current)"}</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-black text-slate-800">{thisMonthOrders.length}</div>
+                    {ordersChange !== null && (
+                      <span className={`text-xs font-bold ${ordersChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                        {ordersChange >= 0 ? "↑" : "↓"}{Math.abs(ordersChange)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <div className="text-base font-bold text-slate-800">{thisRevenue > 0 ? formatCurrency(thisRevenue, language) : "—"}</div>
+                    {revenueChange !== null && (
+                      <span className={`text-xs font-bold ${revenueChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                        {revenueChange >= 0 ? "↑" : "↓"}{Math.abs(revenueChange)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
+                </div>
+              </div>
+            </div>
           );
         })()}
 
@@ -1875,6 +2021,119 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── D+E. DELIVERY TYPE BREAKDOWN + TOP WILAYAS ── */}
+        {(() => {
+          const homeDelivery = orders.filter((o) => o.deliveryType === "HOME_DELIVERY");
+          const deskPickup = orders.filter((o) => o.deliveryType === "DESK_PICKUP");
+          const homeRevenue = homeDelivery.filter((o) => o.status === "DELIVERED").reduce((s, o) => s + o.total, 0);
+          const deskRevenue = deskPickup.filter((o) => o.status === "PICKED_UP").reduce((s, o) => s + o.total, 0);
+          const totalOrders = orders.length || 1;
+
+          const wilayaMap = new Map<string, number>();
+          orders.forEach((o) => {
+            const w = o.customer?.wilaya;
+            if (!w) return;
+            const name = typeof w === "string"
+              ? w
+              : ((w as { name?: { ar?: string; fr?: string; en?: string } })?.name?.[language as "ar" | "fr" | "en"] ?? String(w));
+            if (name && name !== "undefined" && name !== "null") {
+              wilayaMap.set(name, (wilayaMap.get(name) ?? 0) + 1);
+            }
+          });
+          const topWilayas = [...wilayaMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+          const maxWilaya = topWilayas[0]?.[1] ?? 1;
+
+          return (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* D. Delivery type breakdown */}
+              <div className="surface-card overflow-hidden p-0">
+                <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5 font-bold text-slate-800">
+                  <Truck className="h-4 w-4 text-sky-500" />
+                  {isAr ? "نوع التوصيل" : "Delivery Type"}
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-slate-100 rtl:divide-x-reverse">
+                  {/* Home delivery */}
+                  <div className="flex flex-col gap-2 px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sky-50">
+                        <Truck className="h-5 w-5 text-sky-500" />
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-500">{isAr ? "التوصيل للمنزل" : "Home Delivery"}</div>
+                    </div>
+                    <div className="text-2xl font-black text-sky-700">{homeDelivery.length}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      {Math.round((homeDelivery.length / totalOrders) * 100)}% {isAr ? "من الطلبات" : "of orders"}
+                    </div>
+                    {homeRevenue > 0 && (
+                      <div className="mt-1 rounded-xl bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700">
+                        {formatCurrency(homeRevenue, language)}
+                      </div>
+                    )}
+                  </div>
+                  {/* Desk pickup */}
+                  <div className="flex flex-col gap-2 px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-indigo-50">
+                        <Store className="h-5 w-5 text-indigo-500" />
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-500">{isAr ? "الاستلام من المكتب" : "Desk Pickup"}</div>
+                    </div>
+                    <div className="text-2xl font-black text-indigo-700">{deskPickup.length}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      {Math.round((deskPickup.length / totalOrders) * 100)}% {isAr ? "من الطلبات" : "of orders"}
+                    </div>
+                    {deskRevenue > 0 && (
+                      <div className="mt-1 rounded-xl bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">
+                        {formatCurrency(deskRevenue, language)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div className="border-t border-slate-100 px-5 py-3">
+                  <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="bg-sky-400 transition-all" style={{ width: `${Math.round((homeDelivery.length / totalOrders) * 100)}%` }} />
+                    <div className="bg-indigo-400 transition-all" style={{ width: `${Math.round((deskPickup.length / totalOrders) * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* E. Top wilayas */}
+              <div className="surface-card overflow-hidden p-0">
+                <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5 font-bold text-slate-800">
+                  <MapPin className="h-4 w-4 text-rose-500" />
+                  {isAr ? "أكثر الولايات طلباً" : "Top Wilayas"}
+                </div>
+                {topWilayas.length === 0 ? (
+                  <div className="px-5 py-6 text-center text-sm text-slate-400">{isAr ? "لا توجد بيانات" : "No data yet"}</div>
+                ) : (
+                  <div className="divide-y divide-slate-50">
+                    {topWilayas.map(([name, count], i) => (
+                      <div key={name} className="flex items-center gap-3 px-5 py-2.5">
+                        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-black ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-orange-300 text-white" : "bg-slate-100 text-slate-500"}`}>
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="truncate text-sm font-semibold text-slate-800">{name}</span>
+                            <span className="ms-2 shrink-0 text-xs font-bold text-slate-500">{count} {isAr ? "طلب" : "orders"}</span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-teal-400 to-teal-500 transition-all"
+                              style={{ width: `${Math.round((count / maxWilaya) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── INVENTORY STATS ── */}
         {(() => {
           const isAr = language === "ar";
@@ -1995,6 +2254,75 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── F. PRODUCTS HEALTH CARD ── */}
+        {(() => {
+          const activeProducts = products.filter((p) => p.status === "ACTIVE").length;
+          const draftProducts = products.filter((p) => p.status === "DRAFT").length;
+          const outOfStockActive = products.filter((p) => p.status === "ACTIVE" && p.stock === 0).length;
+          const noCostActive = products.filter((p) => p.status === "ACTIVE" && !p.purchasePrice).length;
+          const cells = [
+            { label: isAr ? "منتجات نشطة" : "Active", value: activeProducts, tone: "bg-emerald-50 border-emerald-200", textColor: "text-emerald-700", dotColor: "bg-emerald-500" },
+            { label: isAr ? "مسودة" : "Draft", value: draftProducts, tone: "bg-amber-50 border-amber-200", textColor: "text-amber-700", dotColor: "bg-amber-400" },
+            { label: isAr ? "نفد المخزون" : "Out of Stock", value: outOfStockActive, tone: outOfStockActive > 0 ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-200", textColor: outOfStockActive > 0 ? "text-rose-700" : "text-slate-400", dotColor: outOfStockActive > 0 ? "bg-rose-500" : "bg-slate-300" },
+            { label: isAr ? "بدون سعر تكلفة" : "No Cost Price", value: noCostActive, tone: "bg-slate-50 border-slate-200", textColor: noCostActive > 0 ? "text-slate-700" : "text-slate-400", dotColor: noCostActive > 0 ? "bg-slate-400" : "bg-slate-200" },
+          ];
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Package className="h-4 w-4 text-teal-600" />
+                  {isAr ? "صحة المنتجات" : "Products Health"}
+                </div>
+                <Link to="/gestion/products" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "إدارة" : "Manage"}</Link>
+              </div>
+              <div className="grid grid-cols-2 gap-px bg-slate-100 sm:grid-cols-4">
+                {cells.map((cell) => (
+                  <div key={cell.label} className={`flex flex-col gap-1.5 px-4 py-4 ${cell.tone} border`}>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-2 w-2 rounded-full ${cell.dotColor} shrink-0`} />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{cell.label}</span>
+                    </div>
+                    <div className={`text-2xl font-black ${cell.textColor}`}>{cell.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── G. TOP CUSTOMERS ── */}
+        {customers.length > 0 && (() => {
+          const topCustomers = [...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5);
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Crown className="h-4 w-4 text-amber-500" />
+                  {isAr ? "أفضل العملاء" : "Top Customers"}
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{isAr ? "حسب الإنفاق" : "By spend"}</span>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {topCustomers.map((c, i) => (
+                  <div key={c._id} className="flex items-center gap-3 px-5 py-3">
+                    <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-black ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-orange-300 text-white" : "bg-slate-100 text-slate-500"}`}>
+                      {i < 3 ? ["1", "2", "3"][i] : i + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-900">{c.fullName || c.phone}</div>
+                      <div className="text-[11px] text-slate-400" dir="ltr">{c.phone}</div>
+                    </div>
+                    <div className="shrink-0 text-end">
+                      <div className="text-sm font-black text-emerald-700">{formatCurrency(c.totalSpent, language)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400">{c.orderCount} {isAr ? "طلب" : "orders"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── AFFILIATE PROGRAM SUMMARY ── */}
         {affiliates.length > 0 && (() => {
           const activeAff = affiliates.filter((a) => a.status === "ACTIVE").length;
@@ -2031,32 +2359,92 @@ export function AdminDashboardPage() {
           );
         })()}
 
-        {/* ── ABANDONED ORDERS DETAIL ── */}
-        {stats.abandonedOrderDetails.length > 0 && (
-          <div className="surface-card overflow-hidden p-0">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-              <div className="flex items-center gap-2 font-bold text-rose-800">
-                <Phone className="h-4 w-4" />
-                {isAr ? `طلبات تنتظر مكالمتك (${stats.abandonedOrders})` : `Orders waiting your call (${stats.abandonedOrders})`}
-              </div>
-              <Link to="/gestion/orders" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "عرض الكل" : "View all"}</Link>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {stats.abandonedOrderDetails.map((o) => (
-                <div key={o._id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-950">{o.customerName}</div>
-                    <div className="mt-0.5 text-xs text-slate-400" dir="ltr">{o.phone}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900">{formatCurrency(o.total, language)}</div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-rose-500">{isAr ? `منذ ${o.hoursAgo} ساعة` : `${o.hoursAgo}h ago`}</div>
-                  </div>
+        {/* ── I. PROMO CODE PERFORMANCE ── */}
+        {promos.some((p) => p.usedCount > 0) && (() => {
+          const topPromos = [...promos]
+            .filter((p) => p.usedCount > 0)
+            .sort((a, b) => b.usedCount - a.usedCount)
+            .slice(0, 5);
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <TicketPercent className="h-4 w-4 text-amber-500" />
+                  {isAr ? "أداء كودات الخصم" : "Promo Code Performance"}
                 </div>
-              ))}
+                <Link to="/gestion/promo-codes" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "إدارة" : "Manage"}</Link>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {topPromos.map((promo, i) => (
+                  <div key={promo._id ?? promo.code} className="flex items-center gap-3 px-5 py-2.5">
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-black ${i === 0 ? "bg-amber-400 text-white" : "bg-slate-100 text-slate-500"}`}>
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-sm font-bold text-slate-800" dir="ltr">{promo.code}</span>
+                    </div>
+                    <div className="shrink-0 text-end">
+                      <div className="text-sm font-black text-amber-700">{promo.usedCount} {isAr ? "استخدام" : "uses"}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400">
+                        {promo.type === "PERCENTAGE" ? `${promo.value}%` : promo.type === "FIXED" ? formatCurrency(promo.value, language) : promo.type}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* ── ABANDONED ORDERS DETAIL + WHATSAPP ── */}
+        {stats.abandonedOrderDetails.length > 0 && (() => {
+          const normalizePhone = (phone: string): string => {
+            if (!phone) return "";
+            const cleaned = phone.replace(/\s+/g, "");
+            if (cleaned.startsWith("+213")) return cleaned.slice(1);
+            if (cleaned.startsWith("213")) return cleaned;
+            if (cleaned.startsWith("0")) return "213" + cleaned.slice(1);
+            return cleaned;
+          };
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-rose-800">
+                  <Phone className="h-4 w-4" />
+                  {isAr ? `طلبات تنتظر مكالمتك (${stats.abandonedOrders})` : `Orders waiting your call (${stats.abandonedOrders})`}
+                </div>
+                <Link to="/gestion/orders" className="text-xs font-semibold text-teal-700 hover:underline">{isAr ? "عرض الكل" : "View all"}</Link>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {stats.abandonedOrderDetails.map((o) => (
+                  <div key={o._id} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-950 truncate">{o.customerName}</div>
+                      <div className="mt-0.5 text-xs text-slate-400" dir="ltr">{o.phone}</div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <div className="text-end">
+                        <div className="text-sm font-bold text-slate-900">{formatCurrency(o.total, language)}</div>
+                        <div className="mt-0.5 text-[11px] font-semibold text-rose-500">{isAr ? `منذ ${o.hoursAgo} ساعة` : `${o.hoursAgo}h ago`}</div>
+                      </div>
+                      {o.phone && (
+                        <a
+                          href={`https://wa.me/${normalizePhone(o.phone)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:bg-emerald-600 active:scale-95"
+                          title={isAr ? "واتساب" : "WhatsApp"}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── BOTTOM GRID ── */}
         <div className="grid gap-5 xl:grid-cols-3">
