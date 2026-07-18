@@ -509,6 +509,8 @@ export function AdminDashboardPage() {
   const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState("all");
   const [couponStatusFilter, setCouponStatusFilter] = useState("PENDING");
   const [subAdminSearch, setSubAdminSearch] = useState("");
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [addImageUrl, setAddImageUrl] = useState("");
 
   const role = adminSession?.user.role;
   const userPermissions = adminSession?.user.permissions;
@@ -1119,8 +1121,6 @@ export function AdminDashboardPage() {
     });
   };
 
-  const [bulkUploading, setBulkUploading] = useState(false);
-  const [addImageUrl, setAddImageUrl] = useState("");
   const commitAddImageUrl = () => {
     const url = addImageUrl.trim();
     if (!url) return;
