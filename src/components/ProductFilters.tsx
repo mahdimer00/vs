@@ -204,15 +204,40 @@ export function ProductFilters({
         </div>
       )}
 
-      {/* Mobile toggle */}
-      <button type="button" onClick={() => setOpen((p) => !p)}
-        className="flex w-full items-center justify-between gap-3 p-4 sm:p-5 md:hidden" aria-expanded={open}>
-        <div className="flex items-center gap-2.5">
-          <SlidersHorizontal className="h-4 w-4 text-teal-600" />
-          <span className="text-sm font-semibold text-slate-900">{translate(language, "filtersTitle")}</span>
-          {active > 0 && <span className="grid h-5 w-5 place-items-center rounded-full bg-teal-600 text-[11px] font-bold text-white">{active}</span>}
+      {/* Mobile toggle — prominent CTA */}
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-5 md:hidden transition ${
+          active > 0
+            ? "bg-teal-600"
+            : "bg-gradient-to-l from-teal-600 to-emerald-600"
+        }`}
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+            <SlidersHorizontal className="h-4 w-4 text-white" />
+          </div>
+          <div className="text-start">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-white">{translate(language, "filtersTitle")}</span>
+              {active > 0 && (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-white px-1 text-[11px] font-extrabold text-teal-700">
+                  {active}
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] font-medium text-teal-100">
+              {active > 0
+                ? (isAr ? `${active} فلتر مفعّل — اضغط للتعديل` : `${active} filter${active > 1 ? "s" : ""} active — tap to edit`)
+                : (isAr ? "فرّز بالسعر · المعالج · الشاشة · الماركة" : "Filter by price · CPU · screen · brand")}
+            </div>
+          </div>
         </div>
-        {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${open ? "bg-white/20" : "bg-white/15 animate-bounce"}`}>
+          {open ? <ChevronUp className="h-4 w-4 text-white" /> : <ChevronDown className="h-4 w-4 text-white" />}
+        </div>
       </button>
 
       {/* Filters body */}
