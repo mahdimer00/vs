@@ -1,9 +1,87 @@
-import { Heart, ShieldCheck, Zap } from "lucide-react";
+import { Heart, Monitor, ShieldCheck, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useApp } from "@/hooks/useApp";
 import type { Locale, Product } from "@/types";
 import { formatCurrency, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
+
+function extractLaptopSpecs(product: Product): { cpu?: string; ram?: string; storage?: string; screen?: string } | null {
+  const nameText = `${product.name.ar || ""} ${product.name.fr || ""} ${product.name.en || ""}`;
+  const specs = (product.specifications as Record<string, string> | undefined) ?? {};
+
+  // Pull screen from specs if present (handles 'الشاشة', 'Screen', 'Ecran', etc.)
+  const specScreenEntry = Object.entries(specs).find(([k]) => /شاشة|screen|ecran|inch|بوصة/i.test(k));
+  const specScreenText = specScreenEntry ? specScreenEntry[1] : "";
+
+  // Pull CPU from specs if present
+  const specCpuEntry = Object.entries(specs).find(([k]) => /معالج|cpu|processor/i.test(k));
+  const specCpuText = specCpuEntry ? specCpuEntry[1] : "";
+
+  // Pull RAM from specs
+  const specRamEntry = Object.entries(specs).find(([k]) => /رام|ram|mémoire|memory/i.test(k));
+  const specRamText = specRamEntry ? specRamEntry[1] : "";
+
+  // Pull storage from specs
+  const specStorageEntry = Object.entries(specs).find(([k]) => /تخزين|ssd|hdd|storage|disque/i.test(k));
+  const specStorageText = specStorageEntry ? specStorageEntry[1] : "";
+
+  // Full search text: name + all spec values
+  const specValues = Object.values(specs).join(" ");
+  const fullText = `${nameText} ${specValues}`;
+
+  // ── CPU extraction ──
+  let cpu: string | undefined;
+  const cpuSourceText = specCpuText || nameText;
+  const cpuMatch = cpuSourceText.match(/Ryzen\s*[3579](?:\s*Pro)?/i)
+    || cpuSourceText.match(/Core\s*(i[3579])/i)
+    || cpuSourceText.match(/\b(i[3579])\b/i);
+  if (cpuMatch) {
+    cpu = cpuMatch[0].replace(/Core\s*/i, "").trim();
+    // Extract generation hint
+    const genMatch = cpuSourceText.match(/(\d+)(?:e?m?e|th|ème|st|nd|rd)\s*(?:gén?|gen)?/i);
+    if (genMatch) cpu += ` ${genMatch[1]}ᵉ`;
+  }
+
+  // ── RAM extraction ──
+  let ram: string | undefined;
+  const ramSourceText = specRamText || fullText;
+  const ramMatch = ramSourceText.match(/(\d+)\s*(?:GB|Go)\s*(?:RAM|DDR|LPDDR)/i)
+    || ramSourceText.match(/RAM\s*[:\s]*(\d+)/i)
+    || ramSourceText.match(/(\d+)\s*(?:GB|Go)/i)
+    || nameText.match(/(\d+)\/\d+/);
+  if (ramMatch) {
+    const val = parseInt(ramMatch[1]);
+    if (val >= 2 && val <= 128) ram = `${val} GB`;
+  }
+
+  // ── Storage extraction ──
+  let storage: string | undefined;
+  const storageSourceText = specStorageText || fullText;
+  // Prefer NVMe/SSD/HDD amounts; avoid picking RAM value
+  const storageMatch = storageSourceText.match(/(\d+)\s*(?:GB|Go)\s*(?:NVMe|SSD|HDD)/i)
+    || storageSourceText.match(/(?:NVMe|SSD|HDD)\s*(\d+)\s*(?:GB|Go|TB)/i)
+    || nameText.match(/\d+\/(\d+)\s*(?:nvme|ssd|nvm|gb|go)/i)
+    || nameText.match(/(?:SSD|NVMe|HDD)\s*(\d+)/i);
+  if (storageMatch) {
+    const val = parseInt(storageMatch[1]);
+    if (val >= 32 && val <= 4096) {
+      storage = val >= 1000 ? `${val / 1000} TB` : `${val} GB`;
+    }
+  }
+
+  // ── Screen extraction ──
+  let screen: string | undefined;
+  const screenSourceText = specScreenText || nameText;
+  const screenMatch = screenSourceText.match(/(\d+\.?\d*)\s*(?:["''"’]|inch|pouces|بوصة)/i)
+    || screenSourceText.match(/(\d+\.?\d*)[""']/i);
+  if (screenMatch) {
+    const val = parseFloat(screenMatch[1]);
+    if (val >= 10 && val <= 22) screen = `${val}"`;
+  }
+
+  if (!cpu && !ram && !storage && !screen) return null;
+  return { cpu, ram, storage, screen };
+}
 
 export function ProductCard({ product, language }: { product: Product; language: Locale }) {
   const { isWishlisted, toggleWishlist } = useApp();
@@ -14,8 +92,9 @@ export function ProductCard({ product, language }: { product: Product; language:
   const wishlisted = isWishlisted(product._id);
   const soldOut = product.stock <= 0 || !!product.isSoldOut;
   const lowStock = !soldOut && product.stock > 0 && product.stock <= 5;
-
   const isFeatured = product.isFeatured && !soldOut;
+
+  const laptopSpecs = extractLaptopSpecs(product);
 
   return (
     <article className={`group relative flex flex-col overflow-hidden rounded-[1.6rem] border-2 transition duration-200 hover:-translate-y-0.5 ${
@@ -45,6 +124,14 @@ export function ProductCard({ product, language }: { product: Product; language:
             className={`h-full w-full object-contain p-3 transition duration-500 group-hover:scale-105 ${soldOut ? "opacity-40 grayscale" : ""}`}
           />
 
+          {/* Screen size badge — show over image if we have it */}
+          {laptopSpecs?.screen && !soldOut && (
+            <span className="absolute bottom-2.5 end-2.5 flex items-center gap-1 rounded-full border border-slate-200 bg-white/95 px-2 py-0.5 text-[10px] font-bold text-slate-700 shadow-sm backdrop-blur-sm">
+              <Monitor className="h-3 w-3 text-slate-500" />
+              {laptopSpecs.screen}
+            </span>
+          )}
+
           {/* Sold out overlay */}
           {soldOut ? (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -70,7 +157,7 @@ export function ProductCard({ product, language }: { product: Product; language:
           ) : null)}
 
           {/* European origin badge */}
-          {product.isEuropean && !soldOut && (
+          {product.isEuropean && !soldOut && !laptopSpecs?.screen && (
             <span className="absolute bottom-2.5 start-2.5 flex items-center gap-1 rounded-full border border-blue-200 bg-white/95 px-2 py-0.5 text-[10px] font-bold text-blue-700 shadow-sm backdrop-blur-sm">
               🇪🇺 {language === "ar" ? "علامة أوروبية" : language === "fr" ? "Origine UE" : "EU Origin"}
             </span>
@@ -90,7 +177,7 @@ export function ProductCard({ product, language }: { product: Product; language:
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 flex-col gap-2.5 p-3.5 sm:p-4">
+        <div className="flex flex-1 flex-col gap-2 p-3.5 sm:p-4">
           {/* Brand */}
           <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{brandName}</div>
 
@@ -98,6 +185,33 @@ export function ProductCard({ product, language }: { product: Product; language:
           <h3 className="line-clamp-2 text-sm font-bold leading-snug text-slate-950 sm:text-base">
             {getLocalizedText(product.name, language)}
           </h3>
+
+          {/* Laptop spec chips */}
+          {laptopSpecs && (
+            <div className="flex flex-wrap gap-1">
+              {laptopSpecs.cpu && (
+                <span className="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-200">
+                  {laptopSpecs.cpu}
+                </span>
+              )}
+              {laptopSpecs.ram && (
+                <span className="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 ring-1 ring-sky-200">
+                  {laptopSpecs.ram}
+                </span>
+              )}
+              {laptopSpecs.storage && (
+                <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 ring-1 ring-slate-200">
+                  {laptopSpecs.storage}
+                </span>
+              )}
+              {laptopSpecs.screen && (
+                <span className="inline-flex items-center gap-0.5 rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 ring-1 ring-violet-200">
+                  <Monitor className="h-2.5 w-2.5" />
+                  {laptopSpecs.screen}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Real stock urgency — no fake numbers */}
           {product.stock === 1 ? (
@@ -118,7 +232,7 @@ export function ProductCard({ product, language }: { product: Product; language:
           <div className="flex-1" />
 
           {/* Price */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-baseline gap-2">
             <span className={`text-lg font-extrabold sm:text-xl ${soldOut ? "text-slate-400" : "text-slate-950"}`}>
               {formatCurrency(price, language)}
             </span>

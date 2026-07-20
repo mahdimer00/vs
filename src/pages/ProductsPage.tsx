@@ -13,6 +13,45 @@ import { getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { ttqSearch } from "@/utils/tiktok";
 
+const CPU_PATTERNS: Record<string, RegExp> = {
+  i3: /\bi3\b/i,
+  i5: /\bi5\b/i,
+  i7: /\bi7\b/i,
+  i9: /\bi9\b/i,
+  ryzen5: /ryzen\s*5/i,
+  ryzen7: /ryzen\s*7/i,
+};
+
+const SCREEN_PATTERNS: Record<string, RegExp> = {
+  "13": /1[23]\.?[0-9]?["'''"pouces\s]|1[23]\s*inch/i,
+  "14": /14\.?[0-9]?["'''"pouces\s]|14\s*inch|14\s*بوصة/i,
+  "15": /15\.?[0-9]?["'''"pouces\s]|15\s*inch|15\s*بوصة/i,
+  "17": /17\.?[0-9]?["'''"pouces\s]|17\s*inch|17\s*بوصة/i,
+};
+
+function matchesLaptopFilters(product: Product, filters: ProductFilterState): boolean {
+  const searchText = `${product.name.ar} ${product.name.fr} ${product.name.en} ${Object.values((product.specifications as Record<string,string> | undefined) ?? {}).join(" ")}`.toLowerCase();
+
+  if (filters.cpu !== "all") {
+    const re = CPU_PATTERNS[filters.cpu];
+    if (re && !re.test(searchText)) return false;
+  }
+
+  if (filters.ram !== "all") {
+    const ramRe = new RegExp(`\\b${filters.ram}\\s*(?:gb|go)\\b`, "i");
+    if (!ramRe.test(searchText)) return false;
+  }
+
+  if (filters.screen !== "all") {
+    const re = SCREEN_PATTERNS[filters.screen];
+    if (re && !re.test(searchText)) return false;
+  }
+
+  return true;
+}
+
+const LAPTOP_CATEGORY_SLUGS = new Set(["Laptop", "laptop", "pcs", "PC", "ordinateurs"]);
+
 export function ProductsPage() {
   const { language } = useApp();
   const [searchParams] = useSearchParams();
@@ -48,6 +87,8 @@ export function ProductsPage() {
     return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
   }, [filters.search]);
 
+  const showLaptopFilters = LAPTOP_CATEGORY_SLUGS.has(filters.category);
+
   const filtered = useMemo(() => {
     const list = products.filter((product) => {
       if (product.isSoldOut) return false;
@@ -55,15 +96,22 @@ export function ProductsPage() {
       const productBrand = typeof product.brand === "string" ? product.brand : product.brand.name;
       const localizedName = `${product.name.ar} ${product.name.fr} ${product.name.en} ${productBrand}`.toLowerCase();
       const price = product.discountPrice ?? product.basePrice;
+
       if (filters.inStockOnly && product.stock <= 0) return false;
       if (filters.onSaleOnly && !product.discountPrice) return false;
       if (filters.condition !== "all" && product.condition !== filters.condition) return false;
-      return (
-        (filters.category === "all" || productCategory === filters.category) &&
-        (filters.brand === "all" || productBrand === filters.brand) &&
-        localizedName.includes(filters.search.toLowerCase()) &&
-        price <= filters.maxPrice
-      );
+      if (filters.category !== "all" && productCategory !== filters.category) return false;
+      if (filters.brand !== "all" && productBrand !== filters.brand) return false;
+      if (!localizedName.includes(filters.search.toLowerCase())) return false;
+      if (price > filters.maxPrice) return false;
+      if (price < filters.minPrice) return false;
+
+      // Laptop-specific filters
+      if (showLaptopFilters && (filters.cpu !== "all" || filters.ram !== "all" || filters.screen !== "all")) {
+        if (!matchesLaptopFilters(product, filters)) return false;
+      }
+
+      return true;
     });
 
     // Apply sort
@@ -74,7 +122,7 @@ export function ProductsPage() {
       case "name": return [...list].sort((a, b) => (a.name.ar || a.name.fr || "").localeCompare(b.name.ar || b.name.fr || ""));
       default: return list;
     }
-  }, [filters, products]);
+  }, [filters, products, showLaptopFilters]);
 
   const soldOutProducts = useMemo(() => products.filter((p) => p.isSoldOut), [products]);
 
@@ -118,6 +166,7 @@ export function ProductsPage() {
         state={filters}
         language={language}
         onChange={setFilters}
+        showLaptopFilters={showLaptopFilters}
       />
 
       {filtered.length === 0 ? (
