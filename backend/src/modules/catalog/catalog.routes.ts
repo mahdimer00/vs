@@ -167,7 +167,7 @@ router.get(
   "/settings",
   asyncHandler(async (_req, res) => {
     const settings = await WebsiteSettingModel.findOne()
-      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode promoCodeEnabled directOrderMode whatsappFloat otpEnabled otpWhatsappEnabled otpEmailEnabled couponCampaignEnabled couponDiscountType couponDiscountValue couponExpiryDays couponMinOrder couponConditionText couponSocialLinks")
+      .select("storeName logo phone whatsapp socialLinks defaultLanguage currency maintenanceMode promoCodeEnabled directOrderMode whatsappFloat otpEnabled otpWhatsappEnabled otpEmailEnabled couponCampaignEnabled couponDiscountType couponDiscountValue couponExpiryDays couponMinOrder couponConditionText couponSocialLinks commissionTiers")
       .lean();
     return res.json(settings);
   }),

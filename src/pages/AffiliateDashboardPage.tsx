@@ -9,7 +9,8 @@ import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
 import { affiliateService } from "@/services/affiliate.service";
 import { productService } from "@/services/product.service";
-import type { Affiliate, AffiliateRecentVisitor, Commission, Order, Product, PromoCode, WithdrawalRequest } from "@/types";
+import { settingsService } from "@/services/settings.service";
+import type { Affiliate, AffiliateRecentVisitor, Commission, CommissionTier, Order, Product, PromoCode, WithdrawalRequest } from "@/types";
 import { ApiError } from "@/services/apiClient";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
 import { translate, translateStatus, type TranslationKey } from "@/utils/i18n";
@@ -52,6 +53,12 @@ export function AffiliateDashboardPage() {
   const [team, setTeam] = useState<Affiliate[]>([]);
   const [profileForm, setProfileForm] = useState({ name: "", phone: "", currentPassword: "", newPassword: "" });
   const [profileSaving, setProfileSaving] = useState(false);
+  const [commissionTiers, setCommissionTiers] = useState<CommissionTier[]>([
+    { maxPrice: 23500, amount: 500 },
+    { maxPrice: 35000, amount: 750 },
+    { maxPrice: 45000, amount: 1000 },
+    { maxPrice: null, amount: 1500 },
+  ]);
 
   useEffect(() => {
     if (!token) {
@@ -68,14 +75,18 @@ export function AffiliateDashboardPage() {
       productService.getProducts(),
       affiliateService.getWithdrawals(token),
       affiliateService.getTeam(token),
+      settingsService.getSettings(),
     ])
-      .then(([dashboardData, orderData, commissionData, productData, withdrawalData, teamData]) => {
+      .then(([dashboardData, orderData, commissionData, productData, withdrawalData, teamData, siteSettings]) => {
         setDashboard(dashboardData);
         setOrders(orderData);
         setCommissions(commissionData);
         setProducts(productData.filter((product) => product.affiliateEnabled));
         setWithdrawals(withdrawalData);
         setTeam(teamData);
+        if (siteSettings?.commissionTiers && siteSettings.commissionTiers.length > 0) {
+          setCommissionTiers(siteSettings.commissionTiers);
+        }
       })
       .catch((loadError) => {
         setError(loadError instanceof Error ? loadError.message : "Unable to load affiliate data");
@@ -93,6 +104,13 @@ export function AffiliateDashboardPage() {
     { href: "/affiliate/team", label: translate(language, "affiliateTeamTitle") },
     { href: "/affiliate/profile", label: translate(language, "affiliateProfile") },
   ];
+
+  const tierCommissionForPrice = (price: number): number => {
+    for (const tier of commissionTiers) {
+      if (tier.maxPrice === null || price < tier.maxPrice) return tier.amount;
+    }
+    return commissionTiers[commissionTiers.length - 1]?.amount ?? 0;
+  };
 
   const copyProductLink = async (slug: string) => {
     const code = dashboard?.affiliate.referralCode;
@@ -257,9 +275,7 @@ export function AffiliateDashboardPage() {
                         <div className="line-clamp-2 text-sm font-semibold text-slate-950">{getLocalizedText(product.name, language)}</div>
                         <div className="mt-1 text-sm text-slate-500">{formatCurrency(product.discountPrice ?? product.basePrice, language)}</div>
                         <div className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                          {product.commissionType === "PERCENTAGE"
-                            ? `${product.commissionValue}% ${translate(language, "affiliateCommission")}`
-                            : `${formatCurrency(product.commissionValue, language)} ${translate(language, "affiliateCommission")}`}
+                          {`${formatCurrency(tierCommissionForPrice(product.discountPrice ?? product.basePrice), language)} ${translate(language, "affiliateCommission")}`}
                         </div>
                       </div>
                     </div>
