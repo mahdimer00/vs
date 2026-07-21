@@ -20,4 +20,25 @@ export const aiService = {
       body: JSON.stringify(payload),
     });
   },
+  suggestPrice(token: string, payload: { name: string; category?: string; condition?: string; specs?: Record<string, string> }) {
+    return apiRequest<{ suggested: number; min: number; max: number; note_ar: string } | { error: string }>("/api/ai/suggest-price", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  dashboardInsights(token: string, payload: { todayOrders: number; weekOrders: number; revenue: number; deliveredOrders: number; pendingOrders: number; lowStockCount: number; topProducts?: Array<{ name: string; sold: number }> }) {
+    return apiRequest<{ insight: string } | { error: string }>("/api/ai/dashboard-insights", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  bulkDescribe(token: string, payload: { productIds: string[] }) {
+    return apiRequest<{ results: Array<{ id: string; name: string; ok: boolean }> }>("/api/ai/bulk-describe", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
 };

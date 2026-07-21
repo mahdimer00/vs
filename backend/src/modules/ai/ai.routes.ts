@@ -144,6 +144,153 @@ router.post(
   }),
 );
 
+// Admin: suggest price in DZD based on product specs
+router.post(
+  "/ai/suggest-price",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const input = z
+      .object({
+        name: z.string().min(1),
+        category: z.string().optional(),
+        condition: z.string().optional(),
+        specs: z.record(z.string(), z.string()).optional(),
+      })
+      .parse(req.body);
+
+    const specsText = input.specs
+      ? Object.entries(input.specs).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(" | ")
+      : "";
+    const condText = input.condition === "USED" ? "used/refurbished" : "new";
+
+    const prompt = [
+      {
+        role: "system" as const,
+        content:
+          "You are a pricing expert for an Algerian electronics reseller. Prices are in DZD (Algerian Dinar). Current exchange: 1 USD ≈ 135 DZD. Consider local market conditions and typical Algerian e-commerce prices. RESPOND ONLY WITH VALID JSON — no markdown, no extra text.",
+      },
+      {
+        role: "user" as const,
+        content: `Suggest a retail price in DZD for: ${input.name}. Condition: ${condText}. Category: ${input.category || "electronics"}. Specs: ${specsText || "not specified"}.\n\nRespond with this exact JSON:\n{"suggested":85000,"min":75000,"max":95000,"note_ar":"سبب التسعير في جملة واحدة"}`,
+      },
+    ];
+
+    try {
+      const raw = await askOllama(prompt);
+      const jsonMatch = raw.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) throw new Error("No JSON in response");
+      const parsed = JSON.parse(jsonMatch[0]) as { suggested?: number; min?: number; max?: number; note_ar?: string };
+      return res.json({
+        suggested: parsed.suggested ?? 0,
+        min: parsed.min ?? 0,
+        max: parsed.max ?? 0,
+        note_ar: parsed.note_ar ?? "",
+      });
+    } catch {
+      return res.status(503).json({ error: "AI unavailable" });
+    }
+  }),
+);
+
+// Admin: AI insights summary from dashboard stats
+router.post(
+  "/ai/dashboard-insights",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const input = z
+      .object({
+        todayOrders: z.number(),
+        weekOrders: z.number(),
+        revenue: z.number(),
+        deliveredOrders: z.number(),
+        pendingOrders: z.number(),
+        lowStockCount: z.number(),
+        topProducts: z.array(z.object({ name: z.string(), sold: z.number() })).optional(),
+      })
+      .parse(req.body);
+
+    const topStr = input.topProducts?.slice(0, 3).map((p) => `${p.name} (${p.sold} sold)`).join("، ") || "";
+
+    const prompt = [
+      {
+        role: "system" as const,
+        content:
+          "أنت مستشار أعمال لمتجر إلكتروني جزائري. اكتب تحليلاً موجزاً وعملياً. RESPOND ONLY WITH VALID JSON — no markdown, no extra text.",
+      },
+      {
+        role: "user" as const,
+        content: `Stats: today ${input.todayOrders} orders, this week ${input.weekOrders}, total revenue ${input.revenue} DZD, delivered ${input.deliveredOrders}, pending ${input.pendingOrders}, low stock items ${input.lowStockCount}. Top products: ${topStr || "none"}.\n\nRespond with this exact JSON:\n{"insight":"paragraph in Arabic (3-5 sentences): summarize performance, highlight positives, warn about risks, give 1 concrete action tip"}`,
+      },
+    ];
+
+    try {
+      const raw = await askOllama(prompt);
+      const jsonMatch = raw.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) throw new Error("No JSON in response");
+      const parsed = JSON.parse(jsonMatch[0]) as { insight?: string };
+      return res.json({ insight: parsed.insight ?? raw.slice(0, 500) });
+    } catch {
+      return res.status(503).json({ error: "AI unavailable" });
+    }
+  }),
+);
+
+// Admin: bulk generate descriptions for products missing them
+router.post(
+  "/ai/bulk-describe",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const input = z
+      .object({ productIds: z.array(z.string()).min(1).max(20) })
+      .parse(req.body);
+
+    const products = await ProductModel.find({ _id: { $in: input.productIds } }).lean();
+    const results: Array<{ id: string; name: string; ok: boolean }> = [];
+
+    for (const product of products) {
+      const name = product.name.ar || product.name.fr || product.name.en || "";
+      const specsText = product.specifications
+        ? Object.entries(product.specifications as Record<string, string>)
+            .filter(([, v]) => v)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(" | ")
+        : "";
+      const condText = product.condition === "USED" ? "مستعمل بحالة ممتازة" : "جديد";
+
+      const prompt = [
+        {
+          role: "system" as const,
+          content:
+            "You are a product copywriter for Visa Store Algeria. RESPOND ONLY WITH VALID JSON — no markdown fences, no extra words.",
+        },
+        {
+          role: "user" as const,
+          content: `Write product descriptions for: ${name}. Condition: ${condText}. Specs: ${specsText || "not specified"}.\nRespond:\n{"ar":"2-3 sentences in Arabic","fr":"2-3 sentences in French","en":"2-3 sentences in English"}`,
+        },
+      ];
+
+      try {
+        const raw = await askOllama(prompt);
+        const jsonMatch = raw.match(/\{[\s\S]*?\}/);
+        if (!jsonMatch) throw new Error("no json");
+        const parsed = JSON.parse(jsonMatch[0]) as { ar?: string; fr?: string; en?: string };
+        await ProductModel.findByIdAndUpdate(product._id, {
+          $set: {
+            "description.ar": parsed.ar || "",
+            "description.fr": parsed.fr || "",
+            "description.en": parsed.en || "",
+          },
+        });
+        results.push({ id: String(product._id), name, ok: true });
+      } catch {
+        results.push({ id: String(product._id), name, ok: false });
+      }
+    }
+
+    return res.json({ results });
+  }),
+);
+
 // Admin: generate product descriptions from specs
 router.post(
   "/ai/generate-description",
