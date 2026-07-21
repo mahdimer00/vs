@@ -139,7 +139,7 @@ router.post(
         name: z.string().min(1),
         category: z.string().optional(),
         condition: z.string().optional(),
-        specs: z.record(z.string()).optional(),
+        specs: z.record(z.string(), z.string()).optional(),
       })
       .parse(req.body);
 
