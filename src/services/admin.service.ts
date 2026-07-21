@@ -201,6 +201,12 @@ export const adminService = {
   getCommissions(token: string) {
     return apiRequest<Commission[]>("/api/admin/commissions", { token });
   },
+  approveCommission(token: string, id: string) {
+    return apiRequest<Commission>(`/api/admin/commissions/${id}/approve`, {
+      method: "PATCH",
+      token,
+    });
+  },
   markCommissionPaid(token: string, id: string) {
     return apiRequest<Commission>(`/api/admin/commissions/${id}/pay`, {
       method: "PATCH",

@@ -239,6 +239,11 @@ export interface AdminNotifications {
 
 export type AffiliateLevelSettings = Record<AffiliateLevel, { commissionRate: number; referralBonus: number }>;
 
+export interface CommissionTier {
+  maxPrice: number | null;
+  amount: number;
+}
+
 export interface WebsiteSetting {
   _id?: string;
   storeName: string;
@@ -267,6 +272,7 @@ export interface WebsiteSetting {
   couponConditionText?: string;
   couponSocialLinks?: Record<string, string>;
   affiliateLevels?: AffiliateLevelSettings;
+  commissionTiers?: CommissionTier[];
 }
 
 export interface Banner {

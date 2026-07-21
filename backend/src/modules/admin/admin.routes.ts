@@ -244,6 +244,21 @@ router.get("/admin/commissions", authMiddleware, permissionMiddleware("commissio
       .lean(),
   );
 }));
+router.patch("/admin/commissions/:id/approve", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (req, res) => {
+  const commission = await CommissionModel.findById(String(req.params.id)).populate("affiliate", "-passwordHash");
+  if (!commission) return res.status(404).json({ message: "Commission not found" });
+  if (commission.status !== "PENDING") return res.status(400).json({ message: "Only PENDING commissions can be approved" });
+  commission.status = "APPROVED";
+  commission.approvedAt = new Date();
+  await commission.save();
+  const affiliate = await AffiliateModel.findById(commission.affiliate);
+  if (affiliate) {
+    affiliate.balanceApproved += commission.amount;
+    await affiliate.save();
+  }
+  return res.json(commission);
+}));
+
 router.patch("/admin/commissions/:id/pay", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (req, res) => {
   const commission = await CommissionModel.findById(String(req.params.id)).populate("affiliate", "-passwordHash");
   if (!commission) {
@@ -291,6 +306,9 @@ const websiteSettingsSchema = z.object({
     z.string().max(20),
     z.object({ commissionRate: z.number().min(0).max(100), referralBonus: z.number().min(0) }),
   ).optional(),
+  commissionTiers: z.array(
+    z.object({ maxPrice: z.number().min(0).nullable(), amount: z.number().min(0) }),
+  ).min(1).max(10).optional(),
 });
 
 router.get("/admin/settings", authMiddleware, permissionMiddleware("settings"), asyncHandler(async (_req, res) => {

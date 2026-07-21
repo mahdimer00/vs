@@ -3,35 +3,38 @@ import { ProductModel, WebsiteSettingModel } from "../models/catalog.model.js";
 import { OrderModel } from "../models/orders.model.js";
 import { sendTelegramMessage } from "./telegram.js";
 
-const LEVEL_CAPS: Record<string, number> = {
-  BRONZE: 500,
-  SILVER: 700,
-  GOLD: 900,
-  PLATINUM: 1200,
-};
+const DEFAULT_TIERS = [
+  { maxPrice: 23500, amount: 500 },
+  { maxPrice: 35000, amount: 750 },
+  { maxPrice: 45000, amount: 1000 },
+  { maxPrice: null as null, amount: 1500 },
+];
+
+function tierAmountForPrice(price: number, tiers: Array<{ maxPrice: number | null; amount: number }>): number {
+  for (const tier of tiers) {
+    if (tier.maxPrice === null || price < tier.maxPrice) return tier.amount;
+  }
+  return tiers[tiers.length - 1]?.amount ?? 0;
+}
 
 async function calculateOrderCommissionAmount(
   order: { items: { productId: string; quantity: number; lineTotal: number }[] },
-  level?: string,
 ) {
+  const settings = await WebsiteSettingModel.findOne().lean();
+  const tiers = (settings?.commissionTiers as Array<{ maxPrice: number | null; amount: number }> | undefined) ?? DEFAULT_TIERS;
+
   const products = await ProductModel.find({ _id: { $in: order.items.map((item) => item.productId) } });
   const productsById = new Map(products.map((product) => [String(product._id), product]));
 
   let amount = 0;
   for (const item of order.items) {
     const product = productsById.get(item.productId);
-    if (!product || !product.affiliateEnabled) {
-      continue;
-    }
-
-    amount +=
-      product.commissionType === "FIXED"
-        ? product.commissionValue * item.quantity
-        : Math.round((item.lineTotal * product.commissionValue) / 100);
+    if (!product?.affiliateEnabled) continue;
+    const price = (product.discountPrice ?? product.basePrice) as number;
+    amount += tierAmountForPrice(price, tiers) * item.quantity;
   }
 
-  const cap = level ? (LEVEL_CAPS[level] ?? 700) : 700;
-  return Math.min(amount, cap);
+  return amount;
 }
 
 async function maybeAwardReferralBonus(affiliate: InstanceType<typeof AffiliateModel>) {
@@ -134,7 +137,7 @@ export async function syncCommissionForOrder(orderId: string, createdBy = "syste
   const rejected = ["CANCELLED", "RETURNED", "FAILED"].includes(order.status);
 
   if (eligible) {
-    const amount = await calculateOrderCommissionAmount(order, affiliate.level);
+    const amount = await calculateOrderCommissionAmount(order);
     if (!commission) {
       commission = await CommissionModel.create({
         affiliate: affiliate._id,

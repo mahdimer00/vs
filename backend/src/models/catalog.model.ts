@@ -99,6 +99,15 @@ const websiteSettingSchema = new Schema(
         PLATINUM: { commissionRate: 3, referralBonus: 2000 },
       },
     },
+    commissionTiers: {
+      type: Schema.Types.Mixed,
+      default: [
+        { maxPrice: 23500, amount: 500 },
+        { maxPrice: 35000, amount: 750 },
+        { maxPrice: 45000, amount: 1000 },
+        { maxPrice: null, amount: 1500 },
+      ],
+    },
   },
   { timestamps: true },
 );

@@ -469,6 +469,7 @@ export function AdminDashboardPage() {
   const [affiliateDrafts, setAffiliateDrafts] = useState<Record<string, { status: Affiliate["status"]; commissionRate: string; level: AffiliateLevel }>>({});
   const [couponDrafts, setCouponDrafts] = useState<Record<string, { code: string; adminNote: string }>>({});
   const [levelDrafts, setLevelDrafts] = useState<Record<AffiliateLevel, { commissionRate: string; referralBonus: string }> | null>(null);
+  const [tierDrafts, setTierDrafts] = useState<Array<{ maxPrice: string; amount: string }> | null>(null);
   const [bannerDrafts, setBannerDrafts] = useState<Record<string, BannerFormState>>({});
   const [categoryDrafts, setCategoryDrafts] = useState<Record<string, { ar: string; fr: string; en: string; slug: string; image: string; isActive: boolean }>>({});
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -791,6 +792,17 @@ export function AdminDashboardPage() {
           },
         ]),
       ) as Record<AffiliateLevel, { commissionRate: string; referralBonus: string }>,
+    );
+    const defaultTiers = [
+      { maxPrice: "23500", amount: "500" },
+      { maxPrice: "35000", amount: "750" },
+      { maxPrice: "45000", amount: "1000" },
+      { maxPrice: "", amount: "1500" },
+    ];
+    setTierDrafts(
+      settings.commissionTiers && settings.commissionTiers.length > 0
+        ? settings.commissionTiers.map((t) => ({ maxPrice: t.maxPrice != null ? String(t.maxPrice) : "", amount: String(t.amount) }))
+        : defaultTiers,
     );
   }, [settings]);
 
@@ -2793,7 +2805,7 @@ export function AdminDashboardPage() {
             </label>
           </div>
 
-          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-2">
             <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
               <input
                 type="checkbox"
@@ -2803,24 +2815,13 @@ export function AdminDashboardPage() {
               />
               {translate(language, "adminAffiliateProgramLabel")}
             </label>
-            {productForm.affiliateEnabled ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                <select
-                  value={productForm.commissionType}
-                  onChange={(event) => setProductForm({ ...productForm, commissionType: event.target.value as "PERCENTAGE" | "FIXED" })}
-                  className="field-select"
-                >
-                  <option value="PERCENTAGE">{translate(language, "adminCommissionTypePercentage")}</option>
-                  <option value="FIXED">{translate(language, "adminCommissionTypeFixed")}</option>
-                </select>
-                <input
-                  value={productForm.commissionValue}
-                  onChange={(event) => setProductForm({ ...productForm, commissionValue: event.target.value })}
-                  className="field-input"
-                  placeholder={translate(language, "adminCommissionValue")}
-                />
-              </div>
-            ) : null}
+            {productForm.affiliateEnabled && (
+              <p className="text-xs text-slate-500">
+                {language === "ar"
+                  ? "العمولة تُحسب تلقائياً حسب شرائح السعر المحددة في الإعدادات."
+                  : "Commission is calculated automatically based on price tiers set in Settings."}
+              </p>
+            )}
           </div>
 
           <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
@@ -5096,29 +5097,44 @@ export function AdminDashboardPage() {
     const filteredCommissions = commissions.filter((c) =>
       commissionStatusFilter === "all" || c.status === commissionStatusFilter
     );
-    const pendingCommissions = commissions.filter((c) => c.status === "APPROVED");
+    const pendingOnes = commissions.filter((c) => c.status === "PENDING");
+    const approvedOnes = commissions.filter((c) => c.status === "APPROVED");
     return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <select value={commissionStatusFilter} onChange={(event) => setCommissionStatusFilter(event.target.value)} className="field-select max-w-[12rem]">
           <option value="all">جميع الحالات</option>
           <option value="PENDING">في الانتظار</option>
-          <option value="APPROVED">موافق عليه</option>
-          <option value="PAID">مدفوع</option>
+          <option value="APPROVED">موافق عليها</option>
+          <option value="PAID">مدفوعة</option>
+          <option value="REJECTED">مرفوضة</option>
         </select>
-        {pendingCommissions.length > 0 ? (
+        {pendingOnes.length > 0 && (
           <button
             onClick={() =>
-              void Promise.all(pendingCommissions.map((c) => adminService.markCommissionPaid(token, c._id)))
+              void Promise.all(pendingOnes.map((c) => adminService.approveCommission(token, c._id)))
+                .then(loadAll)
+                .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
+            }
+            className="ghost-button gap-2 border-teal-300 text-teal-700 hover:bg-teal-50"
+          >
+            <Check className="h-4 w-4" />
+            الموافقة على الكل ({pendingOnes.length})
+          </button>
+        )}
+        {approvedOnes.length > 0 && (
+          <button
+            onClick={() =>
+              void Promise.all(approvedOnes.map((c) => adminService.markCommissionPaid(token, c._id)))
                 .then(loadAll)
                 .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))
             }
             className="primary-button gap-2"
           >
             <Check className="h-4 w-4" />
-            تحديد الكل مدفوع ({pendingCommissions.length})
+            تحديد الكل مدفوع ({approvedOnes.length})
           </button>
-        ) : null}
+        )}
         <span className="text-sm text-slate-500">{filteredCommissions.length} عمولة</span>
       </div>
     <div className="grid gap-4 xl:grid-cols-2">
@@ -5126,27 +5142,43 @@ export function AdminDashboardPage() {
         const orderId = typeof commission.order === "string" ? commission.order : commission.order?._id;
         const order = orderId ? ordersById.get(orderId) : undefined;
         const affiliateName = typeof commission.affiliate === "string" ? commission.affiliate : commission.affiliate?.name ?? "";
+        const affiliatePhone = typeof commission.affiliate === "object" && commission.affiliate ? commission.affiliate.phone : "";
 
         return (
-          <div key={commission._id} className="surface-card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div key={commission._id} className="surface-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-lg font-semibold text-slate-950">{affiliateName}</div>
-                <div className="mt-1 text-sm text-slate-500">{order?.orderNumber || orderId}</div>
+                <div className="font-semibold text-slate-950">{affiliateName}</div>
+                {affiliatePhone && <div className="text-xs text-slate-400">{affiliatePhone}</div>}
+                <div className="mt-1 text-xs text-slate-500">
+                  {commission.type === "REFERRAL_BONUS" ? "🎁 مكافأة إحالة" : `طلب: ${order?.orderNumber || orderId || "—"}`}
+                </div>
               </div>
-              <StatusBadge label={commission.status} language={language} />
+              <div className="flex items-center gap-2">
+                <StatusBadge label={commission.status} language={language} />
+                <span className="text-base font-black text-slate-900">{formatCurrency(commission.amount, language)}</span>
+              </div>
             </div>
-            <div className="mt-4 text-sm text-slate-600">
-              {formatCurrency(commission.amount, language)} at {commission.rate}%
+            <div className="mt-3 flex flex-wrap gap-2">
+              {commission.status === "PENDING" && (
+                <button onClick={() => void adminService.approveCommission(token, commission._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="ghost-button gap-1.5 border-teal-300 text-teal-700 hover:bg-teal-50 py-1.5 text-xs">
+                  <Check className="h-3.5 w-3.5" /> الموافقة
+                </button>
+              )}
+              {commission.status === "APPROVED" && (
+                <button onClick={() => void adminService.markCommissionPaid(token, commission._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button py-1.5 text-xs gap-1.5">
+                  <Check className="h-3.5 w-3.5" /> {translate(language, "adminMarkPaid")}
+                </button>
+              )}
             </div>
-            {commission.status !== "PAID" ? (
-              <button onClick={() => void adminService.markCommissionPaid(token, commission._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="primary-button mt-4">
-                {translate(language, "adminMarkPaid")}
-              </button>
-            ) : null}
           </div>
         );
       })}
+      {filteredCommissions.length === 0 && (
+        <div className="col-span-2 rounded-2xl border-2 border-dashed border-slate-200 py-12 text-center text-slate-400">
+          {language === "ar" ? "لا توجد عمولات" : "No commissions found"}
+        </div>
+      )}
     </div>
     </div>
     );
@@ -5590,6 +5622,74 @@ export function AdminDashboardPage() {
             >
               {translate(language, "adminSave")}
             </button>
+          </div>
+        </Panel>
+
+        <Panel title={language === "ar" ? "عمولات الإحالة — الشرائح حسب السعر" : "Affiliate Commission Tiers (by price)"} description={language === "ar" ? "حدد مبلغ العمولة الثابت لكل نطاق سعر. آخر شريحة تطبق على كل الأسعار فوقها." : "Set a flat commission amount per price range. Leave max price empty for the top tier."}>
+          {(tierDrafts ?? []).map((tier, i) => (
+            <div key={i} className="mb-3 grid grid-cols-[1fr_1fr_auto] items-end gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">
+                  {language === "ar" ? "السعر الأقصى (دج)" : "Max price (DZD)"}
+                </label>
+                <input
+                  value={tier.maxPrice}
+                  onChange={(e) => setTierDrafts((d) => d ? d.map((t, j) => j === i ? { ...t, maxPrice: e.target.value } : t) : d)}
+                  className="field-input"
+                  type="number"
+                  min="0"
+                  placeholder={language === "ar" ? "فارغ = بلا حد" : "empty = no limit"}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-500">
+                  {language === "ar" ? "مبلغ العمولة (دج)" : "Commission amount (DZD)"}
+                </label>
+                <input
+                  value={tier.amount}
+                  onChange={(e) => setTierDrafts((d) => d ? d.map((t, j) => j === i ? { ...t, amount: e.target.value } : t) : d)}
+                  className="field-input"
+                  type="number"
+                  min="0"
+                />
+              </div>
+              {(tierDrafts?.length ?? 0) > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setTierDrafts((d) => d ? d.filter((_, j) => j !== i) : d)}
+                  className="mb-0.5 flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100 transition"
+                >✕</button>
+              )}
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            <button
+              type="button"
+              onClick={() => setTierDrafts((d) => [...(d ?? []), { maxPrice: "", amount: "0" }])}
+              className="ghost-button"
+            >
+              + {language === "ar" ? "أضف شريحة" : "Add tier"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!tierDrafts) return;
+                const commissionTiers = tierDrafts.map((t) => ({
+                  maxPrice: t.maxPrice ? Number(t.maxPrice) : null,
+                  amount: Number(t.amount || 0),
+                }));
+                void adminService
+                  .updateSettings(token, { commissionTiers })
+                  .then(loadAll)
+                  .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"));
+              }}
+              className="primary-button"
+            >
+              {translate(language, "adminSave")}
+            </button>
+          </div>
+          <div className="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700" dir="rtl">
+            <strong>كيف تعمل؟</strong> عند تسليم طلب يحتوي منتجاً مفعلاً للإحالة، تُحسب عمولة كل منتج حسب سعره: أقل من الحد الأقصى الأول → المبلغ الأول، وهكذا. الشريحة بلا حد أقصى تطبق على أغلى المنتجات.
           </div>
         </Panel>
 
