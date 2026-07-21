@@ -76,10 +76,10 @@ export async function sendAffiliateCommissionUpdateEmail(
     })
     .join("");
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: FROM,
     to: [to],
-    subject: `🚀 تحديث مهم: نظام عمولات جديد في VisaDZ`,
+    subject: `[VisaDZ] تحديث مهم: نظام عمولات جديد`,
     html: `
       <div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:32px 16px;background:#f8fafc">
         <div style="text-align:center;margin-bottom:28px">
@@ -132,6 +132,7 @@ export async function sendAffiliateCommissionUpdateEmail(
       </div>
     `,
   });
+  if (error) throw new Error(error.message);
 }
 
 export async function sendAffiliateOtpEmail(to: string, name: string, code: string): Promise<void> {
