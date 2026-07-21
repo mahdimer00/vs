@@ -27,17 +27,29 @@ router.post(
       return res.status(404).json({ message: "Product not found" });
     }
 
+    const specsStr = product.specifications
+      ? Object.entries(product.specifications as Record<string, string>)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" | ")
+      : "";
+
+    const langInstruction =
+      input.language === "ar"
+        ? "أجب باللغة العربية فقط، بأسلوب ودي ومختصر."
+        : input.language === "fr"
+          ? "Réponds en français uniquement, de façon amicale et concise."
+          : "Reply in English only, friendly and concise.";
+
     const prompt = [
       {
         role: "system" as const,
         content:
-          "Answer with real product data only. Never invent stock, price, or shipping. If information is missing, say support must confirm.",
+          `${langInstruction} You are a helpful assistant for Visa Store, an Algerian electronics e-commerce shop. Answer ONLY using the real product data provided. Never invent specs, stock, price, shipping, or warranty. If information is missing, say the support team will confirm. Keep answers short (2-4 sentences max).`,
       },
       {
         role: "user" as const,
-        content: `Language: ${input.language}. Product: ${product.name.ar} / ${product.name.fr} / ${product.name.en}. Price from ${product.basePrice}. Variants: ${variants
-          .map((variant) => `${variant.sku} ${variant.price} stock ${variant.stock}`)
-          .join(", ")}. Customer question: ${input.message}`,
+        content: `Product: ${product.name.ar || product.name.fr || product.name.en}. Price: ${product.basePrice} DZD${product.discountPrice ? ` (promo: ${product.discountPrice} DZD)` : ""}. Condition: ${product.condition}. Specs: ${specsStr || "not specified"}. Description: ${product.description?.ar || product.description?.fr || ""}. Variants: ${variants.map((v) => `${v.ram ? `RAM ${v.ram}` : ""} ${v.storage ? `Storage ${v.storage}` : ""} ${v.color || ""} — ${v.price} DZD — stock ${v.stock}`).join(" | ") || "no variants"}. Customer question: ${input.message}`,
       },
     ];
 
@@ -155,11 +167,11 @@ router.post(
       {
         role: "system" as const,
         content:
-          "You are a professional product copywriter for an Algerian e-commerce store. Write concise, appealing product descriptions. Always respond with valid JSON only — no markdown, no extra text.",
+          "You are a professional product copywriter for an Algerian e-commerce store called Visa Store. Write appealing, honest descriptions that highlight key specs. Arabic should use Algerian Arabic style. RESPOND ONLY WITH VALID JSON — no markdown fences, no extra words before or after the JSON object.",
       },
       {
         role: "user" as const,
-        content: `Write 3 short product descriptions (2-3 sentences each) for this product:\nName: ${input.name}\nCategory: ${input.category || ""}\nCondition: ${condText}\nSpecs: ${specsText}\n\nRespond ONLY with JSON: {"ar":"...","fr":"...","en":"..."}`,
+        content: `Write product descriptions in 3 languages for: ${input.name}. Condition: ${condText}. Specs: ${specsText || "not specified"}.\n\nRespond with this exact JSON (fill the values, keep keys exact):\n{"ar":"2-3 sentences in Arabic mentioning key specs and why it is a good buy","fr":"2-3 sentences in French","en":"2-3 sentences in English"}`,
       },
     ];
 
