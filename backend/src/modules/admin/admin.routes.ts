@@ -9,6 +9,7 @@ import { OrderModel, PromoCodeModel } from "../../models/orders.model.js";
 import { ProductModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 import { UserModel } from "../../models/user.model.js";
 import { syncCommissionForOrder } from "../../utils/commission.js";
+import { sendAffiliateCommissionUpdateEmail } from "../../utils/email.js";
 import { hashPassword } from "../../utils/auth.js";
 import { ADMIN_PERMISSIONS } from "../../constants/permissions.js";
 import { AppError } from "../../utils/app-error.js";
@@ -234,6 +235,31 @@ router.patch("/admin/affiliates/:id", authMiddleware, permissionMiddleware("affi
     return res.status(404).json({ message: "Affiliate not found" });
   }
   return res.json(affiliate);
+}));
+
+router.post("/admin/affiliates/notify-commission-update", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
+  const settings = await WebsiteSettingModel.findOne().lean();
+  const tiers = (settings?.commissionTiers as Array<{ maxPrice: number | null; amount: number }> | undefined) ?? [
+    { maxPrice: 23500, amount: 500 },
+    { maxPrice: 35000, amount: 750 },
+    { maxPrice: 45000, amount: 1000 },
+    { maxPrice: null, amount: 1500 },
+  ];
+
+  const affiliates = await AffiliateModel.find({ status: "ACTIVE" }).select("name email").lean();
+  let sent = 0;
+  let failed = 0;
+
+  for (const affiliate of affiliates) {
+    try {
+      await sendAffiliateCommissionUpdateEmail(affiliate.email, { name: affiliate.name }, tiers);
+      sent++;
+    } catch {
+      failed++;
+    }
+  }
+
+  return res.json({ sent, failed, total: affiliates.length });
 }));
 
 router.get("/admin/commissions", authMiddleware, permissionMiddleware("commissions"), asyncHandler(async (_req, res) => {

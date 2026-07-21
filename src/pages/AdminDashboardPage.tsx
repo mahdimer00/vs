@@ -4969,6 +4969,30 @@ export function AdminDashboardPage() {
             {language === "ar" ? `قبول الكل (${pendingAffiliates.length})` : `Approve all (${pendingAffiliates.length})`}
           </button>
         )}
+        <button
+          onClick={() =>
+            setConfirmModal({
+              title: language === "ar" ? "إرسال بريد التحديث لجميع المسوّقين" : "Send commission update email to all affiliates",
+              message: language === "ar"
+                ? `سيتم إرسال بريد إلكتروني عربي لجميع المسوّقين النشطين (${activeAffiliates.length}) يشرح شرائح العمولة الجديدة. هل تريد المتابعة؟`
+                : `This will email all ${activeAffiliates.length} active affiliates with the new commission tiers. Continue?`,
+              confirmLabel: language === "ar" ? "إرسال" : "Send",
+              tone: "info",
+              onConfirm: () =>
+                void adminService.notifyAffiliatesCommissionUpdate(token)
+                  .then((result) => pushToast(
+                    language === "ar"
+                      ? `✅ تم الإرسال: ${result.sent} رسالة${result.failed > 0 ? ` · فشل: ${result.failed}` : ""}`
+                      : `✅ Sent: ${result.sent}${result.failed > 0 ? ` · Failed: ${result.failed}` : ""}`,
+                    "success",
+                  ))
+                  .catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error")),
+            })
+          }
+          className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition"
+        >
+          📧 {language === "ar" ? `إعلام المسوّقين بالعمولات الجديدة` : "Notify affiliates of new commissions"}
+        </button>
         <span className="text-sm text-slate-400">{filteredAffiliates.length} {language === "ar" ? "مسوّق" : "affiliates"}</span>
       </div>
 

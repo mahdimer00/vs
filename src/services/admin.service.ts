@@ -191,6 +191,12 @@ export const adminService = {
   getAffiliates(token: string) {
     return apiRequest<Affiliate[]>("/api/admin/affiliates", { token });
   },
+  notifyAffiliatesCommissionUpdate(token: string) {
+    return apiRequest<{ sent: number; failed: number; total: number }>("/api/admin/affiliates/notify-commission-update", {
+      method: "POST",
+      token,
+    });
+  },
   updateAffiliate(token: string, id: string, payload: Partial<Affiliate>) {
     return apiRequest<Affiliate>(`/api/admin/affiliates/${id}`, {
       method: "PATCH",
