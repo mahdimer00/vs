@@ -1156,6 +1156,18 @@ export function AdminDashboardPage() {
     setProductForm((current) => ({ ...current, specifications: [...current.specifications, { key: "", value: "" }] }));
   };
 
+  const fillLaptopSpecTemplate = () => {
+    const laptopKeys = ["المعالج", "الجيل", "الرام", "التخزين", "الشاشة", "البطارية", "كرت الشاشة", "الحالة"];
+    setProductForm((current) => {
+      const existingKeys = current.specifications.map((s) => s.key.trim());
+      const toAdd = laptopKeys
+        .filter((k) => !existingKeys.includes(k))
+        .map((k) => ({ key: k, value: "" }));
+      const base = current.specifications.filter((s) => s.key.trim() || s.value.trim());
+      return { ...current, specifications: [...base, ...toAdd] };
+    });
+  };
+
   const removeProductSpec = (index: number) => {
     setProductForm((current) => ({
       ...current,
@@ -2645,8 +2657,17 @@ export function AdminDashboardPage() {
           </div>
 
           <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
-            <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductSpecifications")}</div>
-            <p className="text-sm text-slate-500">{translate(language, "adminProductSpecificationsHint")}</p>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductSpecifications")}</div>
+              <button
+                type="button"
+                onClick={fillLaptopSpecTemplate}
+                className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
+              >
+                💻 {language === "ar" ? "قالب لابتوب/PC سريع" : "Laptop/PC quick template"}
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">{language === "ar" ? "البطارية: اكتب «لاشة» أو «ضعيفة» لتظهر تحذير لون أحمر للزبون" : "Battery: type «lache» or «faible» to show a red warning to customers"}</p>
             <div className="grid gap-3">
               {productForm.specifications.map((spec, index) => (
                 <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-center">

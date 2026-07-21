@@ -5,7 +5,7 @@ import type { Locale, Product } from "@/types";
 import { formatCurrency, getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 
-function extractLaptopSpecs(product: Product): { cpu?: string; ram?: string; storage?: string; screen?: string } | null {
+function extractLaptopSpecs(product: Product): { cpu?: string; ram?: string; storage?: string; screen?: string; batteryBad?: boolean } | null {
   const nameText = `${product.name.ar || ""} ${product.name.fr || ""} ${product.name.en || ""}`;
   const specs = (product.specifications as Record<string, string> | undefined) ?? {};
 
@@ -34,10 +34,17 @@ function extractLaptopSpecs(product: Product): { cpu?: string; ram?: string; sto
   const cpuSourceText = specCpuText || nameText;
   const cpuMatch = cpuSourceText.match(/Ryzen\s*[3579](?:\s*Pro)?/i)
     || cpuSourceText.match(/Core\s*(i[3579])/i)
-    || cpuSourceText.match(/\b(i[3579])\b/i);
+    || cpuSourceText.match(/\b(i[3579])\b/i)
+    || cpuSourceText.match(/AMD\s+Dual.?Core\s+([A-Z]\d+)/i)
+    || cpuSourceText.match(/AMD\s+(A\d+)/i)
+    || cpuSourceText.match(/AMD\s+(E[12])/i)
+    || cpuSourceText.match(/Intel\s+Celeron\s+([A-Z]?\d+[A-Z\d]*)/i)
+    || cpuSourceText.match(/Celeron\s+([A-Z]?\d+[A-Z\d]*)/i)
+    || cpuSourceText.match(/Pentium\s+Silver\s+([A-Z]?\d+[A-Z\d]*)/i)
+    || cpuSourceText.match(/Pentium\s+([A-Z]?\d+[A-Z\d]*)/i)
+    || cpuSourceText.match(/Athlon\s+([A-Z]?\d+[A-Z\d]*)/i);
   if (cpuMatch) {
-    cpu = cpuMatch[0].replace(/Core\s*/i, "").trim();
-    // Extract generation hint
+    cpu = cpuMatch[0].replace(/Core\s*/i, "").replace(/Intel\s*/i, "").trim();
     const genMatch = cpuSourceText.match(/(\d+)(?:e?m?e|th|ème|st|nd|rd)\s*(?:gén?|gen)?/i);
     if (genMatch) cpu += ` ${genMatch[1]}ᵉ`;
   }
@@ -79,8 +86,14 @@ function extractLaptopSpecs(product: Product): { cpu?: string; ram?: string; sto
     if (val >= 10 && val <= 22) screen = `${val}"`;
   }
 
-  if (!cpu && !ram && !storage && !screen) return null;
-  return { cpu, ram, storage, screen };
+  // ── Battery warning detection ──
+  const batEntry = Object.entries(specs).find(([k]) => /بطارية|battery|batterie/i.test(k));
+  const batteryBad = batEntry
+    ? /لاشة|ضعيفة|ميتة|mort|faible|dead|lache|0%|بدون|sans/i.test(batEntry[1])
+    : /بدون بطارية|battery lache|battery morte|sans batterie/i.test(nameText + " " + Object.values(specs).join(" "));
+
+  if (!cpu && !ram && !storage && !screen && !batteryBad) return null;
+  return { cpu, ram, storage, screen, batteryBad };
 }
 
 export function ProductCard({ product, language }: { product: Product; language: Locale }) {
@@ -208,6 +221,11 @@ export function ProductCard({ product, language }: { product: Product; language:
                 <span className="inline-flex items-center gap-0.5 rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 ring-1 ring-violet-200">
                   <Monitor className="h-2.5 w-2.5" />
                   {laptopSpecs.screen}
+                </span>
+              )}
+              {laptopSpecs.batteryBad && (
+                <span className="inline-flex items-center gap-0.5 rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200">
+                  🔋 {language === "ar" ? "بطارية ضعيفة" : "Batterie faible"}
                 </span>
               )}
             </div>
