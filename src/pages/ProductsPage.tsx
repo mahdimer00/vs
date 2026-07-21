@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -54,7 +54,7 @@ const LAPTOP_CATEGORY_SLUGS = new Set(["Laptop", "laptop", "pcs", "PC", "ordinat
 
 export function ProductsPage() {
   const { language } = useApp();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,39 @@ export function ProductsPage() {
     search: searchParams.get("q") || "",
     category: searchParams.get("category") || "all",
     brand: searchParams.get("brand") || "all",
+    cpu: searchParams.get("cpu") || "all",
+    ram: searchParams.get("ram") || "all",
+    screen: searchParams.get("screen") || "all",
+    condition: (searchParams.get("condition") as "all" | "NEW" | "USED") || "all",
+    sort: (searchParams.get("sort") as import("@/components/ProductFilters").SortOption) || "default",
+    minPrice: Number(searchParams.get("minPrice") ?? 0),
+    maxPrice: Number(searchParams.get("maxPrice") ?? 500000),
+    inStockOnly: searchParams.get("inStock") === "1",
+    onSaleOnly: searchParams.get("onSale") === "1",
   });
+
+  // Keep URL in sync with filters so sharing the link restores the exact view
+  const syncUrl = useCallback((f: ProductFilterState) => {
+    const p: Record<string, string> = {};
+    if (f.search) p.q = f.search;
+    if (f.category !== "all") p.category = f.category;
+    if (f.brand !== "all") p.brand = f.brand;
+    if (f.cpu !== "all") p.cpu = f.cpu;
+    if (f.ram !== "all") p.ram = f.ram;
+    if (f.screen !== "all") p.screen = f.screen;
+    if (f.condition !== "all") p.condition = f.condition;
+    if (f.sort !== "default") p.sort = f.sort;
+    if (f.minPrice > 0) p.minPrice = String(f.minPrice);
+    if (f.maxPrice < 500000) p.maxPrice = String(f.maxPrice);
+    if (f.inStockOnly) p.inStock = "1";
+    if (f.onSaleOnly) p.onSale = "1";
+    setSearchParams(p, { replace: true });
+  }, [setSearchParams]);
+
+  const handleFilterChange = useCallback((next: ProductFilterState) => {
+    setFilters(next);
+    syncUrl(next);
+  }, [syncUrl]);
 
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories()])
@@ -165,7 +197,7 @@ export function ProductsPage() {
         brands={[...new Set(products.map((product) => (typeof product.brand === "string" ? product.brand : product.brand.name)))]}
         state={filters}
         language={language}
-        onChange={setFilters}
+        onChange={handleFilterChange}
         showLaptopFilters={showLaptopFilters}
       />
 

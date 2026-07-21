@@ -79,6 +79,7 @@ import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
 import { ApiError, sseUrl } from "@/services/apiClient";
 import { adminService } from "@/services/admin.service";
+import { aiService } from "@/services/ai.service";
 import { orderService } from "@/services/order.service";
 import { productService } from "@/services/product.service";
 import { zrShippingService, type ZRTerritory } from "@/services/shipping.zr.service";
@@ -2557,9 +2558,38 @@ export function AdminDashboardPage() {
             ))}
           </select>
 
-          <textarea value={productForm.descriptionAr} onChange={(event) => setProductForm({ ...productForm, descriptionAr: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionAr")} />
-          <textarea value={productForm.descriptionFr} onChange={(event) => setProductForm({ ...productForm, descriptionFr: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionFr")} />
-          <textarea value={productForm.descriptionEn} onChange={(event) => setProductForm({ ...productForm, descriptionEn: event.target.value })} className="field-input md:col-span-2 xl:col-span-4" rows={2} placeholder={translate(language, "adminDescriptionEn")} />
+          <div className="md:col-span-2 xl:col-span-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                {language === "ar" ? "الأوصاف (عربي / فرنسي / إنجليزي)" : "Descriptions (AR / FR / EN)"}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  const specsObj: Record<string, string> = {};
+                  productForm.specifications.forEach((s) => { if (s.key && s.value) specsObj[s.key] = s.value; });
+                  const catName = categories.find((c) => c._id === productForm.categoryId)?.name?.ar || "";
+                  try {
+                    const result = await aiService.generateDescription({
+                      name: productForm.nameAr || productForm.nameFr || productForm.nameEn,
+                      category: catName,
+                      condition: productForm.condition,
+                      specs: specsObj,
+                    });
+                    if ("error" in result) { pushToast("AI غير متاح حالياً", "error"); return; }
+                    setProductForm((f) => ({ ...f, descriptionAr: result.ar, descriptionFr: result.fr, descriptionEn: result.en }));
+                    pushToast(language === "ar" ? "تم توليد الوصف بالذكاء الاصطناعي ✅" : "Description generated ✅", "success");
+                  } catch { pushToast("AI غير متاح حالياً", "error"); }
+                }}
+                className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition"
+              >
+                🤖 {language === "ar" ? "توليد بالذكاء الاصطناعي" : "Generate with AI"}
+              </button>
+            </div>
+            <textarea value={productForm.descriptionAr} onChange={(event) => setProductForm({ ...productForm, descriptionAr: event.target.value })} className="field-input w-full" rows={2} placeholder={translate(language, "adminDescriptionAr")} />
+            <textarea value={productForm.descriptionFr} onChange={(event) => setProductForm({ ...productForm, descriptionFr: event.target.value })} className="field-input w-full" rows={2} placeholder={translate(language, "adminDescriptionFr")} />
+            <textarea value={productForm.descriptionEn} onChange={(event) => setProductForm({ ...productForm, descriptionEn: event.target.value })} className="field-input w-full" rows={2} placeholder={translate(language, "adminDescriptionEn")} />
+          </div>
 
           <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-4">
             <div className="flex items-center justify-between">
