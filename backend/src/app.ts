@@ -17,7 +17,6 @@ import orderRoutes from "./modules/orders/order.routes.js";
 import promoRoutes from "./modules/promo/promo.routes.js";
 import affiliateRoutes from "./modules/affiliate/affiliate.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
-import aiRoutes from "./modules/ai/ai.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 import otpRoutes from "./modules/otp/otp.routes.js";
 import feedRoutes from "./modules/feed/feed.routes.js";
@@ -189,7 +188,6 @@ app.use("/api", otpRoutes);
 app.use("/api", promoRoutes);
 app.use("/api", affiliateRoutes);
 app.use("/api", adminRoutes);
-app.use("/api", aiRoutes);
 app.use("/api", analyticsRoutes);
 
 app.use(errorMiddleware);

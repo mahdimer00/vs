@@ -79,7 +79,6 @@ import { useApp } from "@/hooks/useApp";
 import { DashboardShell } from "@/layout/DashboardShell";
 import { ApiError, sseUrl } from "@/services/apiClient";
 import { adminService } from "@/services/admin.service";
-import { aiService } from "@/services/ai.service";
 import { orderService } from "@/services/order.service";
 import { productService } from "@/services/product.service";
 import { zrShippingService, type ZRTerritory } from "@/services/shipping.zr.service";
@@ -513,12 +512,6 @@ export function AdminDashboardPage() {
   const [subAdminSearch, setSubAdminSearch] = useState("");
   const [bulkUploading, setBulkUploading] = useState(false);
   const [addImageUrl, setAddImageUrl] = useState("");
-  const [aiInsight, setAiInsight] = useState<string | null>(null);
-  const [aiInsightLoading, setAiInsightLoading] = useState(false);
-  const [aiPriceSuggestion, setAiPriceSuggestion] = useState<{ suggested: number; min: number; max: number; note_ar: string } | null>(null);
-  const [aiPriceLoading, setAiPriceLoading] = useState(false);
-  const [aiBulkLoading, setAiBulkLoading] = useState(false);
-  const [aiBulkResults, setAiBulkResults] = useState<Array<{ id: string; name: string; ok: boolean }> | null>(null);
 
   const role = adminSession?.user.role;
   const userPermissions = adminSession?.user.permissions;
@@ -1905,55 +1898,6 @@ export function AdminDashboardPage() {
           );
         })()}
 
-        {/* ── AI INSIGHTS ── */}
-        <div className="surface-card overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-            <div className="flex items-center gap-2 font-bold text-slate-800">
-              <span className="text-base">🤖</span>
-              {isAr ? "تحليل الأداء بالذكاء الاصطناعي" : "AI Performance Insights"}
-            </div>
-            <button
-              type="button"
-              disabled={aiInsightLoading}
-              onClick={async () => {
-                setAiInsightLoading(true);
-                setAiInsight(null);
-                try {
-                  const topProducts = stats.topProducts?.slice(0, 3).map((p) => ({
-                    name: typeof p.name === "object" ? (p.name.ar || p.name.fr || p.name.en || "") : String(p.name),
-                    sold: p.orderCount ?? 0,
-                  })) ?? [];
-                  const pendingOrders = orders.filter((o) => o.status === "AWAITING_CALL_CONFIRMATION" || o.status === "PENDING_AI_CONFIRMATION" || o.status === "CONFIRMED" || o.status === "PROCESSING").length;
-                  const result = await aiService.dashboardInsights(token, {
-                    todayOrders: stats.todayOrders,
-                    weekOrders: stats.weekOrders,
-                    revenue: stats.revenue,
-                    deliveredOrders: stats.deliveredOrders,
-                    pendingOrders,
-                    lowStockCount: stats.lowStockProducts?.length ?? 0,
-                    topProducts,
-                  });
-                  if ("error" in result) { pushToast("AI غير متاح حالياً", "error"); }
-                  else { setAiInsight(result.insight); }
-                } catch { pushToast("AI غير متاح حالياً", "error"); }
-                setAiInsightLoading(false);
-              }}
-              className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition disabled:opacity-50"
-            >
-              {aiInsightLoading ? "⏳ جاري التحليل..." : (isAr ? "✨ حلّل الآن" : "✨ Analyse now")}
-            </button>
-          </div>
-          <div className="px-5 py-4">
-            {aiInsight ? (
-              <p className="text-sm leading-7 text-slate-700" dir="rtl">{aiInsight}</p>
-            ) : (
-              <p className="text-sm text-slate-400">
-                {isAr ? "اضغط على «حلّل الآن» للحصول على تحليل ذكي لأداء متجرك اليوم." : "Click «Analyse now» for an AI summary of today's store performance."}
-              </p>
-            )}
-          </div>
-        </div>
-
         {/* ── ORDERS PIPELINE ── */}
         {(() => {
           const isAr = language === "ar";
@@ -2577,22 +2521,6 @@ export function AdminDashboardPage() {
 
   const renderProducts = () => (
     <div className="space-y-6">
-      {aiBulkResults && (
-        <div className="rounded-2xl border border-violet-100 bg-violet-50 px-5 py-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-semibold text-violet-800">🤖 {language === "ar" ? "نتائج التوليد الجماعي" : "Bulk generation results"}</span>
-            <button type="button" onClick={() => setAiBulkResults(null)} className="text-xs text-violet-400 hover:text-violet-700">✕</button>
-          </div>
-          <div className="space-y-1">
-            {aiBulkResults.map((r) => (
-              <div key={r.id} className="flex items-center gap-2 text-sm">
-                <span>{r.ok ? "✅" : "❌"}</span>
-                <span className="text-slate-700">{r.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {(showAddProductForm || editingProductId) && (
       <div id="product-add-form">
       <Panel title={editingProductId ? translate(language, "adminEditingProduct") : translate(language, "adminProductCreate")} description={translate(language, "adminProductsTitle")}>
@@ -2630,32 +2558,8 @@ export function AdminDashboardPage() {
           </select>
 
           <div className="md:col-span-2 xl:col-span-4 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                {language === "ar" ? "الأوصاف (عربي / فرنسي / إنجليزي)" : "Descriptions (AR / FR / EN)"}
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  const specsObj: Record<string, string> = {};
-                  productForm.specifications.forEach((s) => { if (s.key && s.value) specsObj[s.key] = s.value; });
-                  const catName = categories.find((c) => c._id === productForm.categoryId)?.name?.ar || "";
-                  try {
-                    const result = await aiService.generateDescription(token, {
-                      name: productForm.nameAr || productForm.nameFr || productForm.nameEn,
-                      category: catName,
-                      condition: productForm.condition,
-                      specs: specsObj,
-                    });
-                    if ("error" in result) { pushToast("AI غير متاح حالياً", "error"); return; }
-                    setProductForm((f) => ({ ...f, descriptionAr: result.ar, descriptionFr: result.fr, descriptionEn: result.en }));
-                    pushToast(language === "ar" ? "تم توليد الوصف بالذكاء الاصطناعي ✅" : "Description generated ✅", "success");
-                  } catch { pushToast("AI غير متاح حالياً", "error"); }
-                }}
-                className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition"
-              >
-                🤖 {language === "ar" ? "توليد بالذكاء الاصطناعي" : "Generate with AI"}
-              </button>
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              {language === "ar" ? "الأوصاف (عربي / فرنسي / إنجليزي)" : "Descriptions (AR / FR / EN)"}
             </div>
             <textarea value={productForm.descriptionAr} onChange={(event) => setProductForm({ ...productForm, descriptionAr: event.target.value })} className="field-input w-full" rows={2} placeholder={translate(language, "adminDescriptionAr")} />
             <textarea value={productForm.descriptionFr} onChange={(event) => setProductForm({ ...productForm, descriptionFr: event.target.value })} className="field-input w-full" rows={2} placeholder={translate(language, "adminDescriptionFr")} />
@@ -2800,56 +2704,10 @@ export function AdminDashboardPage() {
             </button>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <input value={productForm.basePrice} onChange={(event) => { setProductForm({ ...productForm, basePrice: event.target.value }); setAiPriceSuggestion(null); }} className="field-input flex-1" placeholder={translate(language, "adminBasePrice")} type="number" min="0" />
-              <button
-                type="button"
-                disabled={aiPriceLoading || (!productForm.nameAr && !productForm.nameFr && !productForm.nameEn)}
-                onClick={async () => {
-                  setAiPriceLoading(true);
-                  setAiPriceSuggestion(null);
-                  try {
-                    const specsObj: Record<string, string> = {};
-                    productForm.specifications.forEach((s) => { if (s.key && s.value) specsObj[s.key] = s.value; });
-                    const catName = categories.find((c) => c._id === productForm.categoryId)?.name?.ar || "";
-                    const result = await aiService.suggestPrice(token, {
-                      name: productForm.nameAr || productForm.nameFr || productForm.nameEn,
-                      category: catName,
-                      condition: productForm.condition,
-                      specs: specsObj,
-                    });
-                    if ("error" in result) { pushToast("AI غير متاح حالياً", "error"); }
-                    else { setAiPriceSuggestion(result); }
-                  } catch { pushToast("AI غير متاح حالياً", "error"); }
-                  setAiPriceLoading(false);
-                }}
-                className="shrink-0 flex items-center gap-1 rounded-xl border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition disabled:opacity-40"
-                title={language === "ar" ? "اقتراح سعر بالذكاء الاصطناعي" : "AI price suggestion"}
-              >
-                {aiPriceLoading ? "⏳" : "🤖"}
-              </button>
-            </div>
-            {aiPriceSuggestion && (
-              <div className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-xs">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="font-semibold text-violet-800">
-                    {language === "ar" ? "اقتراح AI:" : "AI suggests:"}{" "}
-                    <button
-                      type="button"
-                      className="font-black text-violet-900 underline-offset-2 hover:underline"
-                      onClick={() => setProductForm((f) => ({ ...f, basePrice: String(aiPriceSuggestion.suggested) }))}
-                    >
-                      {aiPriceSuggestion.suggested.toLocaleString("ar-DZ")} دج
-                    </button>
-                  </span>
-                  <span className="text-violet-500">{aiPriceSuggestion.min.toLocaleString("ar-DZ")} – {aiPriceSuggestion.max.toLocaleString("ar-DZ")} دج</span>
-                </div>
-                {aiPriceSuggestion.note_ar && <p className="mt-1 text-violet-600" dir="rtl">{aiPriceSuggestion.note_ar}</p>}
-              </div>
-            )}
+          <div className="relative">
+            <input value={productForm.basePrice} onChange={(event) => setProductForm({ ...productForm, basePrice: event.target.value })} className="field-input" placeholder={translate(language, "adminBasePrice")} type="number" min="0" />
             {productForm.purchasePrice && productForm.basePrice && (
-              <div className="text-[11px] font-semibold text-emerald-600">
+              <div className="absolute -bottom-5 start-0 text-[11px] font-semibold text-emerald-600">
                 ربح: {(Number(productForm.discountPrice || productForm.basePrice) - Number(productForm.purchasePrice)).toLocaleString("ar-DZ")} دج ({Math.round(((Number(productForm.discountPrice || productForm.basePrice) - Number(productForm.purchasePrice)) / Number(productForm.discountPrice || productForm.basePrice)) * 100)}%)
               </div>
             )}
@@ -6308,42 +6166,19 @@ export function AdminDashboardPage() {
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-white md:text-4xl">{activeViewMeta.title}</h1>
             <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">{activeViewMeta.description}</p>
             {tab === "products" && (
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddProductForm(true);
-                    setEditingProductId(null);
-                    setProductForm(defaultProductForm);
-                    setVariantDrafts([{ ...defaultVariantDraft }]);
-                    setTimeout(() => document.getElementById("product-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-slate-100"
-                >
-                  + {translate(language, "adminCreate")}
-                </button>
-                <button
-                  type="button"
-                  disabled={aiBulkLoading}
-                  onClick={async () => {
-                    const missingDesc = products.filter((p) => !p.description?.ar && !p.description?.fr).slice(0, 10);
-                    if (missingDesc.length === 0) { pushToast(language === "ar" ? "جميع المنتجات لديها وصف" : "All products already have descriptions", "success"); return; }
-                    setAiBulkLoading(true);
-                    setAiBulkResults(null);
-                    try {
-                      const result = await aiService.bulkDescribe(token, { productIds: missingDesc.map((p) => p._id) });
-                      setAiBulkResults(result.results);
-                      const ok = result.results.filter((r) => r.ok).length;
-                      pushToast(language === "ar" ? `تم توليد ${ok} وصف بالذكاء الاصطناعي ✅` : `${ok} descriptions generated ✅`, "success");
-                      void loadAll();
-                    } catch { pushToast("AI غير متاح حالياً", "error"); }
-                    setAiBulkLoading(false);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-violet-600/80 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-violet-600 disabled:opacity-50"
-                >
-                  {aiBulkLoading ? "⏳ جاري التوليد..." : `🤖 ${language === "ar" ? "توليد أوصاف جماعي" : "Bulk generate descriptions"}`}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddProductForm(true);
+                  setEditingProductId(null);
+                  setProductForm(defaultProductForm);
+                  setVariantDrafts([{ ...defaultVariantDraft }]);
+                  setTimeout(() => document.getElementById("product-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                }}
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-slate-100"
+              >
+                + {translate(language, "adminCreate")}
+              </button>
             )}
             {tab === "orders" && (
               <button
