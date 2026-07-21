@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { askOllama } from "../../config/ollama.js";
+import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { ProductModel, ProductVariantModel } from "../../models/catalog.model.js";
 import { AiConversationModel, OrderModel } from "../../models/orders.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -12,6 +13,7 @@ const confirmWords = ["نعم", "oui", "yes", "confirm", "ok", "موافق"];
 
 router.post(
   "/ai/product-question",
+  authMiddleware,
   asyncHandler(async (req, res) => {
     const input = z
       .object({
@@ -145,6 +147,7 @@ router.post(
 // Admin: generate product descriptions from specs
 router.post(
   "/ai/generate-description",
+  authMiddleware,
   asyncHandler(async (req, res) => {
     const input = z
       .object({

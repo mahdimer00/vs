@@ -2570,7 +2570,7 @@ export function AdminDashboardPage() {
                   productForm.specifications.forEach((s) => { if (s.key && s.value) specsObj[s.key] = s.value; });
                   const catName = categories.find((c) => c._id === productForm.categoryId)?.name?.ar || "";
                   try {
-                    const result = await aiService.generateDescription({
+                    const result = await aiService.generateDescription(token, {
                       name: productForm.nameAr || productForm.nameFr || productForm.nameEn,
                       category: catName,
                       condition: productForm.condition,

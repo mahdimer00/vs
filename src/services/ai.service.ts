@@ -13,9 +13,10 @@ export const aiService = {
       body: JSON.stringify(payload),
     });
   },
-  generateDescription(payload: { name: string; category?: string; condition?: string; specs?: Record<string, string> }) {
+  generateDescription(token: string, payload: { name: string; category?: string; condition?: string; specs?: Record<string, string> }) {
     return apiRequest<{ ar: string; fr: string; en: string } | { error: string }>("/api/ai/generate-description", {
       method: "POST",
+      token,
       body: JSON.stringify(payload),
     });
   },

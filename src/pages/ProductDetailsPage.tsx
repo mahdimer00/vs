@@ -11,7 +11,6 @@ import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
 import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
 import { DirectOrderForm } from "@/components/DirectOrderForm";
-import { AiProductChat } from "@/components/AiProductChat";
 import { translate } from "@/utils/i18n";
 import { pixelViewContent } from "@/utils/pixel";
 import { ttqAddToWishlist, ttqViewContent } from "@/utils/tiktok";
@@ -1061,8 +1060,6 @@ export function ProductDetailsPage() {
         </div>
       ) : null}
 
-      {/* AI product Q&A chat widget */}
-      <AiProductChat productId={product._id} language={language} />
     </div>
   );
 }
