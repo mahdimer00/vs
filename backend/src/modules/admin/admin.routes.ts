@@ -87,6 +87,8 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const abandonedThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const lastMonthStart = new Date(monthStart); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
 
   const [orders, promos, affiliates, products, expenses, debts, stockPurchases, storeSales] = await Promise.all([
     OrderModel.find().lean(),
@@ -128,9 +130,46 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const deliveredOrders = orders.filter((o) => deliveredStatuses.has(o.status));
   const todayOrders = orders.filter((o) => new Date(o.createdAt as Date) >= todayStart);
   const weekOrders = orders.filter((o) => new Date(o.createdAt as Date) >= weekStart);
+  const monthOrders = orders.filter((o) => new Date(o.createdAt as Date) >= monthStart);
+  const lastMonthOrders = orders.filter((o) => {
+    const d = new Date(o.createdAt as Date);
+    return d >= lastMonthStart && d < monthStart;
+  });
   const abandonedOrders = orders.filter((o) =>
     o.status === "AWAITING_CALL_CONFIRMATION" && new Date(o.createdAt as Date) < abandonedThreshold
   );
+
+  // Monthly revenue
+  const monthRevenue = monthOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((s, o) => s + o.total, 0);
+  const lastMonthRevenue = lastMonthOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((s, o) => s + o.total, 0);
+
+  // Delivery / return rates (based on closed orders only)
+  const closedOrders = orders.filter((o) => deliveredStatuses.has(o.status) || cancelledStatuses.has(o.status));
+  const deliveryRate = closedOrders.length > 0 ? Math.round((deliveredOrders.length / closedOrders.length) * 100) : 0;
+  const returnRate = closedOrders.length > 0 ? Math.round((orders.filter((o) => cancelledStatuses.has(o.status)).length / closedOrders.length) * 100) : 0;
+
+  // Net capital & profit
+  const onlineRevenue = deliveredOrders.reduce((s, o) => s + o.total, 0);
+  const newCapitalInvested = stockPurchases.filter((sp) => !sp.fundedByRevenue).reduce((s, sp) => s + (sp.totalCost as number), 0);
+  const netCapital = inventoryCost + inTransitAmount + totalStoreSalesRevenue + onlineRevenue - totalExpenses - totalDebtOwed + totalDebtReceivable;
+  const netProfit = newCapitalInvested > 0 ? netCapital - newCapitalInvested : 0;
+  const capitalGrowthPct = newCapitalInvested > 0 ? Math.round(((netCapital - newCapitalInvested) / newCapitalInvested) * 100) : 0;
+
+  // Monthly revenue series (last 6 months)
+  const monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number }> = [];
+  for (let i = 5; i >= 0; i--) {
+    const mStart = new Date(); mStart.setDate(1); mStart.setHours(0, 0, 0, 0); mStart.setMonth(mStart.getMonth() - i);
+    const mEnd = new Date(mStart); mEnd.setMonth(mEnd.getMonth() + 1);
+    const mDelivered = orders.filter((o) => {
+      const d = new Date(o.createdAt as Date);
+      return d >= mStart && d < mEnd && deliveredStatuses.has(o.status);
+    });
+    monthlyRevenueSeries.push({
+      label: mStart.toLocaleString("ar-DZ", { month: "short" }),
+      revenue: mDelivered.reduce((s, o) => s + o.total, 0),
+      orders: mDelivered.length,
+    });
+  }
 
   // Top products by actual order count (not just slice)
   const productOrderCount = new Map<string, number>();
@@ -159,6 +198,21 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     // This week
     weekOrders: weekOrders.length,
     weekRevenue: weekOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((sum, o) => sum + o.total, 0),
+    // This month vs last month
+    monthOrders: monthOrders.length,
+    monthRevenue,
+    lastMonthRevenue,
+    lastMonthOrders: lastMonthOrders.length,
+    // Delivery & return rates
+    deliveryRate,
+    returnRate,
+    // Capital & profit
+    netCapital,
+    netProfit,
+    newCapitalInvested,
+    capitalGrowthPct,
+    // Monthly revenue chart (last 6 months)
+    monthlyRevenueSeries,
     // Abandoned (waiting for call > 24h)
     abandonedOrders: abandonedOrders.length,
     abandonedOrderDetails: abandonedOrders.slice(0, 5).map((o) => ({

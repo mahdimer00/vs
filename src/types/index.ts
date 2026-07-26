@@ -398,6 +398,21 @@ export interface DashboardStats {
   totalStoreSalesRevenue: number;
   inTransitOrders: number;
   inTransitAmount: number;
+  // Monthly comparison
+  monthOrders: number;
+  monthRevenue: number;
+  lastMonthRevenue: number;
+  lastMonthOrders: number;
+  // Delivery rates
+  deliveryRate: number;
+  returnRate: number;
+  // Capital & profit
+  netCapital: number;
+  netProfit: number;
+  newCapitalInvested: number;
+  capitalGrowthPct: number;
+  // Chart data
+  monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number }>;
 }
 
 export interface CartItem {

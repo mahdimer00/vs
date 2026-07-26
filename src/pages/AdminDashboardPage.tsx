@@ -1951,6 +1951,141 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── CAPITAL & GROWTH ── */}
+        {stats.newCapitalInvested > 0 && (() => {
+          const nc = stats.netCapital ?? 0;
+          const np = stats.netProfit ?? 0;
+          const gp = stats.capitalGrowthPct ?? 0;
+          const inv = stats.newCapitalInvested ?? 0;
+          const growing = gp >= 0;
+          return (
+            <div className={`surface-card overflow-hidden p-0 ring-2 ${growing ? "ring-emerald-200" : "ring-rose-200"}`}>
+              <div className={`flex items-center justify-between border-b px-5 py-3.5 ${growing ? "border-emerald-100 bg-emerald-50/60" : "border-rose-100 bg-rose-50/60"}`}>
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <TrendingUp className={`h-4 w-4 ${growing ? "text-emerald-600" : "text-rose-600"}`} />
+                  {isAr ? "رأس المال والنمو" : "Capital & Growth"}
+                </div>
+                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-black ${growing ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+                  {growing ? "▲" : "▼"} {Math.abs(gp)}% {isAr ? (growing ? "نمو" : "انخفاض") : (growing ? "growth" : "decline")}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 rtl:divide-x-reverse">
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "رأس المال الحالي" : "Current Capital"}</div>
+                  <div className="text-xl font-black text-slate-800">{formatCurrency(Math.round(nc), language)}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{isAr ? "مخزون + إيرادات + طريق − مصاريف" : "inventory + revenue + transit − expenses"}</div>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "رأس المال المستثمر" : "Capital Invested"}</div>
+                  <div className="text-xl font-black text-slate-600">{formatCurrency(Math.round(inv), language)}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{isAr ? "إجمالي ما أضفته من مال جديد" : "total new money you put in"}</div>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "صافي الربح" : "Net Profit"}</div>
+                  <div className={`text-xl font-black ${np >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{np >= 0 ? "+" : ""}{formatCurrency(Math.round(np), language)}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{isAr ? "رأس المال الحالي − المستثمر" : "current capital − invested"}</div>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "الأموال في الطريق" : "In-Transit Funds"}</div>
+                  <div className="text-xl font-black text-sky-700">{stats.inTransitAmount > 0 ? formatCurrency(stats.inTransitAmount, language) : "—"}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{stats.inTransitOrders} {isAr ? "طلب مشحون لم يُسلَّم" : "shipped, not delivered"}</div>
+                </div>
+              </div>
+              {/* Capital breakdown bar */}
+              {nc > 0 && (
+                <div className="border-t border-slate-100 px-5 py-3">
+                  <div className="mb-1.5 flex justify-between text-[10px] text-slate-400">
+                    <span>{isAr ? "تكوين رأس المال" : "Capital breakdown"}</span>
+                    <span>{formatCurrency(Math.round(nc), language)}</span>
+                  </div>
+                  <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+                    {[
+                      { val: stats.inventoryCost, color: "bg-violet-500", label: isAr ? "مخزون" : "Inventory" },
+                      { val: stats.revenue, color: "bg-emerald-500", label: isAr ? "إيرادات محصلة" : "Revenue" },
+                      { val: stats.inTransitAmount, color: "bg-sky-400", label: isAr ? "في الطريق" : "In-transit" },
+                      { val: stats.totalStoreSalesRevenue, color: "bg-teal-400", label: isAr ? "مبيعات محل" : "Store sales" },
+                    ].filter(s => s.val > 0).map(s => (
+                      <div key={s.label} className={`${s.color}`} style={{ width: `${Math.min(100, Math.round((s.val / Math.max(nc, 1)) * 100))}%` }} title={`${s.label}: ${formatCurrency(s.val, language)}`} />
+                    ))}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-400">
+                    {[
+                      { val: stats.inventoryCost, color: "bg-violet-500", label: isAr ? "مخزون بالتكلفة" : "Inventory at cost" },
+                      { val: stats.revenue, color: "bg-emerald-500", label: isAr ? "إيرادات محصلة" : "Collected revenue" },
+                      { val: stats.inTransitAmount, color: "bg-sky-400", label: isAr ? "أموال في الطريق" : "In-transit" },
+                      { val: stats.totalStoreSalesRevenue, color: "bg-teal-400", label: isAr ? "مبيعات المحل" : "Store sales" },
+                    ].filter(s => s.val > 0).map(s => (
+                      <span key={s.label} className="flex items-center gap-1">
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.color}`} />
+                        {s.label}: {formatCurrency(s.val, language)}
+                      </span>
+                    ))}
+                    {stats.totalExpenses > 0 && (
+                      <span className="flex items-center gap-1 text-rose-400">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />
+                        {isAr ? "مصاريف: −" : "Expenses: −"}{formatCurrency(stats.totalExpenses, language)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── 6-MONTH REVENUE CHART ── */}
+        {stats.monthlyRevenueSeries && stats.monthlyRevenueSeries.length > 0 && (() => {
+          const series = stats.monthlyRevenueSeries;
+          const maxRev = Math.max(...series.map(m => m.revenue), 1);
+          const totalSixMonths = series.reduce((s, m) => s + m.revenue, 0);
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <BarChart3 className="h-4 w-4 text-indigo-500" />
+                  {isAr ? "الإيرادات — آخر 6 أشهر" : "Revenue — last 6 months"}
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{isAr ? "إجمالي 6 أشهر:" : "6-month total:"} {formatCurrency(totalSixMonths, language)}</span>
+              </div>
+              <div className="px-5 py-4">
+                <div className="flex items-end gap-2 h-28">
+                  {series.map((m, i) => {
+                    const pct = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
+                    const isCurrentMonth = i === series.length - 1;
+                    return (
+                      <div key={m.label} className="flex flex-1 flex-col items-center gap-1">
+                        <div className="text-[9px] font-bold text-slate-500">
+                          {m.revenue > 0 ? formatCurrency(Math.round(m.revenue / 1000), language) + "k" : ""}
+                        </div>
+                        <div className="relative w-full" style={{ height: "72px" }}>
+                          <div
+                            className={`absolute bottom-0 w-full rounded-t-lg transition-all ${isCurrentMonth ? "bg-indigo-500" : "bg-slate-200"}`}
+                            style={{ height: `${Math.max(pct, 2)}%` }}
+                            title={`${m.label}: ${formatCurrency(m.revenue, language)} (${m.orders} طلب)`}
+                          />
+                        </div>
+                        <div className={`text-[9px] font-semibold ${isCurrentMonth ? "text-indigo-600" : "text-slate-400"}`}>{m.label}</div>
+                        <div className="text-[9px] text-slate-300">{m.orders > 0 ? m.orders : ""}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Month-over-month */}
+                {stats.lastMonthRevenue > 0 && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                    <span>{isAr ? "مقارنة بالشهر الماضي:" : "vs last month:"}</span>
+                    <span className={`font-bold ${stats.monthRevenue >= stats.lastMonthRevenue ? "text-emerald-600" : "text-rose-600"}`}>
+                      {stats.monthRevenue >= stats.lastMonthRevenue ? "▲" : "▼"}
+                      {" "}{Math.abs(Math.round(((stats.monthRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100))}%
+                    </span>
+                    <span className="text-slate-300">({formatCurrency(stats.lastMonthRevenue, language)} → {formatCurrency(stats.monthRevenue, language)})</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── ORDERS PIPELINE ── */}
         {(() => {
           const isAr = language === "ar";
