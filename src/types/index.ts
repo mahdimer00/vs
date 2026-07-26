@@ -418,6 +418,7 @@ export interface DashboardStats {
   netProfit: number;
   newCapitalInvested: number;
   capitalGrowthPct: number;
+  totalGrossProfit: number;
   // Chart data
   monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number; profit: number }>;
   // Top products by profit
@@ -463,7 +464,10 @@ export interface AnalyticsSummary {
   revenueToday: number;
   ordersByStatus: Record<string, number>;
   visitorsByDay: Array<{ date: string; count: number }>;
-  salesByDay: Array<{ date: string; revenue: number; orders: number }>;
+  salesByDay: Array<{ date: string; revenue: number; orders: number; profit?: number }>;
+  profitTotal?: number;
+  profitToday?: number;
+  avgMargin?: number;
   // New professional analytics
   lastHourVisitors: number;
   lastHourOrders: number;

@@ -33,6 +33,8 @@ import {
   TicketPercent,
   TrendingUp,
   Truck,
+  DollarSign,
+  Scale,
   Users,
   Video,
   Wallet,
@@ -1392,8 +1394,8 @@ export function AdminDashboardPage() {
             {/* ── LIVE STATS (last hour) ── */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: language === "ar" ? "🔴 آخر ساعة — زوار" : "Last 1h visitors", value: data.lastHourVisitors, color: "text-rose-600" },
-                { label: language === "ar" ? "🔴 آخر ساعة — طلبات" : "Last 1h orders", value: data.lastHourOrders, color: "text-rose-600" },
+                { label: language === "ar" ? "زوار آخر ساعة" : "Last 1h visitors", value: String(data.lastHourVisitors), color: "text-rose-600" },
+                { label: language === "ar" ? "طلبات آخر ساعة" : "Last 1h orders", value: String(data.lastHourOrders), color: "text-rose-600" },
                 { label: language === "ar" ? "متوسط قيمة الطلب" : "Avg order value", value: formatCurrency(data.avgOrderValue ?? 0, language), color: "text-teal-700" },
                 { label: language === "ar" ? "معدل التحويل" : "Conversion rate", value: `${data.conversionRate}%`, color: data.conversionRate < 1 ? "text-rose-600" : data.conversionRate < 3 ? "text-amber-600" : "text-emerald-600" },
               ].map(({ label, value, color }) => (
@@ -1404,16 +1406,70 @@ export function AdminDashboardPage() {
               ))}
             </div>
 
+            {/* ── PROFIT SUMMARY CARD ── */}
+            {(data.profitTotal ?? 0) > 0 && (() => {
+              const pt = data.profitTotal ?? 0;
+              const margin = data.avgMargin ?? 0;
+              const cogs = data.revenueTotal - pt;
+              const profitable = pt >= 0;
+              return (
+                <div className={`surface-card overflow-hidden p-0 ring-2 ${profitable ? "ring-emerald-200" : "ring-rose-200"}`}>
+                  <div className={`flex items-center justify-between border-b px-5 py-3 ${profitable ? "border-emerald-100 bg-emerald-50/60" : "border-rose-100 bg-rose-50/60"}`}>
+                    <div className="flex items-center gap-2 font-bold text-slate-800">
+                      <Scale className="h-4 w-4 text-amber-500" />
+                      {language === "ar" ? "تحليل الربحية — هذه الفترة" : "Profitability — this period"}
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-sm font-black ${profitable ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+                      {language === "ar" ? "هامش" : "margin"} {margin}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 rtl:divide-x-reverse">
+                    <div className="px-5 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{language === "ar" ? "الإيرادات" : "Revenue"}</div>
+                      <div className="text-lg font-black text-slate-800">{formatCurrency(Math.round(data.revenueTotal), language)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400">{language === "ar" ? "اليوم:" : "today:"} {formatCurrency(Math.round(data.revenueToday), language)}</div>
+                    </div>
+                    <div className="px-5 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{language === "ar" ? "تكلفة البضاعة" : "COGS"}</div>
+                      <div className="text-lg font-black text-rose-600">−{formatCurrency(Math.round(cogs), language)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400">{language === "ar" ? "سعر شراء ما تم بيعه" : "purchase cost sold"}</div>
+                    </div>
+                    <div className="px-5 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{language === "ar" ? "الربح الإجمالي" : "Gross Profit"}</div>
+                      <div className="text-lg font-black text-emerald-600">+{formatCurrency(Math.round(pt), language)}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400">{language === "ar" ? "اليوم:" : "today:"} {formatCurrency(Math.round(data.profitToday ?? 0), language)}</div>
+                    </div>
+                    <div className="px-5 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{language === "ar" ? "هامش الربح" : "Gross Margin"}</div>
+                      <div className="text-lg font-black text-emerald-700">{margin}%</div>
+                      <div className="mt-0.5 text-[10px] text-slate-400">{language === "ar" ? "لكل 100 دج ربح" : "profit per 100 revenue"} {Math.round(margin)} {language === "ar" ? "دج" : "DZD"}</div>
+                    </div>
+                  </div>
+                  {/* Revenue flow bar */}
+                  <div className="border-t border-slate-100 px-5 py-2.5">
+                    <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+                      {cogs > 0 && <div className="bg-rose-400" style={{ width: `${data.revenueTotal > 0 ? Math.min(98, Math.round((cogs / data.revenueTotal) * 100)) : 0}%` }} />}
+                      {pt > 0 && <div className="bg-emerald-500" style={{ width: `${data.revenueTotal > 0 ? Math.min(98, Math.round((pt / data.revenueTotal) * 100)) : 0}%` }} />}
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-400">
+                      <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />{language === "ar" ? "تكلفة" : "COGS"}: {formatCurrency(Math.round(cogs), language)}</span>
+                      <span className="flex items-center gap-1 font-semibold text-emerald-600"><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />{language === "ar" ? "ربح" : "Profit"}: +{formatCurrency(Math.round(pt), language)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── KPI CARDS ── */}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString(), sub: `${data.todayVisitors} ${language === "ar" ? "اليوم" : "today"}` },
-                { icon: BarChart3, label: translate(language, "analyticsProductViews"), value: data.productViews.toLocaleString(), sub: "" },
-                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString(), sub: `${data.lastHourOrders} ${language === "ar" ? "آخر ساعة" : "last hour"}` },
-                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language), sub: `${formatCurrency(data.revenueToday, language)} ${language === "ar" ? "اليوم" : "today"}` },
-              ].map(({ icon: Icon, label, value, sub }) => (
+                { icon: Users, label: translate(language, "analyticsVisitors"), value: data.totalVisitors.toLocaleString(), sub: `${data.todayVisitors} ${language === "ar" ? "اليوم" : "today"}`, color: "bg-sky-100 text-sky-600" },
+                { icon: BarChart3, label: translate(language, "analyticsProductViews"), value: data.productViews.toLocaleString(), sub: "", color: "bg-indigo-100 text-indigo-600" },
+                { icon: BarChart3, label: translate(language, "analyticsOrders"), value: data.ordersCount.toLocaleString(), sub: `${data.lastHourOrders} ${language === "ar" ? "آخر ساعة" : "last hour"}`, color: "bg-amber-100 text-amber-600" },
+                { icon: Wallet, label: translate(language, "analyticsRevenue"), value: formatCurrency(data.revenueTotal, language), sub: `${formatCurrency(data.revenueToday, language)} ${language === "ar" ? "اليوم" : "today"}`, color: "bg-emerald-100 text-emerald-600" },
+              ].map(({ icon: Icon, label, value, sub, color }) => (
                 <div key={label} className="stat-card flex items-start gap-4">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                  <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${color}`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
@@ -1470,9 +1526,32 @@ export function AdminDashboardPage() {
               <Panel title={translate(language, "analyticsSalesByDay")}>
                 {data.salesByDay.every((d) => d.revenue === 0) ? (
                   <p className="py-6 text-center text-sm text-slate-400">{translate(language, "analyticsNoData")}</p>
-                ) : (
-                  <BarChart bars={data.salesByDay.map((d) => ({ label: d.date, value: d.revenue }))} color="bg-emerald-400" formatTip={(v) => formatCurrency(v, language)} />
-                )}
+                ) : (() => {
+                  const maxRev = Math.max(...data.salesByDay.map(d => d.revenue), 1);
+                  return (
+                    <>
+                      <div className="flex h-40 items-end gap-1">
+                        {data.salesByDay.map((d) => {
+                          const revH = Math.max(4, Math.round((d.revenue / maxRev) * 100));
+                          const profH = d.profit && d.revenue > 0 ? Math.max(2, Math.round((d.profit / maxRev) * 100)) : 0;
+                          return (
+                            <div key={d.date} className="group relative flex flex-1 flex-col items-center gap-1" title={`${d.date.slice(5)}: rev ${formatCurrency(d.revenue, language)}${d.profit ? ` | profit ${formatCurrency(d.profit, language)}` : ""}`}>
+                              <div className="relative w-full" style={{ height: "90%" }}>
+                                <div className="absolute bottom-0 w-full rounded-t-sm bg-emerald-200 transition-all" style={{ height: `${revH}%` }} />
+                                {profH > 0 && <div className="absolute bottom-0 rounded-t-sm bg-emerald-500 transition-all" style={{ height: `${profH}%`, width: "55%", left: "22.5%" }} />}
+                              </div>
+                              <span className="truncate text-center text-[10px] text-slate-400">{d.date.slice(5)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-1 flex items-center gap-3 text-[9px] text-slate-400">
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-emerald-200" />{language === "ar" ? "إيرادات" : "Revenue"}</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-emerald-500" />{language === "ar" ? "ربح" : "Profit"}</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </Panel>
             </div>
 
@@ -1954,6 +2033,95 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── P&L STATEMENT ── */}
+        {(stats.totalGrossProfit ?? 0) > 0 && (() => {
+          const revenue = stats.revenue ?? 0;
+          const grossProfit = stats.totalGrossProfit ?? 0;
+          const cogs = Math.max(0, revenue - grossProfit);
+          const grossMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 100) : 0;
+          const expenses = stats.totalExpenses ?? 0;
+          const netOperating = grossProfit - expenses;
+          const netMargin = revenue > 0 ? Math.round((netOperating / revenue) * 100) : 0;
+          const profitable = netOperating >= 0;
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className={`flex items-center justify-between border-b px-5 py-3.5 ${profitable ? "border-emerald-100 bg-emerald-50/50" : "border-rose-100 bg-rose-50/50"}`}>
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Scale className="h-4 w-4 text-amber-500" />
+                  {isAr ? "بيان الأرباح والخسائر (P&L)" : "Profit & Loss Statement"}
+                </div>
+                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-black ${profitable ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+                  {isAr ? "هامش صافي" : "net margin"} {netMargin}%
+                </span>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 rtl:divide-x-reverse">
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "إجمالي الإيرادات" : "Total Revenue"}</div>
+                  <div className="text-xl font-black text-slate-800">{formatCurrency(Math.round(revenue), language)}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{isAr ? "من الطلبات المسلمة" : "from delivered orders"}</div>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "تكلفة البضاعة المباعة" : "Cost of Goods Sold"}</div>
+                  <div className="text-xl font-black text-rose-600">−{formatCurrency(Math.round(cogs), language)}</div>
+                  <div className="mt-1 text-[10px] text-slate-400">{isAr ? "سعر شراء المنتجات المباعة" : "purchase cost of sold items"}</div>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "الربح الإجمالي" : "Gross Profit"}</div>
+                  <div className="text-xl font-black text-emerald-600">+{formatCurrency(Math.round(grossProfit), language)}</div>
+                  <div className="mt-1 flex items-center gap-1">
+                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">{grossMargin}%</span>
+                    <span className="text-[10px] text-slate-400">{isAr ? "هامش إجمالي" : "gross margin"}</span>
+                  </div>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{isAr ? "صافي الربح التشغيلي" : "Net Operating Profit"}</div>
+                  <div className={`text-xl font-black ${profitable ? "text-emerald-700" : "text-rose-700"}`}>
+                    {profitable ? "+" : ""}{formatCurrency(Math.round(netOperating), language)}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1">
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${profitable ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{netMargin}%</span>
+                    <span className="text-[10px] text-slate-400">{isAr ? "بعد المصاريف" : "after expenses"}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Flow bar */}
+              <div className="border-t border-slate-100 px-5 py-3">
+                <div className="mb-2 flex justify-between text-[10px] text-slate-400">
+                  <span>{isAr ? "تدفق الإيراد" : "Revenue flow"}</span>
+                  <span>{isAr ? "من" : "of"} {formatCurrency(Math.round(revenue), language)}</span>
+                </div>
+                <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
+                  {cogs > 0 && (
+                    <div className="bg-rose-400 transition-all" style={{ width: `${revenue > 0 ? Math.min(99, Math.round((cogs / revenue) * 100)) : 0}%` }} title={`COGS: ${formatCurrency(Math.round(cogs), language)}`} />
+                  )}
+                  {expenses > 0 && (
+                    <div className="bg-orange-400 transition-all" style={{ width: `${revenue > 0 ? Math.min(99, Math.round((expenses / revenue) * 100)) : 0}%` }} title={`${isAr ? "مصاريف" : "Expenses"}: ${formatCurrency(Math.round(expenses), language)}`} />
+                  )}
+                  {netOperating > 0 && (
+                    <div className="bg-emerald-500 transition-all" style={{ width: `${revenue > 0 ? Math.min(99, Math.round((netOperating / revenue) * 100)) : 0}%` }} title={`${isAr ? "صافي ربح" : "Net profit"}: ${formatCurrency(Math.round(netOperating), language)}`} />
+                  )}
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />
+                    {isAr ? "تكلفة البضاعة" : "COGS"}: −{formatCurrency(Math.round(cogs), language)}
+                  </span>
+                  {expenses > 0 && (
+                    <span className="flex items-center gap-1 text-orange-500">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-orange-400" />
+                      {isAr ? "مصاريف" : "Expenses"}: −{formatCurrency(Math.round(expenses), language)}
+                    </span>
+                  )}
+                  <span className={`flex items-center gap-1 font-semibold ${profitable ? "text-emerald-600" : "text-rose-500"}`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${profitable ? "bg-emerald-500" : "bg-rose-500"}`} />
+                    {isAr ? "صافي ربح" : "Net profit"}: {profitable ? "+" : ""}{formatCurrency(Math.round(netOperating), language)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── CAPITAL & GROWTH ── */}
         {stats.newCapitalInvested > 0 && (() => {
           const nc = stats.netCapital ?? 0;
@@ -2036,72 +2204,107 @@ export function AdminDashboardPage() {
           );
         })()}
 
-        {/* ── 6-MONTH REVENUE CHART ── */}
+        {/* ── 6-MONTH PROFIT & REVENUE CHART ── */}
         {stats.monthlyRevenueSeries && stats.monthlyRevenueSeries.length > 0 && (() => {
           const series = stats.monthlyRevenueSeries;
           const maxRev = Math.max(...series.map(m => m.revenue), 1);
-          const totalSixMonths = series.reduce((s, m) => s + m.revenue, 0);
+          const totalSixMonthsRevenue = series.reduce((s, m) => s + m.revenue, 0);
+          const totalSixMonthsProfit = series.reduce((s, m) => s + m.profit, 0);
+          const avgMargin = totalSixMonthsRevenue > 0 ? Math.round((totalSixMonthsProfit / totalSixMonthsRevenue) * 100) : 0;
+          // Cumulative profit per month
+          let cumProfit = 0;
+          const cumProfitSeries = series.map(m => { cumProfit += m.profit; return cumProfit; });
+          const maxCumProfit = Math.max(...cumProfitSeries, 1);
           return (
             <div className="surface-card overflow-hidden p-0">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
                 <div className="flex items-center gap-2 font-bold text-slate-800">
-                  <BarChart3 className="h-4 w-4 text-indigo-500" />
-                  {isAr ? "الإيرادات — آخر 6 أشهر" : "Revenue — last 6 months"}
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  {isAr ? "نمو الأرباح — آخر 6 أشهر" : "Profit Growth — last 6 months"}
                 </div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{isAr ? "إجمالي 6 أشهر:" : "6-month total:"} {formatCurrency(totalSixMonths, language)}</span>
+                <div className="flex items-center gap-2">
+                  {avgMargin > 0 && (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">
+                      {isAr ? "متوسط هامش" : "avg margin"} {avgMargin}%
+                    </span>
+                  )}
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{isAr ? "ربح 6 أشهر:" : "6-mo profit:"} {formatCurrency(Math.round(totalSixMonthsProfit), language)}</span>
+                </div>
               </div>
-              <div className="px-5 py-4">
-                <div className="flex items-end gap-2 h-28">
+              <div className="px-5 pt-4 pb-2">
+                {/* Bars */}
+                <div className="flex items-end gap-2 h-32">
                   {series.map((m, i) => {
-                    const pct = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
-                    const profitPct = maxRev > 0 ? (m.profit / maxRev) * 100 : 0;
+                    const revPct = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
+                    const profPct = maxRev > 0 ? (m.profit / maxRev) * 100 : 0;
                     const isCurrentMonth = i === series.length - 1;
+                    const margin = m.revenue > 0 ? Math.round((m.profit / m.revenue) * 100) : 0;
                     return (
-                      <div key={m.label} className="flex flex-1 flex-col items-center gap-1">
-                        <div className="text-[9px] font-bold text-slate-500">
-                          {m.revenue > 0 ? formatCurrency(Math.round(m.revenue / 1000), language) + "k" : ""}
+                      <div key={m.label} className="flex flex-1 flex-col items-center gap-0.5">
+                        <div className="text-[8px] font-bold text-slate-500">
+                          {m.revenue > 0 ? `${Math.round(m.revenue / 1000)}k` : ""}
                         </div>
-                        <div className="relative w-full" style={{ height: "72px" }}>
-                          {/* Revenue bar */}
+                        <div className="relative w-full" style={{ height: "80px" }}>
+                          {/* Revenue bar (full width, muted) */}
                           <div
-                            className={`absolute bottom-0 w-full rounded-t-lg transition-all ${isCurrentMonth ? "bg-indigo-400" : "bg-slate-200"}`}
-                            style={{ height: `${Math.max(pct, 2)}%` }}
-                            title={`${m.label}: ${isAr ? "إيرادات" : "Rev"} ${formatCurrency(m.revenue, language)}`}
+                            className={`absolute bottom-0 w-full rounded-t-md transition-all ${isCurrentMonth ? "bg-indigo-200" : "bg-slate-200"}`}
+                            style={{ height: `${Math.max(revPct, m.revenue > 0 ? 4 : 0)}%` }}
+                            title={`${m.label}: ${isAr ? "إيرادات" : "Revenue"} ${formatCurrency(m.revenue, language)}`}
                           />
-                          {/* Profit bar overlay */}
+                          {/* Profit bar (half width, centered, vivid) */}
                           {m.profit > 0 && (
                             <div
-                              className={`absolute bottom-0 w-full rounded-t-lg transition-all ${isCurrentMonth ? "bg-emerald-500" : "bg-emerald-400"}`}
-                              style={{ height: `${Math.max(profitPct, 1)}%`, width: "50%", right: 0 }}
+                              className={`absolute bottom-0 rounded-t-md transition-all ${isCurrentMonth ? "bg-emerald-500" : "bg-emerald-400"}`}
+                              style={{ height: `${Math.max(profPct, 2)}%`, width: "55%", left: "22.5%" }}
                               title={`${m.label}: ${isAr ? "ربح" : "Profit"} ${formatCurrency(m.profit, language)}`}
+                            />
+                          )}
+                          {/* Cumulative profit dot */}
+                          {cumProfitSeries[i] > 0 && (
+                            <div
+                              className="absolute left-1/2 -translate-x-1/2 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white"
+                              style={{ bottom: `${Math.max((cumProfitSeries[i] / maxCumProfit) * 80, 4)}%` }}
+                              title={`${isAr ? "ربح تراكمي" : "Cumulative profit"}: ${formatCurrency(Math.round(cumProfitSeries[i]), language)}`}
                             />
                           )}
                         </div>
                         <div className={`text-[9px] font-semibold ${isCurrentMonth ? "text-indigo-600" : "text-slate-400"}`}>{m.label}</div>
-                        {m.profit > 0 && <div className="text-[8px] text-emerald-600 font-bold">{Math.round((m.profit / m.revenue) * 100)}%</div>}
+                        {margin > 0 && <div className="text-[8px] font-black text-emerald-600">{margin}%</div>}
                       </div>
                     );
                   })}
                 </div>
+                {/* Cumulative profit tracker */}
+                {totalSixMonthsProfit > 0 && (
+                  <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-[11px] font-bold text-emerald-800">{isAr ? "إجمالي الأرباح المتراكمة (6 أشهر)" : "Cumulative profit — 6 months"}</span>
+                    </div>
+                    <span className="text-base font-black text-emerald-700">{formatCurrency(Math.round(totalSixMonthsProfit), language)}</span>
+                  </div>
+                )}
                 {/* Legend */}
-                <div className="mt-2 flex items-center gap-4 text-[9px] text-slate-400">
-                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-indigo-400" />{isAr ? "إيرادات" : "Revenue"}</span>
-                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-emerald-400" />{isAr ? "ربح" : "Profit"}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] text-slate-400">
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-slate-200" />{isAr ? "إيرادات" : "Revenue"}</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-emerald-400" />{isAr ? "ربح إجمالي" : "Gross profit"}</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-amber-400" />{isAr ? "ربح تراكمي" : "Cumulative profit"}</span>
                 </div>
-                {/* Month-over-month */}
+                {/* Month-over-month comparison */}
                 {stats.lastMonthRevenue > 0 && (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 border-t border-slate-100 pt-2">
                     <span className="flex items-center gap-1">
-                      {isAr ? "إيرادات مقارنة بالشهر الماضي:" : "Revenue vs last month:"}
+                      {isAr ? "هذا الشهر مقارنة بالماضي —" : "This month vs last —"}
+                      {isAr ? " إيرادات:" : " revenue:"}
                       <span className={`font-bold ${stats.monthRevenue >= stats.lastMonthRevenue ? "text-emerald-600" : "text-rose-600"}`}>
-                        {stats.monthRevenue >= stats.lastMonthRevenue ? "▲" : "▼"}{Math.abs(Math.round(((stats.monthRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100))}%
+                        {stats.monthRevenue >= stats.lastMonthRevenue ? "▲" : "▼"}{Math.abs(Math.round(((stats.monthRevenue - stats.lastMonthRevenue) / Math.max(stats.lastMonthRevenue, 1)) * 100))}%
                       </span>
                     </span>
                     {stats.lastMonthProfit > 0 && (
                       <span className="flex items-center gap-1">
-                        {isAr ? "ربح:" : "Profit:"}
+                        {isAr ? "ربح:" : "profit:"}
                         <span className={`font-bold ${stats.monthProfit >= stats.lastMonthProfit ? "text-emerald-600" : "text-rose-600"}`}>
-                          {stats.monthProfit >= stats.lastMonthProfit ? "▲" : "▼"}{Math.abs(Math.round(((stats.monthProfit - stats.lastMonthProfit) / stats.lastMonthProfit) * 100))}%
+                          {stats.monthProfit >= stats.lastMonthProfit ? "▲" : "▼"}{Math.abs(Math.round(((stats.monthProfit - stats.lastMonthProfit) / Math.max(stats.lastMonthProfit, 1)) * 100))}%
                         </span>
                       </span>
                     )}
