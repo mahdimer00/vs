@@ -745,7 +745,7 @@ export function AdminDashboardPage() {
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load finance data when navigating to finance tab
+  // Load finance data when navigating to finance or orders tab
   useEffect(() => {
     if (token && tab === "finance") {
       void Promise.all([
@@ -759,6 +759,9 @@ export function AdminDashboardPage() {
         setStockPurchases(sp);
         setStoreSales(ss);
       }).catch(() => undefined);
+    }
+    if (token && tab === "orders" && storeSales.length === 0) {
+      void adminService.getStoreSales(token).then(setStoreSales).catch(() => undefined);
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -4311,6 +4314,122 @@ export function AdminDashboardPage() {
 
     return (
       <div className="space-y-4">
+
+        {/* ── مبيعات المحل (Store Walk-in Sales) ── */}
+        {(() => {
+          const [open, setOpen] = React.useState(false);
+          const totalSales = storeSales.reduce((s, sl) => s + sl.total, 0);
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              {/* Header — click to expand */}
+              <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="flex w-full items-center justify-between px-5 py-3.5 text-start transition hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-100 text-teal-700">
+                    <Store className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-800">{language === "ar" ? "مبيعات المحل (بدون اسم عميل)" : "Walk-in Store Sales (no client name)"}</div>
+                    <div className="text-[11px] text-slate-400">{storeSales.length} {language === "ar" ? "عملية" : "records"} · {formatCurrency(totalSales, language)}</div>
+                  </div>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+              </button>
+
+              {open && (
+                <div className="border-t border-slate-100 px-5 py-4 space-y-4">
+                  {/* Quick-add form */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      const qty = Number(fd.get("quantity"));
+                      const price = Number(fd.get("salePrice"));
+                      const payload = {
+                        productName: fd.get("productName") as string,
+                        quantity: qty,
+                        salePrice: price,
+                        total: qty * price,
+                        notes: fd.get("notes") as string || undefined,
+                        date: fd.get("date") as string || undefined,
+                      };
+                      void adminService.createStoreSale(token, payload)
+                        .then((doc) => { setStoreSales((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(language === "ar" ? "تمت الإضافة ✓" : "Added ✓", "success"); })
+                        .catch(() => pushToast(language === "ar" ? "خطأ" : "Error", "error"));
+                    }}
+                    className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
+                  >
+                    <input name="productName" required placeholder={language === "ar" ? "اسم المنتج" : "Product name"} className="field-input sm:col-span-2 xl:col-span-2" />
+                    <input name="quantity" type="number" min="1" required defaultValue="1" placeholder={language === "ar" ? "الكمية" : "Qty"} className="field-input" />
+                    <input name="salePrice" type="number" min="0" step="1" required placeholder={language === "ar" ? "سعر البيع (دج)" : "Price (DZD)"} className="field-input" />
+                    <input name="date" type="date" className="field-input" defaultValue={new Date().toISOString().split("T")[0]} />
+                    <input name="notes" placeholder={language === "ar" ? "ملاحظات (اختياري)" : "Notes (optional)"} className="field-input sm:col-span-2 xl:col-span-4" />
+                    <button type="submit" className="primary-button">{language === "ar" ? "تسجيل" : "Record"}</button>
+                  </form>
+
+                  {/* Sales list */}
+                  {storeSales.length > 0 && (
+                    <div className="overflow-x-auto rounded-xl border border-slate-100">
+                      <table className="min-w-[540px] w-full text-sm">
+                        <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          <tr>
+                            <th className="px-4 py-2.5 text-start">{language === "ar" ? "المنتج" : "Product"}</th>
+                            <th className="px-4 py-2.5 text-center">{language === "ar" ? "الكمية" : "Qty"}</th>
+                            <th className="px-4 py-2.5 text-end">{language === "ar" ? "السعر" : "Price"}</th>
+                            <th className="px-4 py-2.5 text-end text-teal-600">{language === "ar" ? "الإجمالي" : "Total"}</th>
+                            <th className="px-4 py-2.5 text-start">{language === "ar" ? "التاريخ" : "Date"}</th>
+                            <th className="px-4 py-2.5 text-start">{language === "ar" ? "ملاحظات" : "Notes"}</th>
+                            <th className="px-4 py-2.5" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {storeSales.slice(0, 10).map((sl) => (
+                            <tr key={sl._id} className="hover:bg-slate-50">
+                              <td className="px-4 py-2.5 font-medium text-slate-800">{sl.productName}</td>
+                              <td className="px-4 py-2.5 text-center font-bold">{sl.quantity}</td>
+                              <td className="px-4 py-2.5 text-end">{formatCurrency(sl.salePrice, language)}</td>
+                              <td className="px-4 py-2.5 text-end font-black text-teal-700">{formatCurrency(sl.total, language)}</td>
+                              <td className="px-4 py-2.5 text-xs text-slate-400">{new Date(sl.date).toLocaleDateString("ar-DZ")}</td>
+                              <td className="px-4 py-2.5 text-xs text-slate-400">{sl.notes || "—"}</td>
+                              <td className="px-4 py-2.5">
+                                <button
+                                  onClick={() => setConfirmModal({
+                                    title: language === "ar" ? "حذف البيع" : "Delete sale",
+                                    message: language === "ar" ? `حذف بيع "${sl.productName}"؟` : `Delete sale of "${sl.productName}"?`,
+                                    confirmLabel: language === "ar" ? "حذف" : "Delete",
+                                    tone: "danger",
+                                    onConfirm: () => void adminService.deleteStoreSale(token, sl._id).then(() => setStoreSales((prev) => prev.filter((x) => x._id !== sl._id))).catch(() => undefined),
+                                  })}
+                                  className="text-xs text-rose-400 hover:text-rose-600"
+                                >
+                                  {language === "ar" ? "حذف" : "Del"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-teal-50 text-sm font-bold">
+                            <td colSpan={3} className="px-4 py-2 text-slate-500">{language === "ar" ? "الإجمالي" : "Total"}</td>
+                            <td className="px-4 py-2 font-black text-teal-700">{formatCurrency(totalSales, language)}</td>
+                            <td colSpan={3} />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                  {storeSales.length === 0 && (
+                    <p className="text-center text-sm text-slate-400 py-4">{language === "ar" ? "لا توجد مبيعات مسجلة" : "No store sales yet"}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* ZR Express Status Panel — always visible */}
         <div className={`rounded-2xl border px-5 py-4 ${
           zrStatus === null
