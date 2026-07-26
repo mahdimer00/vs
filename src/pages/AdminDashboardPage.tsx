@@ -449,6 +449,8 @@ export function AdminDashboardPage() {
   const [stockPurchases, setStockPurchases] = useState<StockPurchase[]>([]);
   const [storeSales, setStoreSales] = useState<StoreSale[]>([]);
   const [storeSalesOpen, setStoreSalesOpen] = useState(false);
+  const [storeSaleProductId, setStoreSaleProductId] = useState("");
+  const [storeSalePrice, setStoreSalePrice] = useState("");
   const [financeSubTab, setFinanceSubTab] = useState<"expenses" | "debts" | "stock-purchases" | "store-sales">("expenses");
   const [hideZeroStock, setHideZeroStock] = useState(true);
   const [debtPaymentOpen, setDebtPaymentOpen] = useState<string | null>(null);
@@ -4341,33 +4343,104 @@ export function AdminDashboardPage() {
 
               {storeSalesOpen && (
                 <div className="border-t border-slate-100 px-5 py-4 space-y-4">
-                  {/* Quick-add form */}
+                  {/* Quick-add form — product picker */}
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       const fd = new FormData(e.currentTarget);
-                      const qty = Number(fd.get("quantity"));
-                      const price = Number(fd.get("salePrice"));
+                      const qty = Number(fd.get("quantity") || 1);
+                      const price = Number(storeSalePrice);
+                      if (!price || price <= 0) { pushToast(language === "ar" ? "أدخل السعر" : "Enter price", "error"); return; }
+                      const selectedProduct = products.find((p) => p._id === storeSaleProductId);
                       const payload = {
-                        productName: fd.get("productName") as string,
+                        productName: selectedProduct ? getLocalizedText(selectedProduct.name, language) : (fd.get("productName") as string),
                         quantity: qty,
                         salePrice: price,
                         total: qty * price,
+                        productId: storeSaleProductId || undefined,
                         notes: fd.get("notes") as string || undefined,
                         date: fd.get("date") as string || undefined,
                       };
                       void adminService.createStoreSale(token, payload)
-                        .then((doc) => { setStoreSales((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(language === "ar" ? "تمت الإضافة ✓" : "Added ✓", "success"); })
+                        .then((doc) => {
+                          setStoreSales((prev) => [doc, ...prev]);
+                          setStoreSaleProductId("");
+                          setStoreSalePrice("");
+                          (e.target as HTMLFormElement).reset();
+                          pushToast(language === "ar" ? "تمت الإضافة ✓" : "Added ✓", "success");
+                        })
                         .catch(() => pushToast(language === "ar" ? "خطأ" : "Error", "error"));
                     }}
-                    className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
+                    className="space-y-3"
                   >
-                    <input name="productName" required placeholder={language === "ar" ? "اسم المنتج" : "Product name"} className="field-input sm:col-span-2 xl:col-span-2" />
-                    <input name="quantity" type="number" min="1" required defaultValue="1" placeholder={language === "ar" ? "الكمية" : "Qty"} className="field-input" />
-                    <input name="salePrice" type="number" min="0" step="1" required placeholder={language === "ar" ? "سعر البيع (دج)" : "Price (DZD)"} className="field-input" />
-                    <input name="date" type="date" className="field-input" defaultValue={new Date().toISOString().split("T")[0]} />
-                    <input name="notes" placeholder={language === "ar" ? "ملاحظات (اختياري)" : "Notes (optional)"} className="field-input sm:col-span-2 xl:col-span-4" />
-                    <button type="submit" className="primary-button">{language === "ar" ? "تسجيل" : "Record"}</button>
+                    {/* Row 1: product picker + qty */}
+                    <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                      <div className="relative">
+                        <select
+                          value={storeSaleProductId}
+                          onChange={(e) => {
+                            const pid = e.target.value;
+                            setStoreSaleProductId(pid);
+                            if (pid) {
+                              const p = products.find((x) => x._id === pid);
+                              if (p) setStoreSalePrice(String(p.discountPrice ?? p.basePrice));
+                            } else {
+                              setStoreSalePrice("");
+                            }
+                          }}
+                          className="field-select w-full"
+                        >
+                          <option value="">{language === "ar" ? "— اختر منتجاً —" : "— Select a product —"}</option>
+                          {products.filter((p) => p.status === "ACTIVE").map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {getLocalizedText(p.name, language)} — {formatCurrency(p.discountPrice ?? p.basePrice, language)} {p.stock <= 1 ? `(${language === "ar" ? "آخر قطعة" : "last unit"})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <input
+                        name="quantity"
+                        type="number"
+                        min="1"
+                        defaultValue="1"
+                        placeholder={language === "ar" ? "الكمية" : "Qty"}
+                        className="field-input w-24 shrink-0"
+                      />
+                    </div>
+
+                    {/* Selected product preview */}
+                    {storeSaleProductId && (() => {
+                      const p = products.find((x) => x._id === storeSaleProductId);
+                      if (!p) return null;
+                      return (
+                        <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3">
+                          {p.images?.[0] && <img src={p.images[0]} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-teal-100" />}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-slate-800 truncate">{getLocalizedText(p.name, language)}</div>
+                            <div className="text-xs text-slate-500">{language === "ar" ? `مخزون: ${p.stock}` : `Stock: ${p.stock}`}</div>
+                          </div>
+                          <div className="shrink-0 text-end">
+                            <div className="text-[10px] font-semibold uppercase text-slate-400">{language === "ar" ? "سعر البيع" : "Sale price"}</div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={storeSalePrice}
+                              onChange={(e) => setStoreSalePrice(e.target.value)}
+                              className="mt-0.5 w-32 rounded-xl border border-teal-300 bg-white px-3 py-1.5 text-right font-black text-teal-800 outline-none focus:ring-2 focus:ring-teal-400"
+                              required
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Row 2: date + notes + submit */}
+                    <div className="grid gap-3 sm:grid-cols-[auto_1fr_auto]">
+                      <input name="date" type="date" className="field-input w-40" defaultValue={new Date().toISOString().split("T")[0]} />
+                      <input name="notes" placeholder={language === "ar" ? "ملاحظات (اختياري)" : "Notes (optional)"} className="field-input" />
+                      <button type="submit" className="primary-button px-6">{language === "ar" ? "بيع ✓" : "Sell ✓"}</button>
+                    </div>
                   </form>
 
                   {/* Sales list */}
