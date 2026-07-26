@@ -7182,13 +7182,33 @@ export function AdminDashboardPage() {
     >
       <Seo title={translate(language, "dashboard")} noindex />
       <section className="admin-page-header">
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-amber-300 ring-1 ring-white/12">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
+          {/* Title block */}
+          <div className="flex items-center gap-4">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-amber-300 ring-1 ring-white/12">
               <activeViewMeta.icon className="h-5 w-5" />
             </div>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-white md:text-4xl">{activeViewMeta.title}</h1>
-            <p className="mt-3 text-sm leading-7 text-slate-300 md:text-base">{activeViewMeta.description}</p>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white">{activeViewMeta.title}</h1>
+              <p className="mt-0.5 text-[13px] leading-snug text-slate-400">{activeViewMeta.description}</p>
+            </div>
+          </div>
+          {/* Right side: quick stats + actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 backdrop-blur-sm">
+              <span className="text-[11px] text-slate-400">{translate(language, "orders")}</span>
+              <span className="text-sm font-bold text-white">{orders.length}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 backdrop-blur-sm">
+              <span className="text-[11px] text-slate-400">{translate(language, "dashboardPending")}</span>
+              <span className="text-sm font-bold text-amber-300">
+                {orders.filter((o) => o.status === "AWAITING_CALL_CONFIRMATION" || o.status === "PENDING_AI_CONFIRMATION").length}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 backdrop-blur-sm">
+              <span className="text-[11px] text-slate-400">{translate(language, "products")}</span>
+              <span className="text-sm font-bold text-white">{products.length}</span>
+            </div>
             {tab === "products" && (
               <button
                 type="button"
@@ -7199,7 +7219,7 @@ export function AdminDashboardPage() {
                   setVariantDrafts([{ ...defaultVariantDraft }]);
                   setTimeout(() => document.getElementById("product-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
                 }}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-slate-100"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 shadow transition hover:bg-slate-100"
               >
                 + {translate(language, "adminCreate")}
               </button>
@@ -7208,27 +7228,11 @@ export function AdminDashboardPage() {
               <button
                 type="button"
                 onClick={exportOrdersCSV}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
               >
                 <BarChart3 className="h-4 w-4" /> Export CSV
               </button>
             )}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
-              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">{translate(language, "orders")}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{orders.length}</div>
-            </div>
-            <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
-              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">{translate(language, "dashboardPending")}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">
-                {orders.filter((order) => order.status === "AWAITING_CALL_CONFIRMATION" || order.status === "PENDING_AI_CONFIRMATION").length}
-              </div>
-            </div>
-            <div className="rounded-[1.35rem] border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
-              <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">{translate(language, "products")}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{products.length}</div>
-            </div>
           </div>
         </div>
       </section>

@@ -61,11 +61,11 @@
 
 @layer components {
   .surface-card {
-    @apply rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.06),0_8px_28px_rgba(15,23,42,0.05)];
   }
 
   .surface-card-dark {
-    @apply rounded-[2rem] border border-white/10 bg-slate-950 text-white shadow-[0_24px_70px_rgba(2,6,23,0.35)];
+    @apply rounded-2xl border border-white/10 bg-slate-950 text-white shadow-[0_4px_20px_rgba(2,6,23,0.3)];
   }
 
   .muted-card {
@@ -129,7 +129,7 @@
   }
 
   .table-wrap {
-    @apply overflow-x-auto rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.06)];
+    @apply overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.06),0_6px_20px_rgba(15,23,42,0.04)];
   }
 
   .table-base {
@@ -165,27 +165,39 @@
   }
 
   .admin-panel {
-    @apply relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white/94 p-6 shadow-[0_22px_65px_rgba(15,23,42,0.07)] backdrop-blur;
+    @apply relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_1px_4px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.05)];
   }
 
   .admin-panel-header {
-    @apply mb-5 flex flex-col gap-2 border-b border-slate-200/80 pb-4 lg:flex-row lg:items-end lg:justify-between;
+    @apply mb-5 flex flex-col gap-2 border-b border-slate-100 pb-4 lg:flex-row lg:items-end lg:justify-between;
   }
 
   .admin-page-header {
-    @apply relative overflow-hidden rounded-[2rem] border border-slate-900/10 bg-[linear-gradient(135deg,#0f172a_0%,#111827_52%,#1f2937_100%)] p-6 text-white shadow-[0_26px_80px_rgba(15,23,42,0.24)];
+    @apply relative overflow-hidden rounded-2xl border border-slate-900/10 bg-[linear-gradient(135deg,#0f172a_0%,#131c2e_55%,#1c2740_100%)] p-6 text-white shadow-[0_4px_24px_rgba(15,23,42,0.18)];
   }
 
   .admin-page-header::before {
     content: "";
     position: absolute;
-    inset-inline-end: -4rem;
-    top: -4rem;
-    width: 12rem;
-    height: 12rem;
+    inset-inline-end: -3rem;
+    top: -3rem;
+    width: 14rem;
+    height: 14rem;
     border-radius: 9999px;
-    background: radial-gradient(circle, rgba(251, 191, 36, 0.34), transparent 68%);
-    filter: blur(8px);
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.22), transparent 65%);
+    filter: blur(12px);
+  }
+
+  .admin-page-header::after {
+    content: "";
+    position: absolute;
+    inset-inline-start: -2rem;
+    bottom: -2rem;
+    width: 10rem;
+    height: 10rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(20, 184, 166, 0.12), transparent 70%);
+    filter: blur(16px);
   }
 
   .admin-section-label {
@@ -266,49 +278,123 @@
   text-align: right;
 }
 
-.dashboard-shell::before {
-  content: "";
+/* ── NEW ADMIN LAYOUT ── */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f1f5f9;
+}
+
+.admin-sidebar {
   position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 12% 10%, rgba(15, 23, 42, 0.04), transparent 24%),
-    radial-gradient(circle at 84% 8%, rgba(245, 158, 11, 0.08), transparent 22%),
-    radial-gradient(circle at 88% 82%, rgba(20, 184, 166, 0.08), transparent 24%);
-  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0f172a 0%, #0d1526 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
-.dashboard-main,
-.dashboard-workspace {
-  position: relative;
-  z-index: 1;
+@media (min-width: 1024px) {
+  .admin-sidebar {
+    display: flex;
+  }
 }
 
-.dashboard-sidebar {
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%),
-    radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 30%);
+.admin-sidebar-collapsed {
+  width: 70px;
 }
 
-.dashboard-workspace .surface-card {
-  border-color: rgba(203, 213, 225, 0.68);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
-  box-shadow: 0 24px 72px rgba(15, 23, 42, 0.07);
+.admin-main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 1.25rem;
+  margin-left: 220px;
+  min-width: 0;
+  transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.dashboard-workspace .muted-card {
-  border-color: rgba(226, 232, 240, 0.95);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92) 0%, rgba(255, 255, 255, 0.85) 100%);
+.admin-main-collapsed {
+  margin-left: 70px;
 }
 
-.dashboard-workspace .field-input,
-.dashboard-workspace .field-select,
-.dashboard-workspace .field-textarea {
-  background: rgba(255, 255, 255, 0.98);
+[dir="rtl"] .admin-sidebar {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[dir="rtl"] .admin-main {
+  margin-left: 0;
+  margin-right: 220px;
+}
+
+[dir="rtl"] .admin-main-collapsed {
+  margin-right: 70px;
+}
+
+/* Collapse toggle button — fixed at the trailing edge of the sidebar */
+.admin-collapse-btn {
+  position: absolute;
+  top: 4.25rem;
+  right: -14px;
+  z-index: 10;
+  display: none;
+  height: 28px;
+  width: 28px;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1e293b;
+  color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.admin-collapse-btn:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+[dir="rtl"] .admin-collapse-btn {
+  right: auto;
+  left: -14px;
+}
+
+@media (min-width: 1024px) {
+  .admin-collapse-btn {
+    display: grid;
+  }
+}
+
+/* Refined cards inside admin workspace */
+.admin-main .surface-card {
+  border-color: rgba(203, 213, 225, 0.7);
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.admin-main .field-input,
+.admin-main .field-select,
+.admin-main .field-textarea {
+  background: #ffffff;
   border-color: rgba(203, 213, 225, 0.95);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.dashboard-workspace .ghost-button {
-  background: rgba(255, 255, 255, 0.95);
+/* Scrollbar hide utility */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
