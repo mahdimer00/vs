@@ -1025,6 +1025,7 @@ export function AdminDashboardPage() {
 
   const startEditProduct = (product: Product) => {
     setEditingProductId(product._id);
+    setTimeout(() => document.getElementById("product-add-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     setProductForm({
       nameAr: product.name.ar,
       nameFr: product.name.fr,
