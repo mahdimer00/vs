@@ -57,7 +57,7 @@ async function sendDailySummary() {
     const totalRevenue = (revenue[0] as { total?: number } | undefined)?.total ?? 0;
 
     const lowStock = await ProductModel.find({
-      stock: { $lte: LOW_STOCK_THRESHOLD, $gt: 0 },
+      stock: { $lte: 3, $gt: 0 },
       status: "ACTIVE",
       localPickupOnly: { $ne: true },
     }).select("name stock").lean();
