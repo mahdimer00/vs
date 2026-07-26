@@ -1766,69 +1766,62 @@ export function AdminDashboardPage() {
         )}
 
         {/* ── TODAY + TOTAL STATS ── */}
-        {(() => {
-          // Compute estimated profit from products that have purchasePrice set
-          const productsWithCost = products.filter((p) => p.purchasePrice != null && p.purchasePrice > 0);
-          const hasCostData = productsWithCost.length > 0;
-          // Build a map of productId → purchasePrice for quick lookup
-          const costMap = new Map(productsWithCost.map((p) => [p._id, p.purchasePrice as number]));
-          // Estimate gross profit from delivered orders using topProducts data as proxy
-          const estimatedProfit = hasCostData && orders.length > 0
-            ? orders
-                .filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP")
-                .reduce((sum, o) => {
-                  const orderProfit = o.items.reduce((itemSum, item) => {
-                    const cost = costMap.get(item.productId);
-                    if (cost == null) return itemSum;
-                    return itemSum + (item.unitPrice - cost) * item.quantity;
-                  }, 0);
-                  return sum + orderProfit;
-                }, 0)
-            : null;
-          return (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {/* Today's orders */}
+          {/* Today */}
           <div className="stat-card border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-white">
             <div className="text-xs font-bold uppercase tracking-wider text-teal-600">{isAr ? "اليوم" : "Today"}</div>
             <div className="mt-2 text-3xl font-black text-teal-700">{stats.todayOrders}</div>
             <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب جديد" : "new orders"}</div>
-            {stats.todayRevenue > 0 && <div className="mt-1 text-xs font-semibold text-teal-600">{formatCurrency(stats.todayRevenue, language)}</div>}
+            {stats.todayRevenue > 0 && (
+              <div className="mt-1.5 space-y-0.5">
+                <div className="text-xs font-semibold text-teal-600">{isAr ? "إيرادات:" : "Rev:"} {formatCurrency(stats.todayRevenue, language)}</div>
+                {stats.todayProfit > 0 && <div className="text-xs font-bold text-emerald-600">📈 {isAr ? "ربح:" : "Profit:"} {formatCurrency(stats.todayProfit, language)}</div>}
+              </div>
+            )}
           </div>
           {/* This week */}
           <div className="stat-card">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "هذا الأسبوع" : "This week"}</div>
             <div className="mt-2 text-3xl font-black text-slate-800">{stats.weekOrders}</div>
             <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب" : "orders"}</div>
-            {stats.weekRevenue > 0 && <div className="mt-1 text-xs font-semibold text-slate-500">{formatCurrency(stats.weekRevenue, language)}</div>}
+            {stats.weekRevenue > 0 && (
+              <div className="mt-1.5 space-y-0.5">
+                <div className="text-xs font-semibold text-slate-500">{isAr ? "إيرادات:" : "Rev:"} {formatCurrency(stats.weekRevenue, language)}</div>
+                {stats.weekProfit > 0 && <div className="text-xs font-bold text-emerald-600">📈 {isAr ? "ربح:" : "Profit:"} {formatCurrency(stats.weekProfit, language)}</div>}
+              </div>
+            )}
           </div>
           {/* Total delivered */}
           <div className="stat-card">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "مُسلَّم" : "Delivered"}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "مُسلَّم إجمالي" : "Total Delivered"}</div>
             <div className="mt-2 text-3xl font-black text-emerald-700">{stats.deliveredOrders}</div>
             <div className="mt-0.5 text-sm text-slate-500">{isAr ? "طلب مكتمل" : "completed"}</div>
+            {stats.revenue > 0 && <div className="mt-1 text-xs font-semibold text-emerald-600">{formatCurrency(stats.revenue, language)}</div>}
           </div>
-          {/* Revenue or Profit card */}
-          {estimatedProfit !== null ? (
+          {/* Profit / Revenue card */}
+          {stats.monthProfit > 0 ? (
             <div className="stat-card border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
               <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">
                 <TrendingUp className="mb-0.5 me-1 inline h-3.5 w-3.5" />
-                {isAr ? "صافي الربح" : "Net Profit"}
+                {isAr ? "ربح الشهر" : "Month Profit"}
               </div>
-              <div className="mt-2 break-words text-xl font-black text-emerald-700">{formatCurrency(estimatedProfit, language)}</div>
+              <div className="mt-2 break-words text-xl font-black text-emerald-700">{formatCurrency(stats.monthProfit, language)}</div>
               <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "من الطلبات المكتملة" : "from delivered orders"}</div>
-              <div className="mt-1 text-[11px] text-slate-400">{isAr ? `إيرادات: ${formatCurrency(stats.revenue, language)}` : `Revenue: ${formatCurrency(stats.revenue, language)}`}</div>
+              {stats.totalExpenses > 0 && (
+                <div className="mt-1 text-[11px] font-semibold text-rose-500">
+                  {isAr ? `بعد المصاريف: ${formatCurrency(stats.monthProfit - stats.totalExpenses, language)}` : `After exp: ${formatCurrency(stats.monthProfit - stats.totalExpenses, language)}`}
+                </div>
+              )}
             </div>
           ) : (
-          <div className="stat-card">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "الإيرادات" : "Revenue"}</div>
-            <div className="mt-2 break-words text-2xl font-black text-slate-900">{formatCurrency(stats.revenue, language)}</div>
-            <div className="mt-0.5 text-sm text-slate-500">{isAr ? "إجمالي" : "total"}</div>
-            <div className="mt-1 text-[11px] text-slate-400">{isAr ? "أضف سعر التكلفة للمنتجات لحساب الربح" : "Add cost price to products to see profit"}</div>
-          </div>
+            <div className="stat-card">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{isAr ? "الإيرادات الكلية" : "Total Revenue"}</div>
+              <div className="mt-2 break-words text-2xl font-black text-slate-900">{formatCurrency(stats.revenue, language)}</div>
+              <div className="mt-0.5 text-sm text-slate-500">{isAr ? "إجمالي" : "total"}</div>
+              <div className="mt-1 text-[11px] text-slate-400">{isAr ? "أضف سعر التكلفة للمنتجات لحساب الربح" : "Add cost price to products to see profit"}</div>
+            </div>
           )}
         </div>
-          );
-        })()}
 
         {/* ── B. BUSINESS HEALTH RIBBON ── */}
         {(() => {
@@ -1908,15 +1901,21 @@ export function AdminDashboardPage() {
               </div>
               <div className="grid grid-cols-2 divide-x divide-slate-100 rtl:divide-x-reverse">
                 {/* Last month */}
-                <div className="px-5 py-4">
+                <div className="px-5 py-4 space-y-1.5">
                   <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{lastMonthName}</div>
                   <div className="text-2xl font-black text-slate-600">{lastMonthOrdCnt}</div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
-                  <div className="mt-2 text-base font-bold text-slate-600">{lastRevenue > 0 ? formatCurrency(lastRevenue, language) : "—"}</div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
+                  <div className="text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
+                  <div className="text-base font-bold text-slate-600">{lastRevenue > 0 ? formatCurrency(lastRevenue, language) : "—"}</div>
+                  <div className="text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
+                  {stats.lastMonthProfit > 0 && (
+                    <>
+                      <div className="text-sm font-black text-emerald-600">{formatCurrency(stats.lastMonthProfit, language)}</div>
+                      <div className="text-[11px] text-emerald-500">{isAr ? "ربح إجمالي" : "gross profit"}</div>
+                    </>
+                  )}
                 </div>
                 {/* This month */}
-                <div className="px-5 py-4">
+                <div className="px-5 py-4 space-y-1.5">
                   <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-teal-500">{thisMonthName} {isAr ? "(الحالي)" : "(current)"}</div>
                   <div className="flex items-baseline gap-2">
                     <div className="text-2xl font-black text-slate-800">{thisMonthOrdCnt}</div>
@@ -1926,8 +1925,8 @@ export function AdminDashboardPage() {
                       </span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
-                  <div className="mt-2 flex items-baseline gap-2">
+                  <div className="text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
+                  <div className="flex items-baseline gap-2">
                     <div className="text-base font-bold text-slate-800">{thisRevenue > 0 ? formatCurrency(thisRevenue, language) : "—"}</div>
                     {revenueChange !== null && (
                       <span className={`text-xs font-bold ${revenueChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
@@ -1935,7 +1934,20 @@ export function AdminDashboardPage() {
                       </span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
+                  <div className="text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
+                  {stats.monthProfit > 0 && (
+                    <>
+                      <div className="flex items-baseline gap-1.5">
+                        <div className="text-sm font-black text-emerald-600">{formatCurrency(stats.monthProfit, language)}</div>
+                        {stats.lastMonthProfit > 0 && (
+                          <span className={`text-xs font-bold ${stats.monthProfit >= stats.lastMonthProfit ? "text-emerald-600" : "text-rose-600"}`}>
+                            {stats.monthProfit >= stats.lastMonthProfit ? "↑" : "↓"}{Math.abs(Math.round(((stats.monthProfit - stats.lastMonthProfit) / stats.lastMonthProfit) * 100))}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-emerald-500">{isAr ? "ربح إجمالي" : "gross profit"}</div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -2042,6 +2054,7 @@ export function AdminDashboardPage() {
                 <div className="flex items-end gap-2 h-28">
                   {series.map((m, i) => {
                     const pct = maxRev > 0 ? (m.revenue / maxRev) * 100 : 0;
+                    const profitPct = maxRev > 0 ? (m.profit / maxRev) * 100 : 0;
                     const isCurrentMonth = i === series.length - 1;
                     return (
                       <div key={m.label} className="flex flex-1 flex-col items-center gap-1">
@@ -2049,27 +2062,49 @@ export function AdminDashboardPage() {
                           {m.revenue > 0 ? formatCurrency(Math.round(m.revenue / 1000), language) + "k" : ""}
                         </div>
                         <div className="relative w-full" style={{ height: "72px" }}>
+                          {/* Revenue bar */}
                           <div
-                            className={`absolute bottom-0 w-full rounded-t-lg transition-all ${isCurrentMonth ? "bg-indigo-500" : "bg-slate-200"}`}
+                            className={`absolute bottom-0 w-full rounded-t-lg transition-all ${isCurrentMonth ? "bg-indigo-400" : "bg-slate-200"}`}
                             style={{ height: `${Math.max(pct, 2)}%` }}
-                            title={`${m.label}: ${formatCurrency(m.revenue, language)} (${m.orders} طلب)`}
+                            title={`${m.label}: ${isAr ? "إيرادات" : "Rev"} ${formatCurrency(m.revenue, language)}`}
                           />
+                          {/* Profit bar overlay */}
+                          {m.profit > 0 && (
+                            <div
+                              className={`absolute bottom-0 w-full rounded-t-lg transition-all ${isCurrentMonth ? "bg-emerald-500" : "bg-emerald-400"}`}
+                              style={{ height: `${Math.max(profitPct, 1)}%`, width: "50%", right: 0 }}
+                              title={`${m.label}: ${isAr ? "ربح" : "Profit"} ${formatCurrency(m.profit, language)}`}
+                            />
+                          )}
                         </div>
                         <div className={`text-[9px] font-semibold ${isCurrentMonth ? "text-indigo-600" : "text-slate-400"}`}>{m.label}</div>
-                        <div className="text-[9px] text-slate-300">{m.orders > 0 ? m.orders : ""}</div>
+                        {m.profit > 0 && <div className="text-[8px] text-emerald-600 font-bold">{Math.round((m.profit / m.revenue) * 100)}%</div>}
                       </div>
                     );
                   })}
                 </div>
+                {/* Legend */}
+                <div className="mt-2 flex items-center gap-4 text-[9px] text-slate-400">
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-indigo-400" />{isAr ? "إيرادات" : "Revenue"}</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-emerald-400" />{isAr ? "ربح" : "Profit"}</span>
+                </div>
                 {/* Month-over-month */}
                 {stats.lastMonthRevenue > 0 && (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                    <span>{isAr ? "مقارنة بالشهر الماضي:" : "vs last month:"}</span>
-                    <span className={`font-bold ${stats.monthRevenue >= stats.lastMonthRevenue ? "text-emerald-600" : "text-rose-600"}`}>
-                      {stats.monthRevenue >= stats.lastMonthRevenue ? "▲" : "▼"}
-                      {" "}{Math.abs(Math.round(((stats.monthRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100))}%
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      {isAr ? "إيرادات مقارنة بالشهر الماضي:" : "Revenue vs last month:"}
+                      <span className={`font-bold ${stats.monthRevenue >= stats.lastMonthRevenue ? "text-emerald-600" : "text-rose-600"}`}>
+                        {stats.monthRevenue >= stats.lastMonthRevenue ? "▲" : "▼"}{Math.abs(Math.round(((stats.monthRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100))}%
+                      </span>
                     </span>
-                    <span className="text-slate-300">({formatCurrency(stats.lastMonthRevenue, language)} → {formatCurrency(stats.monthRevenue, language)})</span>
+                    {stats.lastMonthProfit > 0 && (
+                      <span className="flex items-center gap-1">
+                        {isAr ? "ربح:" : "Profit:"}
+                        <span className={`font-bold ${stats.monthProfit >= stats.lastMonthProfit ? "text-emerald-600" : "text-rose-600"}`}>
+                          {stats.monthProfit >= stats.lastMonthProfit ? "▲" : "▼"}{Math.abs(Math.round(((stats.monthProfit - stats.lastMonthProfit) / stats.lastMonthProfit) * 100))}%
+                        </span>
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -2445,6 +2480,140 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── INVENTORY DETAIL TABLE ── */}
+        {(() => {
+          const invProducts = products
+            .filter((p) => p.status === "ACTIVE" && !p.isSoldOut && p.stock > 0 && !p.excludeFromProfits)
+            .sort((a, b) => ((b.purchasePrice ?? 0) * b.stock) - ((a.purchasePrice ?? 0) * a.stock));
+          if (invProducts.length === 0) return null;
+          const totalInvValue = invProducts.reduce((s, p) => s + (p.purchasePrice ?? 0) * p.stock, 0);
+          const totalInvSellValue = invProducts.reduce((s, p) => s + ((p.discountPrice ?? p.basePrice) * p.stock), 0);
+          const totalInvProfit = totalInvSellValue - totalInvValue;
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Package className="h-4 w-4 text-violet-500" />
+                  {isAr ? "تفاصيل المخزون الحالي" : "Current Inventory Detail"}
+                </div>
+                <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                  <span>{isAr ? "تكلفة إجمالية:" : "Total cost:"} <span className="font-bold text-rose-600">{formatCurrency(totalInvValue, language)}</span></span>
+                  {totalInvProfit > 0 && <span>{isAr ? "ربح متوقع:" : "Expected profit:"} <span className="font-bold text-emerald-600">{formatCurrency(totalInvProfit, language)}</span></span>}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <tr>
+                      <th className="px-4 py-2.5 text-start">{isAr ? "المنتج" : "Product"}</th>
+                      <th className="px-4 py-2.5 text-center">{isAr ? "الكمية" : "Qty"}</th>
+                      <th className="px-4 py-2.5 text-end">{isAr ? "سعر الشراء" : "Buy price"}</th>
+                      <th className="px-4 py-2.5 text-end">{isAr ? "التكلفة الكلية" : "Total cost"}</th>
+                      <th className="px-4 py-2.5 text-end">{isAr ? "سعر البيع" : "Sell price"}</th>
+                      <th className="px-4 py-2.5 text-end">{isAr ? "ربح متوقع" : "Expected profit"}</th>
+                      <th className="px-4 py-2.5 text-end">{isAr ? "هامش" : "Margin"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {invProducts.map((p) => {
+                      const sellPrice = p.discountPrice ?? p.basePrice;
+                      const buyCost = p.purchasePrice ?? 0;
+                      const totalCost = buyCost * p.stock;
+                      const totalSell = sellPrice * p.stock;
+                      const profit = totalSell - totalCost;
+                      const margin = sellPrice > 0 ? Math.round(((sellPrice - buyCost) / sellPrice) * 100) : 0;
+                      return (
+                        <tr key={p._id} className="hover:bg-slate-50">
+                          <td className="px-4 py-2.5 font-medium text-slate-800">{getLocalizedText(p.name, language)}</td>
+                          <td className="px-4 py-2.5 text-center font-bold text-teal-700">{p.stock}</td>
+                          <td className="px-4 py-2.5 text-end text-rose-600">{buyCost > 0 ? formatCurrency(buyCost, language) : <span className="text-slate-300">—</span>}</td>
+                          <td className="px-4 py-2.5 text-end font-bold text-rose-700">{buyCost > 0 ? formatCurrency(totalCost, language) : <span className="text-slate-300">—</span>}</td>
+                          <td className="px-4 py-2.5 text-end text-sky-700">{formatCurrency(sellPrice, language)}</td>
+                          <td className="px-4 py-2.5 text-end font-bold text-emerald-700">{buyCost > 0 ? formatCurrency(profit, language) : <span className="text-slate-300">—</span>}</td>
+                          <td className="px-4 py-2.5 text-end">
+                            {buyCost > 0 ? (
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${margin >= 20 ? "bg-emerald-50 text-emerald-700" : margin >= 10 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"}`}>
+                                {margin}%
+                              </span>
+                            ) : <span className="text-slate-300">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="border-t-2 border-slate-200 bg-slate-50 text-[11px] font-bold">
+                    <tr>
+                      <td className="px-4 py-2.5 text-slate-600">{isAr ? "الإجمالي" : "Total"}</td>
+                      <td className="px-4 py-2.5 text-center text-teal-700">{invProducts.reduce((s, p) => s + p.stock, 0)}</td>
+                      <td className="px-4 py-2.5" />
+                      <td className="px-4 py-2.5 text-end text-rose-700">{formatCurrency(totalInvValue, language)}</td>
+                      <td className="px-4 py-2.5" />
+                      <td className="px-4 py-2.5 text-end text-emerald-700">{formatCurrency(totalInvProfit, language)}</td>
+                      <td className="px-4 py-2.5" />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── TOP PROFIT PRODUCTS (SOLD) ── */}
+        {stats.topProfitProducts && stats.topProfitProducts.length > 0 && (
+          <div className="surface-card overflow-hidden p-0">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <div className="flex items-center gap-2 font-bold text-slate-800">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                {isAr ? "أفضل المنتجات ربحاً (مُباع)" : "Most Profitable Products (Sold)"}
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{isAr ? "من الطلبات المسلّمة" : "from delivered orders"}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-2.5 text-start">#</th>
+                    <th className="px-4 py-2.5 text-start">{isAr ? "المنتج" : "Product"}</th>
+                    <th className="px-4 py-2.5 text-center">{isAr ? "وحدات مباعة" : "Units sold"}</th>
+                    <th className="px-4 py-2.5 text-end">{isAr ? "إيرادات" : "Revenue"}</th>
+                    <th className="px-4 py-2.5 text-end">{isAr ? "ربح إجمالي" : "Gross profit"}</th>
+                    <th className="px-4 py-2.5 text-end">{isAr ? "هامش" : "Margin"}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {stats.topProfitProducts.map((p, i) => {
+                    const margin = p.revenue > 0 ? Math.round((p.profit / p.revenue) * 100) : 0;
+                    return (
+                      <tr key={p.productId} className="hover:bg-slate-50">
+                        <td className="px-4 py-2.5">
+                          <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-black ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-orange-300 text-white" : "bg-slate-100 text-slate-500"}`}>{i + 1}</span>
+                        </td>
+                        <td className="px-4 py-2.5 font-medium text-slate-800">{getLocalizedText(p.name, language)}</td>
+                        <td className="px-4 py-2.5 text-center font-bold text-teal-700">{p.count}</td>
+                        <td className="px-4 py-2.5 text-end text-sky-700">{formatCurrency(p.revenue, language)}</td>
+                        <td className="px-4 py-2.5 text-end font-black text-emerald-700">{formatCurrency(p.profit, language)}</td>
+                        <td className="px-4 py-2.5 text-end">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${margin >= 20 ? "bg-emerald-50 text-emerald-700" : margin >= 10 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"}`}>
+                            {margin}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="border-t-2 border-slate-200 bg-slate-50 text-[11px] font-bold">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2.5 text-slate-600">{isAr ? "الإجمالي" : "Total"}</td>
+                    <td className="px-4 py-2.5 text-end text-sky-700">{formatCurrency(stats.topProfitProducts.reduce((s, p) => s + p.revenue, 0), language)}</td>
+                    <td className="px-4 py-2.5 text-end text-emerald-700">{formatCurrency(stats.topProfitProducts.reduce((s, p) => s + p.profit, 0), language)}</td>
+                    <td className="px-4 py-2.5" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ── FINANCE SUMMARY CARD ── */}
         {(() => {
           const isAr = language === "ar";
@@ -2501,11 +2670,21 @@ export function AdminDashboardPage() {
                   </div>
                 </div>
                 {inTransitCnt > 0 && (
-                  <div className="col-span-2 px-4 py-3 flex items-center gap-3 bg-sky-50/60 border-t border-sky-100">
+                  <div className="col-span-2 px-4 py-3 flex items-start gap-3 bg-sky-50/60 border-t border-sky-100">
                     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-sky-100"><Truck className="h-4 w-4 text-sky-600" /></div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="text-xs text-slate-400">{isAr ? "أموال في الطريق (مشحونة لم تُسلَّم)" : "In-transit (shipped, not yet delivered)"}</div>
                       <div className="text-sm font-bold text-sky-700">{formatCurrency(inTransitAmt, language)} <span className="text-xs font-normal text-slate-400">({inTransitCnt} {isAr ? "طلب" : "orders"})</span></div>
+                      {(stats.inTransitCost > 0 || stats.inTransitProfit > 0) && (
+                        <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                          {stats.inTransitCost > 0 && (
+                            <span className="text-rose-600">{isAr ? "التكلفة:" : "Cost:"} <span className="font-bold">{formatCurrency(stats.inTransitCost, language)}</span></span>
+                          )}
+                          {stats.inTransitProfit > 0 && (
+                            <span className="text-emerald-600">{isAr ? "الربح المتوقع:" : "Expected profit:"} <span className="font-bold">{formatCurrency(stats.inTransitProfit, language)}</span></span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

@@ -398,11 +398,18 @@ export interface DashboardStats {
   totalStoreSalesRevenue: number;
   inTransitOrders: number;
   inTransitAmount: number;
+  inTransitCost: number;
+  inTransitProfit: number;
+  // Today / week profits
+  todayProfit: number;
+  weekProfit: number;
   // Monthly comparison
   monthOrders: number;
   monthRevenue: number;
+  monthProfit: number;
   lastMonthRevenue: number;
   lastMonthOrders: number;
+  lastMonthProfit: number;
   // Delivery rates
   deliveryRate: number;
   returnRate: number;
@@ -412,7 +419,9 @@ export interface DashboardStats {
   newCapitalInvested: number;
   capitalGrowthPct: number;
   // Chart data
-  monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number }>;
+  monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number; profit: number }>;
+  // Top products by profit
+  topProfitProducts: Array<{ productId: string; name: LocalizedText; profit: number; revenue: number; count: number }>;
 }
 
 export interface CartItem {
