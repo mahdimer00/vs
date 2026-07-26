@@ -109,15 +109,15 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   // Inventory stats — computed from product catalog
   const activeProducts = products.filter((p) => p.status !== "ARCHIVED");
   const profitProducts = activeProducts.filter((p) => !p.excludeFromProfits);
-  const totalAvailableUnits = activeProducts.reduce((sum, p) => sum + Math.max(0, p.stock ?? 0), 0);
+  const totalAvailableUnits = activeProducts.reduce((sum, p) => sum + (p.isSoldOut ? 0 : Math.max(0, p.stock ?? 0)), 0);
   const totalSoldUnits = orders
     .filter((o) => deliveredStatuses.has(o.status))
     .reduce((sum, o) => sum + o.items.reduce((s, item) => s + (item.quantity ?? 0), 0), 0);
   const inventoryCost = profitProducts
-    .filter((p) => p.purchasePrice != null && (p.purchasePrice as number) > 0 && (p.stock ?? 0) > 0)
+    .filter((p) => !p.isSoldOut && p.purchasePrice != null && (p.purchasePrice as number) > 0 && (p.stock ?? 0) > 0)
     .reduce((sum, p) => sum + (p.purchasePrice as number) * (p.stock ?? 0), 0);
   const potentialRevenue = profitProducts
-    .filter((p) => (p.stock ?? 0) > 0)
+    .filter((p) => !p.isSoldOut && (p.stock ?? 0) > 0)
     .reduce((sum, p) => sum + ((p.discountPrice as number | undefined) ?? (p.basePrice as number)) * (p.stock ?? 0), 0);
   const potentialProfit = potentialRevenue - inventoryCost;
   // Finance summary
@@ -225,7 +225,7 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     affiliateSales: affiliates.map((a) => ({ affiliate: a.name, total: a.balancePaid + a.balanceApproved })),
     promoUsage: promos.map((p) => ({ code: p.code, count: p.usedCount })),
     lowStockProducts: products.filter((p) => p.stock > 0 && p.stock <= 5 && !p.isSoldOut),
-    outOfStockProducts: products.filter((p) => p.stock === 0 && !p.isSoldOut).length,
+    outOfStockProducts: products.filter((p) => p.isSoldOut || p.stock === 0).length,
     // Inventory analytics
     totalAvailableUnits,
     totalSoldUnits,

@@ -1832,15 +1832,11 @@ export function AdminDashboardPage() {
 
         {/* ── B. BUSINESS HEALTH RIBBON ── */}
         {(() => {
-          const deliveredCount = orders.filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP").length;
-          const cancelledCount = orders.filter((o) => o.status === "CANCELLED").length;
-          const returnedCount = orders.filter((o) => o.status === "RETURNED").length;
-          const failedCount = orders.filter((o) => o.status === "FAILED").length;
-          const finishedOrders = deliveredCount + cancelledCount + returnedCount + failedCount;
           const aov = stats.deliveredOrders > 0 ? stats.revenue / stats.deliveredOrders : 0;
-          const deliveryRate = finishedOrders > 0 ? Math.round((deliveredCount / finishedOrders) * 100) : 0;
-          const cancelRate = orders.length > 0 ? Math.round((cancelledCount / orders.length) * 100) : 0;
-          const returnRate = (deliveredCount + returnedCount) > 0 ? Math.round((returnedCount / (deliveredCount + returnedCount)) * 100) : 0;
+          const deliveryRate = stats.deliveryRate;
+          const returnRate = stats.returnRate;
+          const cancelRate = stats.totalOrders > 0 ? Math.round((stats.cancelledOrders / stats.totalOrders) * 100) : 0;
+          const hasFinishedOrders = stats.deliveredOrders + stats.cancelledOrders > 0;
           const chips = [
             {
               label: isAr ? "متوسط قيمة الطلب" : "Avg Order Value",
@@ -1851,21 +1847,21 @@ export function AdminDashboardPage() {
             },
             {
               label: isAr ? "معدل التسليم" : "Delivery Rate",
-              value: finishedOrders > 0 ? `${deliveryRate}%` : "—",
+              value: hasFinishedOrders ? `${deliveryRate}%` : "—",
               tone: deliveryRate >= 70 ? "bg-teal-50 border-teal-200 text-teal-800" : deliveryRate >= 50 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-rose-50 border-rose-200 text-rose-800",
               dot: deliveryRate >= 70 ? "bg-teal-500" : deliveryRate >= 50 ? "bg-amber-500" : "bg-rose-500",
               sub: isAr ? "من الطلبات المنتهية" : "of finished orders",
             },
             {
               label: isAr ? "معدل الإلغاء" : "Cancel Rate",
-              value: orders.length > 0 ? `${cancelRate}%` : "—",
+              value: stats.totalOrders > 0 ? `${cancelRate}%` : "—",
               tone: cancelRate <= 10 ? "bg-emerald-50 border-emerald-200 text-emerald-800" : cancelRate <= 20 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-rose-50 border-rose-200 text-rose-800",
               dot: cancelRate <= 10 ? "bg-emerald-500" : cancelRate <= 20 ? "bg-amber-500" : "bg-rose-500",
               sub: isAr ? "من إجمالي الطلبات" : "of all orders",
             },
             {
               label: isAr ? "معدل الإرجاع" : "Return Rate",
-              value: (deliveredCount + returnedCount) > 0 ? `${returnRate}%` : "—",
+              value: hasFinishedOrders ? `${returnRate}%` : "—",
               tone: returnRate <= 5 ? "bg-emerald-50 border-emerald-200 text-emerald-800" : returnRate <= 15 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-rose-50 border-rose-200 text-rose-800",
               dot: returnRate <= 5 ? "bg-emerald-500" : returnRate <= 15 ? "bg-amber-500" : "bg-rose-500",
               sub: isAr ? "من الطلبات المسلّمة" : "of delivered orders",
@@ -1890,22 +1886,17 @@ export function AdminDashboardPage() {
         {/* ── C. MONTH COMPARISON ── */}
         {(() => {
           const now = new Date();
-          const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const thisMonthOrders = orders.filter((o) => new Date(o.createdAt) >= thisMonthStart);
-          const lastMonthOrders = orders.filter((o) => {
-            const d = new Date(o.createdAt);
-            return d >= lastMonthStart && d < thisMonthStart;
-          });
-          const thisRevenue = thisMonthOrders.filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP").reduce((s, o) => s + o.total, 0);
-          const lastRevenue = lastMonthOrders.filter((o) => o.status === "DELIVERED" || o.status === "PICKED_UP").reduce((s, o) => s + o.total, 0);
-          const revenueChange = lastRevenue > 0 ? Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100) : null;
-          const ordersChange = lastMonthOrders.length > 0 ? Math.round(((thisMonthOrders.length - lastMonthOrders.length) / lastMonthOrders.length) * 100) : null;
           const monthNames = isAr
             ? ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
             : ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
           const thisMonthName = monthNames[now.getMonth()];
           const lastMonthName = monthNames[(now.getMonth() + 11) % 12];
+          const thisMonthOrdCnt = stats.monthOrders;
+          const lastMonthOrdCnt = stats.lastMonthOrders;
+          const thisRevenue = stats.monthRevenue;
+          const lastRevenue = stats.lastMonthRevenue;
+          const revenueChange = lastRevenue > 0 ? Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100) : null;
+          const ordersChange = lastMonthOrdCnt > 0 ? Math.round(((thisMonthOrdCnt - lastMonthOrdCnt) / lastMonthOrdCnt) * 100) : null;
           return (
             <div className="surface-card overflow-hidden p-0">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
@@ -1919,7 +1910,7 @@ export function AdminDashboardPage() {
                 {/* Last month */}
                 <div className="px-5 py-4">
                   <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{lastMonthName}</div>
-                  <div className="text-2xl font-black text-slate-600">{lastMonthOrders.length}</div>
+                  <div className="text-2xl font-black text-slate-600">{lastMonthOrdCnt}</div>
                   <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "طلب" : "orders"}</div>
                   <div className="mt-2 text-base font-bold text-slate-600">{lastRevenue > 0 ? formatCurrency(lastRevenue, language) : "—"}</div>
                   <div className="mt-0.5 text-[11px] text-slate-400">{isAr ? "إيرادات" : "revenue"}</div>
@@ -1928,7 +1919,7 @@ export function AdminDashboardPage() {
                 <div className="px-5 py-4">
                   <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-teal-500">{thisMonthName} {isAr ? "(الحالي)" : "(current)"}</div>
                   <div className="flex items-baseline gap-2">
-                    <div className="text-2xl font-black text-slate-800">{thisMonthOrders.length}</div>
+                    <div className="text-2xl font-black text-slate-800">{thisMonthOrdCnt}</div>
                     {ordersChange !== null && (
                       <span className={`text-xs font-bold ${ordersChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         {ordersChange >= 0 ? "↑" : "↓"}{Math.abs(ordersChange)}%
@@ -2527,7 +2518,7 @@ export function AdminDashboardPage() {
         {(() => {
           const activeProducts = products.filter((p) => p.status === "ACTIVE").length;
           const draftProducts = products.filter((p) => p.status === "DRAFT").length;
-          const outOfStockActive = products.filter((p) => p.status === "ACTIVE" && p.stock === 0).length;
+          const outOfStockActive = products.filter((p) => p.status === "ACTIVE" && (p.stock === 0 || p.isSoldOut === true)).length;
           const noCostActive = products.filter((p) => p.status === "ACTIVE" && !p.purchasePrice).length;
           const cells = [
             { label: isAr ? "منتجات نشطة" : "Active", value: activeProducts, tone: "bg-emerald-50 border-emerald-200", textColor: "text-emerald-700", dotColor: "bg-emerald-500" },

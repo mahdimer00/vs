@@ -132,12 +132,16 @@ router.patch(
   asyncHandler(async (req, res) => {
     const input = productSchema.partial().parse(req.body);
 
-    // Auto sold-out when stock reaches 0
+    // Keep isSoldOut and stock in sync
     if (typeof input.stock === "number" && input.stock <= 0) {
       input.isSoldOut = true;
     }
     if (input.variants !== undefined && input.variants.length > 0 && input.variants.every((v) => v.stock <= 0)) {
       input.isSoldOut = true;
+    }
+    // When admin explicitly marks isSoldOut=true, zero out the stock so calcs stay consistent
+    if (input.isSoldOut === true) {
+      input.stock = 0;
     }
 
     const product = await ProductModel.findByIdAndUpdate(req.params.id, input, { new: true });
