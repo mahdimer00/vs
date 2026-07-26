@@ -3611,7 +3611,20 @@ export function AdminDashboardPage() {
                     <button onClick={() => startEditProduct(product)} className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 transition">
                       {translate(language, "adminEdit")}
                     </button>
-                    <button onClick={() => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="rounded-lg bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 transition">
+                    <button
+                      onClick={() => setConfirmModal({
+                        title: language === "ar" ? "حذف المنتج" : language === "fr" ? "Supprimer le produit" : "Delete Product",
+                        message: language === "ar"
+                          ? `هل أنت متأكد من حذف "${product.name.ar}"؟ لا يمكن التراجع.`
+                          : language === "fr"
+                            ? `Supprimer définitivement "${product.name.fr}" ? Action irréversible.`
+                            : `Permanently delete "${product.name.en}"? This cannot be undone.`,
+                        confirmLabel: language === "ar" ? "حذف" : language === "fr" ? "Supprimer" : "Delete",
+                        tone: "danger",
+                        onConfirm: () => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error")),
+                      })}
+                      className="rounded-lg bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 transition"
+                    >
                       {translate(language, "adminDelete")}
                     </button>
                   </div>
