@@ -3506,7 +3506,119 @@ export function AdminDashboardPage() {
         <span className="text-xs text-slate-400">{language === "ar" ? `${hideZeroStock ? products.filter(p => p.stock > 0).length : products.length} منتج` : `${hideZeroStock ? products.filter(p => p.stock > 0).length : products.length} products`}</span>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+      {/* ── MOBILE CARD LIST (hidden on md+) ── */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {products.filter((p) => !hideZeroStock || p.stock > 0).map((product) => {
+          const sellPrice = product.discountPrice ?? product.basePrice;
+          const margin = product.purchasePrice ? sellPrice - product.purchasePrice : null;
+          const marginPct = margin !== null && sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : null;
+          const catName = typeof product.category === "string" ? "" : getLocalizedText(product.category.name, language);
+          const brandName = typeof product.brand === "string" ? product.brand : product.brand.name;
+          return (
+            <div key={product._id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+              {/* Top row: image + name + stock */}
+              <div className="flex items-start gap-3">
+                {product.images?.[0] ? (
+                  <img src={product.images[0]} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-slate-100" />
+                ) : (
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-100">
+                    <Package className="h-6 w-6 text-slate-300" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold leading-snug text-slate-900">{getLocalizedText(product.name, language)}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{[brandName, catName].filter(Boolean).join(" · ")}</div>
+                  {/* Status badges */}
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {product.isSoldOut ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700"><PackageX className="h-2.5 w-2.5" />Sold Out</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{language === "ar" ? "نشط" : "Active"}</span>
+                    )}
+                    {product.isFeatured && !product.isSoldOut && <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">🔥</span>}
+                    {product.localPickupOnly && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{language === "ar" ? "محل" : "Store"}</span>}
+                  </div>
+                </div>
+                {/* Stock badge */}
+                <span className={`shrink-0 inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  product.stock === 0 ? "bg-rose-100 text-rose-700" :
+                  product.stock === 1 ? "bg-orange-100 text-orange-800 ring-1 ring-orange-300" :
+                  product.stock <= 3 ? "bg-amber-100 text-amber-800" :
+                  "bg-emerald-50 text-emerald-700"
+                }`}>
+                  {product.stock === 0 ? (language === "ar" ? "نفد" : "0") : product.stock === 1 ? "⚠ 1" : product.stock}
+                </span>
+              </div>
+
+              {/* Price row */}
+              <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3">
+                <div className="flex-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{language === "ar" ? "سعر البيع" : "Price"}</div>
+                  <div className="mt-0.5 font-bold text-slate-900">{formatCurrency(sellPrice, language)}</div>
+                  {product.discountPrice && product.basePrice !== product.discountPrice && (
+                    <div className="text-[10px] text-slate-400 line-through">{formatCurrency(product.basePrice, language)}</div>
+                  )}
+                </div>
+                {product.purchasePrice ? (
+                  <div className="flex-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-500">{language === "ar" ? "التكلفة" : "Cost"}</div>
+                    <div className="mt-0.5 font-bold text-amber-700">{formatCurrency(product.purchasePrice, language)}</div>
+                  </div>
+                ) : null}
+                {margin !== null && (
+                  <div className="flex-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500">{language === "ar" ? "الهامش" : "Margin"}</div>
+                    <span className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${margin >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                      {marginPct !== null ? `${marginPct}%` : ""} <span className="opacity-60 text-[10px]">({margin >= 0 ? "+" : ""}{formatCurrency(margin, language)})</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons — always visible on mobile */}
+              <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
+                <button
+                  onClick={() => setConfirmModal({
+                    title: language === "ar" ? (product.isSoldOut ? "تفعيل المنتج" : "إيقاف المنتج") : (product.isSoldOut ? "Activate product" : "Deactivate product"),
+                    message: language === "ar"
+                      ? (product.isSoldOut ? `تفعيل "${product.name.ar}" وجعله متاحاً للشراء؟` : `إيقاف "${product.name.ar}" وإظهاره كـ Sold Out؟`)
+                      : (product.isSoldOut ? `Activate "${product.name.en}" and make it purchasable?` : `Mark "${product.name.en}" as Sold Out?`),
+                    confirmLabel: language === "ar" ? (product.isSoldOut ? "تفعيل" : "إيقاف") : (product.isSoldOut ? "Activate" : "Deactivate"),
+                    tone: product.isSoldOut ? "info" : "danger",
+                    onConfirm: () => void adminService.updateProduct(token, product._id, { isSoldOut: !product.isSoldOut }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error")),
+                  })}
+                  className={`flex-1 rounded-xl py-2 text-xs font-bold transition ${product.isSoldOut ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                >
+                  {product.isSoldOut ? (language === "ar" ? "تفعيل" : "Activate") : (language === "ar" ? "إيقاف" : "Deactivate")}
+                </button>
+                <button
+                  onClick={() => startEditProduct(product)}
+                  className="flex-1 rounded-xl bg-slate-900 py-2 text-xs font-bold text-white transition hover:bg-slate-700"
+                >
+                  {translate(language, "adminEdit")}
+                </button>
+                <button
+                  onClick={() => setConfirmModal({
+                    title: language === "ar" ? "حذف المنتج" : "Delete Product",
+                    message: language === "ar"
+                      ? `هل أنت متأكد من حذف "${product.name.ar}"؟ لا يمكن التراجع.`
+                      : `Permanently delete "${product.name.en}"? This cannot be undone.`,
+                    confirmLabel: language === "ar" ? "حذف" : "Delete",
+                    tone: "danger",
+                    onConfirm: () => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error")),
+                  })}
+                  className="rounded-xl bg-rose-50 px-4 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
+                >
+                  {translate(language, "adminDelete")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── DESKTOP TABLE (hidden on mobile) ── */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <table className="min-w-[700px] w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -3529,7 +3641,6 @@ export function AdminDashboardPage() {
               const catName = typeof product.category === "string" ? "" : getLocalizedText(product.category.name, language);
               return (
               <tr key={product._id} className="group hover:bg-slate-50/60 transition-colors">
-                {/* Image */}
                 <td className="px-3 py-2.5">
                   {product.images?.[0] ? (
                     <img src={product.images[0]} alt="" className="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-100" />
@@ -3539,27 +3650,22 @@ export function AdminDashboardPage() {
                     </div>
                   )}
                 </td>
-                {/* Name + category */}
                 <td className="px-4 py-2.5">
                   <div className="font-semibold leading-tight text-slate-900">{getLocalizedText(product.name, language)}</div>
                   {catName && <div className="mt-0.5 text-[11px] text-slate-400">{catName}</div>}
                 </td>
-                {/* Brand */}
                 <td className="px-4 py-2.5 text-sm text-slate-600">
                   {typeof product.brand === "string" ? product.brand : product.brand.name}
                 </td>
-                {/* Sell price */}
                 <td className="px-4 py-2.5 text-end">
                   <div className="font-bold text-slate-900">{formatCurrency(sellPrice, language)}</div>
                   {product.discountPrice && product.basePrice !== product.discountPrice && (
                     <div className="text-[11px] text-slate-400 line-through">{formatCurrency(product.basePrice, language)}</div>
                   )}
                 </td>
-                {/* Cost */}
                 <td className="px-4 py-2.5 text-end font-semibold text-amber-700">
                   {product.purchasePrice ? formatCurrency(product.purchasePrice, language) : <span className="text-slate-300">—</span>}
                 </td>
-                {/* Margin */}
                 <td className="px-4 py-2.5 text-end">
                   {margin !== null ? (
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${margin >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
@@ -3568,7 +3674,6 @@ export function AdminDashboardPage() {
                     </span>
                   ) : <span className="text-slate-300">—</span>}
                 </td>
-                {/* Stock */}
                 <td className="px-4 py-2.5 text-center">
                   <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                     product.stock === 0 ? "bg-rose-100 text-rose-700" :
@@ -3579,7 +3684,6 @@ export function AdminDashboardPage() {
                     {product.stock === 0 ? (language === "ar" ? "نفد" : "0") : product.stock === 1 ? `⚠ 1` : product.stock}
                   </span>
                 </td>
-                {/* Status badges */}
                 <td className="px-4 py-2.5">
                   <div className="flex flex-wrap gap-1">
                     {product.isSoldOut ? (
@@ -3599,11 +3703,18 @@ export function AdminDashboardPage() {
                     )}
                   </div>
                 </td>
-                {/* Actions */}
                 <td className="px-4 py-2.5 pe-5">
                   <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
-                      onClick={() => void adminService.updateProduct(token, product._id, { isSoldOut: !product.isSoldOut }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
+                      onClick={() => setConfirmModal({
+                        title: language === "ar" ? (product.isSoldOut ? "تفعيل المنتج" : "إيقاف المنتج") : (product.isSoldOut ? "Activate product" : "Deactivate product"),
+                        message: language === "ar"
+                          ? (product.isSoldOut ? `تفعيل "${product.name.ar}" وجعله متاحاً للشراء؟` : `إيقاف "${product.name.ar}" وإظهاره كـ Sold Out؟`)
+                          : (product.isSoldOut ? `Activate "${product.name.en}"?` : `Mark "${product.name.en}" as Sold Out?`),
+                        confirmLabel: language === "ar" ? (product.isSoldOut ? "تفعيل" : "إيقاف") : (product.isSoldOut ? "Activate" : "Deactivate"),
+                        tone: product.isSoldOut ? "info" : "danger",
+                        onConfirm: () => void adminService.updateProduct(token, product._id, { isSoldOut: !product.isSoldOut }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error")),
+                      })}
                       className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${product.isSoldOut ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-rose-50 text-rose-700 hover:bg-rose-100"}`}
                     >
                       {product.isSoldOut ? (language === "ar" ? "تفعيل" : "Activate") : (language === "ar" ? "إيقاف" : "Deactivate")}
@@ -3613,13 +3724,11 @@ export function AdminDashboardPage() {
                     </button>
                     <button
                       onClick={() => setConfirmModal({
-                        title: language === "ar" ? "حذف المنتج" : language === "fr" ? "Supprimer le produit" : "Delete Product",
+                        title: language === "ar" ? "حذف المنتج" : "Delete Product",
                         message: language === "ar"
                           ? `هل أنت متأكد من حذف "${product.name.ar}"؟ لا يمكن التراجع.`
-                          : language === "fr"
-                            ? `Supprimer définitivement "${product.name.fr}" ? Action irréversible.`
-                            : `Permanently delete "${product.name.en}"? This cannot be undone.`,
-                        confirmLabel: language === "ar" ? "حذف" : language === "fr" ? "Supprimer" : "Delete",
+                          : `Permanently delete "${product.name.en}"? This cannot be undone.`,
+                        confirmLabel: language === "ar" ? "حذف" : "Delete",
                         tone: "danger",
                         onConfirm: () => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error")),
                       })}
