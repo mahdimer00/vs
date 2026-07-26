@@ -15,6 +15,15 @@ const expenseSchema = new Schema(
   { timestamps: true },
 );
 
+const debtInstallmentSchema = new Schema(
+  {
+    amount: { type: Number, required: true, min: 0 },
+    date: { type: Date, default: Date.now },
+    notes: String,
+  },
+  { _id: true },
+);
+
 const debtSchema = new Schema(
   {
     type: { type: String, enum: ["BORROWED", "LENT"], required: true },
@@ -25,6 +34,7 @@ const debtSchema = new Schema(
     isPaid: { type: Boolean, default: false },
     dueDate: Date,
     notes: String,
+    installments: { type: [debtInstallmentSchema], default: [] },
   },
   { timestamps: true },
 );
@@ -39,6 +49,7 @@ const stockPurchaseSchema = new Schema(
     date: { type: Date, default: Date.now },
     notes: String,
     productId: { type: Schema.Types.ObjectId, ref: "Product" },
+    fundedByRevenue: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

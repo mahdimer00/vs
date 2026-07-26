@@ -252,6 +252,13 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface DebtInstallment {
+  _id: string;
+  amount: number;
+  date: string;
+  notes?: string;
+}
+
 export interface Debt {
   _id: string;
   type: "BORROWED" | "LENT";
@@ -262,6 +269,7 @@ export interface Debt {
   isPaid: boolean;
   dueDate?: string;
   notes?: string;
+  installments?: DebtInstallment[];
   createdAt: string;
 }
 
@@ -275,6 +283,7 @@ export interface StockPurchase {
   date: string;
   notes?: string;
   productId?: string;
+  fundedByRevenue?: boolean;
   createdAt: string;
 }
 
@@ -387,6 +396,8 @@ export interface DashboardStats {
   totalDebtReceivable: number;
   totalStockPurchaseCost: number;
   totalStoreSalesRevenue: number;
+  inTransitOrders: number;
+  inTransitAmount: number;
 }
 
 export interface CartItem {

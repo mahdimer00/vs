@@ -4,8 +4,6 @@ import { ProductModel } from "../models/catalog.model.js";
 import { WebsiteSettingModel } from "../models/catalog.model.js";
 import { isWhatsAppConfigured, sendWhatsAppMessage } from "./otp.js";
 
-const LOW_STOCK_THRESHOLD = 3;
-
 // Daily summary: runs every day at 8:00 AM Algeria time (UTC+1 = 07:00 UTC)
 function scheduleDailySummary() {
   function msUntilNext7UTC() {
@@ -84,44 +82,6 @@ async function sendDailySummary() {
   }
 }
 
-// Low stock alert: runs every hour
-function scheduleLowStockCheck() {
-  const run = () => void checkLowStock();
-  run();
-  setInterval(run, 60 * 60 * 1000);
-}
-
-const alertedProducts = new Set<string>();
-
-async function checkLowStock() {
-  try {
-    const lowStock = await ProductModel.find({
-      stock: { $lte: LOW_STOCK_THRESHOLD, $gt: 0 },
-      status: "ACTIVE",
-      localPickupOnly: { $ne: true },
-    }).select("_id name stock").lean();
-
-    for (const product of lowStock) {
-      const id = String(product._id);
-      if (!alertedProducts.has(id)) {
-        alertedProducts.add(id);
-        await sendTelegramMessage(
-          `⚠️ *تنبيه مخزون منخفض*\n\n📦 ${product.name.ar || product.name.en}\nالمتبقي: *${product.stock} قطعة*`
-        );
-      }
-    }
-
-    // Clear alert set for products that are now restocked
-    const outOfLow = await ProductModel.find({
-      _id: { $in: [...alertedProducts] },
-      stock: { $gt: LOW_STOCK_THRESHOLD },
-    }).select("_id").lean();
-    for (const p of outOfLow) alertedProducts.delete(String(p._id));
-  } catch (err) {
-    console.error("[Cron] low stock check error:", err);
-  }
-}
-
 // Abandoned cart recovery: runs every 30 minutes
 const sentAbandonedCartMessages = new Set<string>();
 
@@ -182,7 +142,6 @@ async function checkAbandonedCarts() {
 
 export function startCronJobs() {
   scheduleDailySummary();
-  scheduleLowStockCheck();
   scheduleAbandonedCartCheck();
-  console.log("[Cron] daily summary + low stock alerts + abandoned cart recovery started");
+  console.log("[Cron] daily summary + abandoned cart recovery started");
 }

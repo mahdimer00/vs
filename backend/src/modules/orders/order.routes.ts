@@ -195,9 +195,28 @@ async function reserveStockForOrder(order: {
   }
 }
 
-async function releaseStockForOrder(order: { items: Array<{ variantId: string; quantity: number }> }) {
+async function releaseStockForOrder(order: { items: Array<{ variantId?: string; productId?: string; quantity: number }> }) {
+  const affectedProductIds = new Set<string>();
   for (const item of order.items) {
-    await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+    if (item.variantId) {
+      await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
+      if (item.productId) affectedProductIds.add(String(item.productId));
+    } else if (item.productId) {
+      await ProductModel.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+      affectedProductIds.add(String(item.productId));
+    }
+  }
+  // Clear isSoldOut for any product that now has stock
+  for (const productId of affectedProductIds) {
+    const variants = await ProductVariantModel.find({ productId }).select("stock").lean();
+    let hasStock: boolean;
+    if (variants.length > 0) {
+      hasStock = variants.reduce((s, v) => s + (v.stock ?? 0), 0) > 0;
+    } else {
+      const p = await ProductModel.findById(productId).select("stock").lean();
+      hasStock = !!p && (p.stock ?? 0) > 0;
+    }
+    if (hasStock) await ProductModel.findByIdAndUpdate(productId, { isSoldOut: false });
   }
 }
 

@@ -104,6 +104,7 @@ import type {
   Expense,
   ExpenseCategory,
   Debt,
+  DebtInstallment,
   StockPurchase,
   StoreSale,
 } from "@/types";
@@ -446,6 +447,11 @@ export function AdminDashboardPage() {
   const [stockPurchases, setStockPurchases] = useState<StockPurchase[]>([]);
   const [storeSales, setStoreSales] = useState<StoreSale[]>([]);
   const [financeSubTab, setFinanceSubTab] = useState<"expenses" | "debts" | "stock-purchases" | "store-sales">("expenses");
+  const [hideZeroStock, setHideZeroStock] = useState(true);
+  const [debtPaymentOpen, setDebtPaymentOpen] = useState<string | null>(null);
+  const [debtPaymentAmount, setDebtPaymentAmount] = useState("");
+  const [debtPaymentDate, setDebtPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [debtPaymentNotes, setDebtPaymentNotes] = useState("");
   const [blacklistPhone, setBlacklistPhone] = useState("");
   const [blacklistReason, setBlacklistReason] = useState("");
   const [blacklistLoading, setBlacklistLoading] = useState(false);
@@ -2321,6 +2327,8 @@ export function AdminDashboardPage() {
           const debtRec = stats.totalDebtReceivable ?? 0;
           const stockCost = stats.totalStockPurchaseCost ?? 0;
           const storeSalesRev = stats.totalStoreSalesRevenue ?? 0;
+          const inTransitCnt = stats.inTransitOrders ?? 0;
+          const inTransitAmt = stats.inTransitAmount ?? 0;
           return (
             <div className="surface-card overflow-hidden p-0">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
@@ -2366,6 +2374,15 @@ export function AdminDashboardPage() {
                     </div>
                   </div>
                 </div>
+                {inTransitCnt > 0 && (
+                  <div className="col-span-2 px-4 py-3 flex items-center gap-3 bg-sky-50/60 border-t border-sky-100">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-sky-100"><Truck className="h-4 w-4 text-sky-600" /></div>
+                    <div>
+                      <div className="text-xs text-slate-400">{isAr ? "أموال في الطريق (مشحونة لم تُسلَّم)" : "In-transit (shipped, not yet delivered)"}</div>
+                      <div className="text-sm font-bold text-sky-700">{formatCurrency(inTransitAmt, language)} <span className="text-xs font-normal text-slate-400">({inTransitCnt} {isAr ? "طلب" : "orders"})</span></div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -2969,6 +2986,18 @@ export function AdminDashboardPage() {
       </div>
       )}
 
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setHideZeroStock((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${hideZeroStock ? "bg-rose-100 text-rose-700 hover:bg-rose-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+        >
+          <PackageX className="h-3.5 w-3.5" />
+          {hideZeroStock ? (language === "ar" ? `إخفاء المنتهية (${products.filter(p => p.stock === 0).length})` : `Hiding out-of-stock (${products.filter(p => p.stock === 0).length})`) : (language === "ar" ? "إظهار المنتهية أيضاً" : "Show all (incl. out-of-stock)")}
+        </button>
+        <span className="text-xs text-slate-400">{language === "ar" ? `${hideZeroStock ? products.filter(p => p.stock > 0).length : products.length} منتج` : `${hideZeroStock ? products.filter(p => p.stock > 0).length : products.length} products`}</span>
+      </div>
+
       <div className="table-wrap">
         <table className="table-base">
           <thead>
@@ -2984,7 +3013,7 @@ export function AdminDashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map((product) => {
+            {products.filter((p) => !hideZeroStock || p.stock > 0).map((product) => {
               const sellPrice = product.discountPrice ?? product.basePrice;
               const margin = product.purchasePrice ? sellPrice - product.purchasePrice : null;
               const marginPct = margin !== null && sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : null;
@@ -6287,6 +6316,9 @@ export function AdminDashboardPage() {
     const totalStockCost = stockPurchases.reduce((s, p) => s + p.totalCost, 0);
     const totalStoreSalesTotal = storeSales.reduce((s, sl) => s + sl.total, 0);
 
+    const totalStockFromRevenue = stockPurchases.filter((sp) => sp.fundedByRevenue).reduce((s, sp) => s + sp.totalCost, 0);
+    const totalNewCapital = totalStockCost - totalStockFromRevenue;
+
     const financeSubTabs: { key: typeof financeSubTab; label: string }[] = [
       { key: "expenses", label: isAr ? "المصاريف" : "Expenses" },
       { key: "debts", label: isAr ? "الديون" : "Debts" },
@@ -6299,15 +6331,17 @@ export function AdminDashboardPage() {
         {/* Summary row */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: isAr ? "إجمالي المصاريف" : "Total Expenses", value: totalExpenses, color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-200" },
-            { label: isAr ? "ديون عليّ (غير مسددة)" : "Debts Owed", value: totalDebtsOwed, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
-            { label: isAr ? "ديون لي (غير مستردة)" : "Debts Receivable", value: totalDebtsReceivable, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
-            { label: isAr ? "مشتريات المخزن" : "Stock Purchased", value: totalStockCost, color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-200" },
-            { label: isAr ? "مبيعات المحل" : "Store Sales Revenue", value: totalStoreSalesTotal, color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200" },
+            { label: isAr ? "إجمالي المصاريف" : "Total Expenses", value: totalExpenses, color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-200", sub: undefined as string | undefined },
+            { label: isAr ? "ديون عليّ (غير مسددة)" : "Debts Owed", value: totalDebtsOwed, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", sub: undefined },
+            { label: isAr ? "ديون لي (غير مستردة)" : "Debts Receivable", value: totalDebtsReceivable, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", sub: undefined },
+            { label: isAr ? "مشتريات المخزن" : "Stock Purchased", value: totalStockCost, color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-200", sub: totalStockFromRevenue > 0 ? (isAr ? `منها ${formatCurrency(totalStockFromRevenue, language)} من العوائد` : `${formatCurrency(totalStockFromRevenue, language)} from revenue`) : undefined },
+            { label: isAr ? "رأس مال جديد فعلي" : "New Capital Injected", value: totalNewCapital, color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200", sub: undefined },
+            { label: isAr ? "مبيعات المحل" : "Store Sales Revenue", value: totalStoreSalesTotal, color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200", sub: undefined },
           ].map((stat) => (
             <div key={stat.label} className={`rounded-2xl border ${stat.border} ${stat.bg} px-4 py-3`}>
               <div className="text-xs text-slate-500 mb-1">{stat.label}</div>
               <div className={`text-lg font-black ${stat.color}`}>{stat.value > 0 ? formatCurrency(stat.value, language) : "—"}</div>
+              {stat.sub && <div className="text-[10px] text-slate-400 mt-0.5">{stat.sub}</div>}
             </div>
           ))}
         </div>
@@ -6452,7 +6486,8 @@ export function AdminDashboardPage() {
                     <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">{isAr ? "لا توجد ديون مسجلة" : "No debts recorded"}</td></tr>
                   )}
                   {debts.map((debt) => (
-                    <tr key={debt._id} className={`hover:bg-slate-50 ${debt.isPaid ? "opacity-50" : ""}`}>
+                    <Fragment key={debt._id}>
+                    <tr className={`hover:bg-slate-50 ${debt.isPaid ? "opacity-60" : ""}`}>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${debt.type === "BORROWED" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
                           {debt.type === "BORROWED" ? (isAr ? "عليّ" : "I owe") : (isAr ? "لي" : "Owed to me")}
@@ -6471,11 +6506,79 @@ export function AdminDashboardPage() {
                         </button>
                       </td>
                       <td className="px-4 py-3">
-                        <button onClick={() => void adminService.deleteDebt(token, debt._id).then(() => setDebts((prev) => prev.filter((x) => x._id !== debt._id))).catch(() => undefined)} className="text-xs text-rose-500 hover:text-rose-700">
-                          {isAr ? "حذف" : "Delete"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {!debt.isPaid && (
+                            <button
+                              onClick={() => { setDebtPaymentOpen(debtPaymentOpen === debt._id ? null : debt._id); setDebtPaymentAmount(""); setDebtPaymentNotes(""); }}
+                              className="text-xs text-violet-600 hover:text-violet-800 font-semibold"
+                            >
+                              {isAr ? "دفع" : "Pay"}
+                            </button>
+                          )}
+                          <button onClick={() => void adminService.deleteDebt(token, debt._id).then(() => setDebts((prev) => prev.filter((x) => x._id !== debt._id))).catch(() => undefined)} className="text-xs text-rose-500 hover:text-rose-700">
+                            {isAr ? "حذف" : "Delete"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
+                    {/* Installment payment panel */}
+                    {debtPaymentOpen === debt._id && (
+                      <tr>
+                        <td colSpan={7} className="bg-violet-50 px-4 py-3">
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{isAr ? "المبلغ (دج)" : "Amount (DZD)"}</label>
+                              <input type="number" min="1" step="1" value={debtPaymentAmount} onChange={(e) => setDebtPaymentAmount(e.target.value)} className="field-input w-32" placeholder="0" />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{isAr ? "التاريخ" : "Date"}</label>
+                              <input type="date" value={debtPaymentDate} onChange={(e) => setDebtPaymentDate(e.target.value)} className="field-input" />
+                            </div>
+                            <div className="flex flex-col gap-1 flex-1">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{isAr ? "ملاحظة" : "Note"}</label>
+                              <input value={debtPaymentNotes} onChange={(e) => setDebtPaymentNotes(e.target.value)} placeholder={isAr ? "اختياري" : "Optional"} className="field-input" />
+                            </div>
+                            <button
+                              type="button"
+                              disabled={!debtPaymentAmount || Number(debtPaymentAmount) <= 0}
+                              onClick={() => void adminService.addDebtPayment(token, debt._id, { amount: Number(debtPaymentAmount), date: debtPaymentDate || undefined, notes: debtPaymentNotes || undefined })
+                                .then((d) => { setDebts((prev) => prev.map((x) => x._id === d._id ? d : x)); setDebtPaymentOpen(null); pushToast(isAr ? "تم تسجيل الدفعة ✓" : "Payment recorded ✓", "success"); })
+                                .catch(() => pushToast(isAr ? "خطأ" : "Error", "error"))}
+                              className="primary-button disabled:opacity-40"
+                            >
+                              {isAr ? "تسجيل دفعة" : "Record"}
+                            </button>
+                          </div>
+                          {/* Payment history */}
+                          {(debt.installments ?? []).length > 0 && (
+                            <div className="mt-3 space-y-1">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{isAr ? "سجل المدفوعات" : "Payment history"}</div>
+                              {(debt.installments as DebtInstallment[]).map((inst) => (
+                                <div key={inst._id} className="flex items-center gap-3 text-xs text-slate-600">
+                                  <span className="font-bold text-emerald-700">{formatCurrency(inst.amount, language)}</span>
+                                  <span>{new Date(inst.date).toLocaleDateString("ar-DZ")}</span>
+                                  {inst.notes && <span className="text-slate-400">{inst.notes}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    {/* Show payment history inline when collapsed too (if any) */}
+                    {debtPaymentOpen !== debt._id && (debt.installments ?? []).length > 0 && (
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={7} className="px-4 py-1.5">
+                          <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+                            <span className="font-semibold">{isAr ? "مدفوعات:" : "Paid:"}</span>
+                            {(debt.installments as DebtInstallment[]).map((inst) => (
+                              <span key={inst._id}>{formatCurrency(inst.amount, language)} — {new Date(inst.date).toLocaleDateString("ar-DZ")}</span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -6500,6 +6603,7 @@ export function AdminDashboardPage() {
                   totalCost: qty * unit,
                   date: fd.get("date") as string || undefined,
                   notes: fd.get("notes") as string || undefined,
+                  fundedByRevenue: fd.get("fundedByRevenue") === "on",
                 };
                 void adminService.createStockPurchase(token, payload)
                   .then((doc) => { setStockPurchases((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(isAr ? "تمت الإضافة ✓" : "Added ✓", "success"); })
@@ -6513,6 +6617,10 @@ export function AdminDashboardPage() {
               <input name="quantity" type="number" min="1" required placeholder={isAr ? "الكمية" : "Quantity"} className="field-input" />
               <input name="unitCost" type="number" min="0" step="1" required placeholder={isAr ? "سعر الوحدة (دج)" : "Unit cost (DZD)"} className="field-input" />
               <input name="notes" placeholder={isAr ? "ملاحظات" : "Notes"} className="field-input" />
+              <label className="flex items-center gap-2 text-sm text-slate-600 md:col-span-2">
+                <input type="checkbox" name="fundedByRevenue" className="h-4 w-4 rounded border-slate-300" />
+                <span>{isAr ? "اشتريت بالعوائد (لا يُحسب كرأس مال جديد)" : "Funded from revenue (not new capital)"}</span>
+              </label>
               <button type="submit" className="primary-button">{isAr ? "إضافة مشترى" : "Add Purchase"}</button>
             </form>
             <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -6534,7 +6642,10 @@ export function AdminDashboardPage() {
                   )}
                   {stockPurchases.map((sp) => (
                     <tr key={sp._id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium">{sp.description}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <div>{sp.description}</div>
+                        {sp.fundedByRevenue && <span className="inline-block mt-0.5 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700">{isAr ? "من العوائد" : "From revenue"}</span>}
+                      </td>
                       <td className="px-4 py-3 text-slate-500">{sp.supplier || "—"}</td>
                       <td className="px-4 py-3 font-bold text-slate-700">{sp.quantity}</td>
                       <td className="px-4 py-3">{formatCurrency(sp.unitCost, language)}</td>

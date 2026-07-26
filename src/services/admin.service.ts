@@ -325,6 +325,9 @@ export const adminService = {
     return apiRequest<import("@/types").Debt>(`/api/admin/debts/${id}`, { method: "PATCH", token, body: JSON.stringify(payload) });
   },
   deleteDebt(token: string, id: string) { return apiRequest<{ success: boolean }>(`/api/admin/debts/${id}`, { method: "DELETE", token }); },
+  addDebtPayment(token: string, id: string, payload: { amount: number; date?: string; notes?: string }) {
+    return apiRequest<import("@/types").Debt>(`/api/admin/debts/${id}/payments`, { method: "POST", token, body: JSON.stringify(payload) });
+  },
 
   getStockPurchases(token: string) { return apiRequest<import("@/types").StockPurchase[]>("/api/admin/stock-purchases", { token }); },
   createStockPurchase(token: string, payload: Partial<import("@/types").StockPurchase>) {

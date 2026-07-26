@@ -101,6 +101,8 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
 
   const deliveredStatuses = new Set(["DELIVERED", "PICKED_UP"]);
   const cancelledStatuses = new Set(["CANCELLED", "RETURNED", "FAILED"]);
+  const inTransitOrders = orders.filter((o) => o.status === "SHIPPED");
+  const inTransitAmount = inTransitOrders.reduce((s, o) => s + o.total, 0);
 
   // Inventory stats — computed from product catalog
   const activeProducts = products.filter((p) => p.status !== "ARCHIVED");
@@ -182,6 +184,9 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     totalDebtReceivable,
     totalStockPurchaseCost,
     totalStoreSalesRevenue,
+    // In-transit (shipped but not yet delivered)
+    inTransitOrders: inTransitOrders.length,
+    inTransitAmount,
   });
 }));
 
@@ -584,6 +589,27 @@ router.delete("/admin/debts/:id", authMiddleware, permissionMiddleware("dashboar
   return res.json({ success: true });
 }));
 
+// Record a partial payment (installment) on a debt
+router.post("/admin/debts/:id/payments", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const input = z.object({
+    amount: z.number().positive(),
+    date: z.string().optional(),
+    notes: z.string().optional(),
+  }).parse(req.body);
+
+  const debt = await DebtModel.findById(req.params.id);
+  if (!debt) return res.status(404).json({ message: "Debt not found" });
+
+  const payment = { amount: input.amount, date: input.date ? new Date(input.date) : new Date(), notes: input.notes };
+  (debt.installments as unknown[]).push(payment);
+  const currentRemaining = (debt.remainingAmount as number | undefined) ?? (debt.amount as number);
+  debt.remainingAmount = Math.max(0, currentRemaining - input.amount);
+  if ((debt.remainingAmount as number) <= 0) debt.isPaid = true;
+
+  await debt.save();
+  return res.json(debt);
+}));
+
 // ─── FINANCE: Stock Purchases ─────────────────────────────────────────────────
 
 const stockPurchaseCreateSchema = z.object({
@@ -595,6 +621,7 @@ const stockPurchaseCreateSchema = z.object({
   date: z.string().optional(),
   notes: z.string().optional(),
   productId: z.string().optional(),
+  fundedByRevenue: z.boolean().default(false),
 });
 
 router.get("/admin/stock-purchases", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
