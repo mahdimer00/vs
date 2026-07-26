@@ -448,6 +448,7 @@ export function AdminDashboardPage() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [stockPurchases, setStockPurchases] = useState<StockPurchase[]>([]);
   const [storeSales, setStoreSales] = useState<StoreSale[]>([]);
+  const [storeSalesOpen, setStoreSalesOpen] = useState(false);
   const [financeSubTab, setFinanceSubTab] = useState<"expenses" | "debts" | "stock-purchases" | "store-sales">("expenses");
   const [hideZeroStock, setHideZeroStock] = useState(true);
   const [debtPaymentOpen, setDebtPaymentOpen] = useState<string | null>(null);
@@ -4317,14 +4318,13 @@ export function AdminDashboardPage() {
 
         {/* ── مبيعات المحل (Store Walk-in Sales) ── */}
         {(() => {
-          const [open, setOpen] = React.useState(false);
           const totalSales = storeSales.reduce((s, sl) => s + sl.total, 0);
           return (
             <div className="surface-card overflow-hidden p-0">
               {/* Header — click to expand */}
               <button
                 type="button"
-                onClick={() => setOpen((v) => !v)}
+                onClick={() => setStoreSalesOpen((v) => !v)}
                 className="flex w-full items-center justify-between px-5 py-3.5 text-start transition hover:bg-slate-50"
               >
                 <div className="flex items-center gap-3">
@@ -4336,10 +4336,10 @@ export function AdminDashboardPage() {
                     <div className="text-[11px] text-slate-400">{storeSales.length} {language === "ar" ? "عملية" : "records"} · {formatCurrency(totalSales, language)}</div>
                   </div>
                 </div>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${storeSalesOpen ? "rotate-180" : ""}`} />
               </button>
 
-              {open && (
+              {storeSalesOpen && (
                 <div className="border-t border-slate-100 px-5 py-4 space-y-4">
                   {/* Quick-add form */}
                   <form
