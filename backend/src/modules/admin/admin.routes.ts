@@ -16,6 +16,7 @@ import { AppError } from "../../utils/app-error.js";
 import { validateObjectId } from "../../middleware/objectId.middleware.js";
 import { addSseClient } from "../../utils/sse.js";
 import { PhoneBlacklistModel } from "../../models/blacklist.model.js";
+import { ExpenseModel, DebtModel, StockPurchaseModel, StoreSaleModel } from "../../models/finance.model.js";
 
 const router = Router();
 
@@ -87,11 +88,15 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const abandonedThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [orders, promos, affiliates, products] = await Promise.all([
+  const [orders, promos, affiliates, products, expenses, debts, stockPurchases, storeSales] = await Promise.all([
     OrderModel.find().lean(),
     PromoCodeModel.find().lean(),
     AffiliateModel.find().lean(),
     ProductModel.find().lean(),
+    ExpenseModel.find().lean(),
+    DebtModel.find({ isPaid: false }).lean(),
+    StockPurchaseModel.find().lean(),
+    StoreSaleModel.find().lean(),
   ]);
 
   const deliveredStatuses = new Set(["DELIVERED", "PICKED_UP"]);
@@ -99,17 +104,24 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
 
   // Inventory stats — computed from product catalog
   const activeProducts = products.filter((p) => p.status !== "ARCHIVED");
+  const profitProducts = activeProducts.filter((p) => !p.excludeFromProfits);
   const totalAvailableUnits = activeProducts.reduce((sum, p) => sum + Math.max(0, p.stock ?? 0), 0);
   const totalSoldUnits = orders
     .filter((o) => deliveredStatuses.has(o.status))
     .reduce((sum, o) => sum + o.items.reduce((s, item) => s + (item.quantity ?? 0), 0), 0);
-  const inventoryCost = activeProducts
+  const inventoryCost = profitProducts
     .filter((p) => p.purchasePrice != null && (p.purchasePrice as number) > 0 && (p.stock ?? 0) > 0)
     .reduce((sum, p) => sum + (p.purchasePrice as number) * (p.stock ?? 0), 0);
-  const potentialRevenue = activeProducts
+  const potentialRevenue = profitProducts
     .filter((p) => (p.stock ?? 0) > 0)
     .reduce((sum, p) => sum + ((p.discountPrice as number | undefined) ?? (p.basePrice as number)) * (p.stock ?? 0), 0);
   const potentialProfit = potentialRevenue - inventoryCost;
+  // Finance summary
+  const totalExpenses = expenses.reduce((s, e) => s + (e.amount as number), 0);
+  const totalDebtOwed = debts.filter((d) => d.type === "BORROWED").reduce((s, d) => s + ((d.remainingAmount as number | undefined) ?? (d.amount as number)), 0);
+  const totalDebtReceivable = debts.filter((d) => d.type === "LENT").reduce((s, d) => s + ((d.remainingAmount as number | undefined) ?? (d.amount as number)), 0);
+  const totalStockPurchaseCost = stockPurchases.reduce((s, p) => s + (p.totalCost as number), 0);
+  const totalStoreSalesRevenue = storeSales.reduce((s, sl) => s + (sl.total as number), 0);
 
   const deliveredOrders = orders.filter((o) => deliveredStatuses.has(o.status));
   const todayOrders = orders.filter((o) => new Date(o.createdAt as Date) >= todayStart);
@@ -164,6 +176,12 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     inventoryCost,
     potentialRevenue,
     potentialProfit,
+    // Finance summary
+    totalExpenses,
+    totalDebtOwed,
+    totalDebtReceivable,
+    totalStockPurchaseCost,
+    totalStoreSalesRevenue,
   });
 }));
 
@@ -492,6 +510,154 @@ router.post("/admin/blacklist", authMiddleware, permissionMiddleware("orders"), 
 
 router.delete("/admin/blacklist/:phone", authMiddleware, permissionMiddleware("orders"), asyncHandler(async (req, res) => {
   await PhoneBlacklistModel.deleteOne({ phone: req.params.phone });
+  return res.json({ success: true });
+}));
+
+// ─── FINANCE: Expenses ────────────────────────────────────────────────────────
+
+const expenseSchema = z.object({
+  category: z.enum(["ADVERTISING", "SHIPPING", "RENT", "SALARY", "REPAIRS", "OTHER"]),
+  description: z.string().min(1),
+  amount: z.number().nonnegative(),
+  date: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+router.get("/admin/expenses", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
+  return res.json(await ExpenseModel.find().sort({ date: -1 }).lean());
+}));
+
+router.post("/admin/expenses", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (req, res) => {
+  const input = expenseSchema.parse(req.body);
+  const doc = await ExpenseModel.create({ ...input, date: input.date ? new Date(input.date) : new Date() });
+  return res.status(201).json(doc);
+}));
+
+router.patch("/admin/expenses/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const input = expenseSchema.partial().parse(req.body);
+  const doc = await ExpenseModel.findByIdAndUpdate(req.params.id, input, { new: true });
+  if (!doc) return res.status(404).json({ message: "Not found" });
+  return res.json(doc);
+}));
+
+router.delete("/admin/expenses/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  await ExpenseModel.findByIdAndDelete(req.params.id);
+  return res.json({ success: true });
+}));
+
+// ─── FINANCE: Debts ───────────────────────────────────────────────────────────
+
+const debtCreateSchema = z.object({
+  type: z.enum(["BORROWED", "LENT"]),
+  personName: z.string().min(1),
+  description: z.string().min(1),
+  amount: z.number().nonnegative(),
+  remainingAmount: z.number().nonnegative().optional(),
+  isPaid: z.boolean().default(false),
+  dueDate: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+router.get("/admin/debts", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
+  return res.json(await DebtModel.find().sort({ createdAt: -1 }).lean());
+}));
+
+router.post("/admin/debts", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (req, res) => {
+  const input = debtCreateSchema.parse(req.body);
+  const doc = await DebtModel.create({
+    ...input,
+    remainingAmount: input.remainingAmount ?? input.amount,
+    dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+  });
+  return res.status(201).json(doc);
+}));
+
+router.patch("/admin/debts/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const input = debtCreateSchema.partial().parse(req.body);
+  const doc = await DebtModel.findByIdAndUpdate(req.params.id, input, { new: true });
+  if (!doc) return res.status(404).json({ message: "Not found" });
+  return res.json(doc);
+}));
+
+router.delete("/admin/debts/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  await DebtModel.findByIdAndDelete(req.params.id);
+  return res.json({ success: true });
+}));
+
+// ─── FINANCE: Stock Purchases ─────────────────────────────────────────────────
+
+const stockPurchaseCreateSchema = z.object({
+  description: z.string().min(1),
+  supplier: z.string().optional(),
+  quantity: z.number().int().positive(),
+  unitCost: z.number().nonnegative(),
+  totalCost: z.number().nonnegative(),
+  date: z.string().optional(),
+  notes: z.string().optional(),
+  productId: z.string().optional(),
+});
+
+router.get("/admin/stock-purchases", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
+  return res.json(await StockPurchaseModel.find().sort({ date: -1 }).populate("productId", "name").lean());
+}));
+
+router.post("/admin/stock-purchases", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (req, res) => {
+  const input = stockPurchaseCreateSchema.parse(req.body);
+  const doc = await StockPurchaseModel.create({
+    ...input,
+    totalCost: input.totalCost || input.quantity * input.unitCost,
+    date: input.date ? new Date(input.date) : new Date(),
+  });
+  return res.status(201).json(doc);
+}));
+
+router.patch("/admin/stock-purchases/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const input = stockPurchaseCreateSchema.partial().parse(req.body);
+  const doc = await StockPurchaseModel.findByIdAndUpdate(req.params.id, input, { new: true });
+  if (!doc) return res.status(404).json({ message: "Not found" });
+  return res.json(doc);
+}));
+
+router.delete("/admin/stock-purchases/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  await StockPurchaseModel.findByIdAndDelete(req.params.id);
+  return res.json({ success: true });
+}));
+
+// ─── FINANCE: Store Sales ─────────────────────────────────────────────────────
+
+const storeSaleCreateSchema = z.object({
+  productName: z.string().min(1),
+  quantity: z.number().int().positive().default(1),
+  salePrice: z.number().nonnegative(),
+  total: z.number().nonnegative(),
+  notes: z.string().optional(),
+  date: z.string().optional(),
+  productId: z.string().optional(),
+});
+
+router.get("/admin/store-sales", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (_req, res) => {
+  return res.json(await StoreSaleModel.find().sort({ date: -1 }).lean());
+}));
+
+router.post("/admin/store-sales", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (req, res) => {
+  const input = storeSaleCreateSchema.parse(req.body);
+  const doc = await StoreSaleModel.create({
+    ...input,
+    total: input.total || input.quantity * input.salePrice,
+    date: input.date ? new Date(input.date) : new Date(),
+  });
+  return res.status(201).json(doc);
+}));
+
+router.patch("/admin/store-sales/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const input = storeSaleCreateSchema.partial().parse(req.body);
+  const doc = await StoreSaleModel.findByIdAndUpdate(req.params.id, input, { new: true });
+  if (!doc) return res.status(404).json({ message: "Not found" });
+  return res.json(doc);
+}));
+
+router.delete("/admin/store-sales/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  await StoreSaleModel.findByIdAndDelete(req.params.id);
   return res.json({ success: true });
 }));
 

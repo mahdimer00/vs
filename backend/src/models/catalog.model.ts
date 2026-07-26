@@ -44,6 +44,7 @@ const productSchema = new Schema(
     commissionType: { type: String, enum: ["PERCENTAGE", "FIXED"], default: "PERCENTAGE" },
     commissionValue: { type: Number, default: 0 },
     isEuropean: { type: Boolean, default: false },
+    excludeFromProfits: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

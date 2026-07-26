@@ -29,6 +29,7 @@ const productSchema = z.object({
   localPickupOnly: z.boolean().default(false),
   affiliateEnabled: z.boolean().default(false),
   isEuropean: z.boolean().default(false),
+  excludeFromProfits: z.boolean().default(false),
   commissionType: z.enum(["PERCENTAGE", "FIXED"]).default("PERCENTAGE"),
   commissionValue: z.number().nonnegative().default(0),
   variants: z.array(
@@ -82,7 +83,11 @@ router.get(
 router.get(
   "/products",
   asyncHandler(async (_req, res) => {
-    const products = await ProductModel.find({ status: { $ne: "ARCHIVED" } }).populate("category").populate("brand").lean();
+    // Hide 0-stock products from public catalog unless admin explicitly marked isSoldOut=true
+    const products = await ProductModel.find({
+      status: "ACTIVE",
+      $or: [{ stock: { $gt: 0 } }, { isSoldOut: true }],
+    }).populate("category").populate("brand").lean();
     const variants = await ProductVariantModel.find({ productId: { $in: products.map((product) => product._id) } }).lean();
     return res.json(
       products.map((product) => {

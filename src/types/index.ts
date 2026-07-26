@@ -86,6 +86,7 @@ export interface Product {
   localPickupOnly?: boolean;
   affiliateEnabled: boolean;
   isEuropean?: boolean;
+  excludeFromProfits?: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: number;
   createdAt: string;
@@ -239,6 +240,56 @@ export interface AdminNotifications {
 
 export type AffiliateLevelSettings = Record<AffiliateLevel, { commissionRate: number; referralBonus: number }>;
 
+export type ExpenseCategory = "ADVERTISING" | "SHIPPING" | "RENT" | "SALARY" | "REPAIRS" | "OTHER";
+
+export interface Expense {
+  _id: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Debt {
+  _id: string;
+  type: "BORROWED" | "LENT";
+  personName: string;
+  description: string;
+  amount: number;
+  remainingAmount: number;
+  isPaid: boolean;
+  dueDate?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface StockPurchase {
+  _id: string;
+  description: string;
+  supplier?: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  date: string;
+  notes?: string;
+  productId?: string;
+  createdAt: string;
+}
+
+export interface StoreSale {
+  _id: string;
+  productName: string;
+  quantity: number;
+  salePrice: number;
+  total: number;
+  notes?: string;
+  date: string;
+  productId?: string;
+  createdAt: string;
+}
+
 export interface CommissionTier {
   maxPrice: number | null;
   amount: number;
@@ -331,6 +382,11 @@ export interface DashboardStats {
   inventoryCost: number;
   potentialRevenue: number;
   potentialProfit: number;
+  totalExpenses: number;
+  totalDebtOwed: number;
+  totalDebtReceivable: number;
+  totalStockPurchaseCost: number;
+  totalStoreSalesRevenue: number;
 }
 
 export interface CartItem {

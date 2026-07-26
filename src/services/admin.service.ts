@@ -307,4 +307,40 @@ export const adminService = {
   getCustomers(token: string) {
     return apiRequest<Array<{ _id: string; phone: string; fullName: string; orderCount: number; totalSpent: number; lastOrderDate: string; statuses: string[] }>>("/api/admin/customers", { token });
   },
+  // Finance
+  getExpenses(token: string) { return apiRequest<import("@/types").Expense[]>("/api/admin/expenses", { token }); },
+  createExpense(token: string, payload: Partial<import("@/types").Expense>) {
+    return apiRequest<import("@/types").Expense>("/api/admin/expenses", { method: "POST", token, body: JSON.stringify(payload) });
+  },
+  updateExpense(token: string, id: string, payload: Partial<import("@/types").Expense>) {
+    return apiRequest<import("@/types").Expense>(`/api/admin/expenses/${id}`, { method: "PATCH", token, body: JSON.stringify(payload) });
+  },
+  deleteExpense(token: string, id: string) { return apiRequest<{ success: boolean }>(`/api/admin/expenses/${id}`, { method: "DELETE", token }); },
+
+  getDebts(token: string) { return apiRequest<import("@/types").Debt[]>("/api/admin/debts", { token }); },
+  createDebt(token: string, payload: Partial<import("@/types").Debt>) {
+    return apiRequest<import("@/types").Debt>("/api/admin/debts", { method: "POST", token, body: JSON.stringify(payload) });
+  },
+  updateDebt(token: string, id: string, payload: Partial<import("@/types").Debt>) {
+    return apiRequest<import("@/types").Debt>(`/api/admin/debts/${id}`, { method: "PATCH", token, body: JSON.stringify(payload) });
+  },
+  deleteDebt(token: string, id: string) { return apiRequest<{ success: boolean }>(`/api/admin/debts/${id}`, { method: "DELETE", token }); },
+
+  getStockPurchases(token: string) { return apiRequest<import("@/types").StockPurchase[]>("/api/admin/stock-purchases", { token }); },
+  createStockPurchase(token: string, payload: Partial<import("@/types").StockPurchase>) {
+    return apiRequest<import("@/types").StockPurchase>("/api/admin/stock-purchases", { method: "POST", token, body: JSON.stringify(payload) });
+  },
+  updateStockPurchase(token: string, id: string, payload: Partial<import("@/types").StockPurchase>) {
+    return apiRequest<import("@/types").StockPurchase>(`/api/admin/stock-purchases/${id}`, { method: "PATCH", token, body: JSON.stringify(payload) });
+  },
+  deleteStockPurchase(token: string, id: string) { return apiRequest<{ success: boolean }>(`/api/admin/stock-purchases/${id}`, { method: "DELETE", token }); },
+
+  getStoreSales(token: string) { return apiRequest<import("@/types").StoreSale[]>("/api/admin/store-sales", { token }); },
+  createStoreSale(token: string, payload: Partial<import("@/types").StoreSale>) {
+    return apiRequest<import("@/types").StoreSale>("/api/admin/store-sales", { method: "POST", token, body: JSON.stringify(payload) });
+  },
+  updateStoreSale(token: string, id: string, payload: Partial<import("@/types").StoreSale>) {
+    return apiRequest<import("@/types").StoreSale>(`/api/admin/store-sales/${id}`, { method: "PATCH", token, body: JSON.stringify(payload) });
+  },
+  deleteStoreSale(token: string, id: string) { return apiRequest<{ success: boolean }>(`/api/admin/store-sales/${id}`, { method: "DELETE", token }); },
 };

@@ -101,6 +101,11 @@ import type {
   WebsiteSetting,
   Wilaya,
   WithdrawalRequest,
+  Expense,
+  ExpenseCategory,
+  Debt,
+  StockPurchase,
+  StoreSale,
 } from "@/types";
 import { ADMIN_PERMISSIONS } from "@/types";
 import { formatCurrency, formatDate, getLocalizedText } from "@/utils/format";
@@ -190,6 +195,7 @@ type ProductFormState = {
   isSoldOut: boolean;
   localPickupOnly: boolean;
   affiliateEnabled: boolean;
+  excludeFromProfits: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
   commissionValue: string;
   specifications: { key: string; value: string }[];
@@ -217,6 +223,7 @@ const defaultProductForm: ProductFormState = {
   isSoldOut: false,
   localPickupOnly: false,
   affiliateEnabled: false,
+  excludeFromProfits: false,
   commissionType: "PERCENTAGE",
   commissionValue: "",
   specifications: [{ key: "", value: "" }],
@@ -434,6 +441,11 @@ export function AdminDashboardPage() {
   const [zrSyncingId, setZrSyncingId] = useState<string | null>(null);
   const [telegramLabelId, setTelegramLabelId] = useState<string | null>(null);
   const [blacklist, setBlacklist] = useState<Array<{ _id: string; phone: string; reason: string; createdAt: string }>>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [stockPurchases, setStockPurchases] = useState<StockPurchase[]>([]);
+  const [storeSales, setStoreSales] = useState<StoreSale[]>([]);
+  const [financeSubTab, setFinanceSubTab] = useState<"expenses" | "debts" | "stock-purchases" | "store-sales">("expenses");
   const [blacklistPhone, setBlacklistPhone] = useState("");
   const [blacklistReason, setBlacklistReason] = useState("");
   const [blacklistLoading, setBlacklistLoading] = useState(false);
@@ -540,6 +552,10 @@ export function AdminDashboardPage() {
   if (!isSubAdmin || userPermissions?.includes("orders")) {
     links.push({ href: "/gestion/customers", label: "العملاء", badge: undefined });
     links.push({ href: "/gestion/blacklist", label: language === "ar" ? "🚫 الحظر" : "🚫 Blacklist", badge: undefined });
+  }
+  // Finance tab — SUPER_ADMIN / ADMIN only
+  if (!isSubAdmin) {
+    links.push({ href: "/gestion/finance", label: language === "ar" ? "💰 مالية" : "💰 Finance", badge: undefined });
   }
 
   const loadAnalytics = async (period: string, from?: string, to?: string) => {
@@ -718,6 +734,23 @@ export function AdminDashboardPage() {
       adminService.getCustomers(token)
         .then(setCustomers)
         .catch(() => setCustomers([]));
+    }
+  }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load finance data when navigating to finance tab
+  useEffect(() => {
+    if (token && tab === "finance") {
+      void Promise.all([
+        adminService.getExpenses(token),
+        adminService.getDebts(token),
+        adminService.getStockPurchases(token),
+        adminService.getStoreSales(token),
+      ]).then(([exp, dbt, sp, ss]) => {
+        setExpenses(exp);
+        setDebts(dbt);
+        setStockPurchases(sp);
+        setStoreSales(ss);
+      }).catch(() => undefined);
     }
   }, [tab, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1006,6 +1039,7 @@ export function AdminDashboardPage() {
       isSoldOut: product.isSoldOut ?? false,
       localPickupOnly: product.localPickupOnly ?? false,
       affiliateEnabled: product.affiliateEnabled,
+      excludeFromProfits: product.excludeFromProfits ?? false,
       commissionType: product.commissionType,
       commissionValue: product.commissionValue ? String(product.commissionValue) : "",
       specifications: Object.entries(product.specifications ?? {}).length > 0
@@ -1068,6 +1102,7 @@ export function AdminDashboardPage() {
       isSoldOut: productForm.isSoldOut,
       localPickupOnly: productForm.localPickupOnly,
       affiliateEnabled: productForm.affiliateEnabled,
+      excludeFromProfits: productForm.excludeFromProfits,
       isEuropean: (productForm as { isEuropean?: boolean }).isEuropean ?? false,
       commissionType: productForm.commissionType,
       commissionValue: Number(productForm.commissionValue || 0),
@@ -2278,6 +2313,64 @@ export function AdminDashboardPage() {
           );
         })()}
 
+        {/* ── FINANCE SUMMARY CARD ── */}
+        {(() => {
+          const isAr = language === "ar";
+          const totalExp = stats.totalExpenses ?? 0;
+          const debtOwed = stats.totalDebtOwed ?? 0;
+          const debtRec = stats.totalDebtReceivable ?? 0;
+          const stockCost = stats.totalStockPurchaseCost ?? 0;
+          const storeSalesRev = stats.totalStoreSalesRevenue ?? 0;
+          return (
+            <div className="surface-card overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Wallet className="h-4 w-4 text-violet-500" />
+                  {isAr ? "الملخص المالي" : "Finance Summary"}
+                </div>
+                <Link to="/gestion/finance" className="text-[11px] font-semibold text-violet-500 hover:underline">
+                  {isAr ? "التفاصيل ←" : "Details →"}
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 rtl:divide-x-reverse">
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-rose-50"><TrendingUp className="h-4 w-4 text-rose-500" /></div>
+                  <div>
+                    <div className="text-xs text-slate-400">{isAr ? "إجمالي المصاريف" : "Total Expenses"}</div>
+                    <div className="text-sm font-bold text-rose-600">{totalExp > 0 ? formatCurrency(totalExp, language) : "—"}</div>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-50"><Package className="h-4 w-4 text-amber-500" /></div>
+                  <div>
+                    <div className="text-xs text-slate-400">{isAr ? "تكلفة المشتريات" : "Stock Purchases"}</div>
+                    <div className="text-sm font-bold text-amber-700">{stockCost > 0 ? formatCurrency(stockCost, language) : "—"}</div>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-orange-50"><Store className="h-4 w-4 text-orange-500" /></div>
+                  <div>
+                    <div className="text-xs text-slate-400">{isAr ? "مبيعات المحل" : "Store Sales"}</div>
+                    <div className="text-sm font-bold text-orange-700">{storeSalesRev > 0 ? formatCurrency(storeSalesRev, language) : "—"}</div>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100"><Wallet className="h-4 w-4 text-slate-500" /></div>
+                  <div>
+                    <div className="text-xs text-slate-400">{isAr ? "ديون عليّ / لي" : "Debts owed/receivable"}</div>
+                    <div className="text-xs font-bold">
+                      {debtOwed > 0 && <span className="text-rose-600">{isAr ? `عليّ: ` : "Owed: "}{formatCurrency(debtOwed, language)}</span>}
+                      {debtOwed > 0 && debtRec > 0 && " · "}
+                      {debtRec > 0 && <span className="text-emerald-600">{isAr ? `لي: ` : "Recv: "}{formatCurrency(debtRec, language)}</span>}
+                      {debtOwed === 0 && debtRec === 0 && <span className="text-slate-400">—</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── F. PRODUCTS HEALTH CARD ── */}
         {(() => {
           const activeProducts = products.filter((p) => p.status === "ACTIVE").length;
@@ -2805,7 +2898,7 @@ export function AdminDashboardPage() {
             </label>
           </div>
 
-          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-2">
+          <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
             <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
               <input
                 type="checkbox"
@@ -2820,6 +2913,22 @@ export function AdminDashboardPage() {
                 {language === "ar"
                   ? "العمولة تُحسب تلقائياً حسب شرائح السعر المحددة في الإعدادات."
                   : "Commission is calculated automatically based on price tiers set in Settings."}
+              </p>
+            )}
+            <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 border-t border-slate-100 pt-3">
+              <input
+                type="checkbox"
+                checked={productForm.excludeFromProfits}
+                onChange={(event) => setProductForm({ ...productForm, excludeFromProfits: event.target.checked })}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              {language === "ar" ? "استثناء من حساب الأرباح" : "Exclude from profit calculations"}
+            </label>
+            {productForm.excludeFromProfits && (
+              <p className="text-xs text-amber-600">
+                {language === "ar"
+                  ? "لن يُحسب هذا المنتج ضمن تكلفة المخزون أو الأرباح المتوقعة."
+                  : "This product won't count toward inventory cost or potential profit."}
               </p>
             )}
           </div>
@@ -6160,6 +6269,379 @@ export function AdminDashboardPage() {
     );
   };
 
+  const renderFinance = () => {
+    const isAr = language === "ar";
+    const expenseCategoryLabel: Record<ExpenseCategory, string> = {
+      ADVERTISING: isAr ? "إعلانات" : "Advertising",
+      SHIPPING: isAr ? "شحن" : "Shipping",
+      RENT: isAr ? "إيجار" : "Rent",
+      SALARY: isAr ? "رواتب" : "Salary",
+      REPAIRS: isAr ? "صيانة" : "Repairs",
+      OTHER: isAr ? "أخرى" : "Other",
+    };
+
+    // Forms state (local inside render, using refs pattern via state at component level would be cleaner but this avoids more state)
+    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+    const totalDebtsOwed = debts.filter((d) => d.type === "BORROWED" && !d.isPaid).reduce((s, d) => s + (d.remainingAmount ?? d.amount), 0);
+    const totalDebtsReceivable = debts.filter((d) => d.type === "LENT" && !d.isPaid).reduce((s, d) => s + (d.remainingAmount ?? d.amount), 0);
+    const totalStockCost = stockPurchases.reduce((s, p) => s + p.totalCost, 0);
+    const totalStoreSalesTotal = storeSales.reduce((s, sl) => s + sl.total, 0);
+
+    const financeSubTabs: { key: typeof financeSubTab; label: string }[] = [
+      { key: "expenses", label: isAr ? "المصاريف" : "Expenses" },
+      { key: "debts", label: isAr ? "الديون" : "Debts" },
+      { key: "stock-purchases", label: isAr ? "مشتريات المخزن" : "Stock Purchases" },
+      { key: "store-sales", label: isAr ? "مبيعات المحل" : "Store Sales" },
+    ];
+
+    return (
+      <div className="space-y-6">
+        {/* Summary row */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: isAr ? "إجمالي المصاريف" : "Total Expenses", value: totalExpenses, color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-200" },
+            { label: isAr ? "ديون عليّ (غير مسددة)" : "Debts Owed", value: totalDebtsOwed, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
+            { label: isAr ? "ديون لي (غير مستردة)" : "Debts Receivable", value: totalDebtsReceivable, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
+            { label: isAr ? "مشتريات المخزن" : "Stock Purchased", value: totalStockCost, color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-200" },
+            { label: isAr ? "مبيعات المحل" : "Store Sales Revenue", value: totalStoreSalesTotal, color: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200" },
+          ].map((stat) => (
+            <div key={stat.label} className={`rounded-2xl border ${stat.border} ${stat.bg} px-4 py-3`}>
+              <div className="text-xs text-slate-500 mb-1">{stat.label}</div>
+              <div className={`text-lg font-black ${stat.color}`}>{stat.value > 0 ? formatCurrency(stat.value, language) : "—"}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Sub-tabs */}
+        <div className="flex flex-wrap gap-2">
+          {financeSubTabs.map((st) => (
+            <button
+              key={st.key}
+              onClick={() => setFinanceSubTab(st.key)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${financeSubTab === st.key ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+            >
+              {st.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── EXPENSES ── */}
+        {financeSubTab === "expenses" && (
+          <div className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const payload = {
+                  category: fd.get("category") as ExpenseCategory,
+                  description: fd.get("description") as string,
+                  amount: Number(fd.get("amount")),
+                  date: fd.get("date") as string || undefined,
+                  notes: fd.get("notes") as string || undefined,
+                };
+                void adminService.createExpense(token, payload)
+                  .then((doc) => { setExpenses((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(isAr ? "تمت الإضافة ✓" : "Added ✓", "success"); })
+                  .catch(() => pushToast(isAr ? "خطأ" : "Error", "error"));
+              }}
+              className="admin-panel grid gap-3 md:grid-cols-4"
+            >
+              <select name="category" required className="field-select">
+                {(Object.keys(expenseCategoryLabel) as ExpenseCategory[]).map((c) => (
+                  <option key={c} value={c}>{expenseCategoryLabel[c]}</option>
+                ))}
+              </select>
+              <input name="description" required placeholder={isAr ? "الوصف" : "Description"} className="field-input" />
+              <input name="amount" type="number" min="0" step="1" required placeholder={isAr ? "المبلغ (دج)" : "Amount (DZD)"} className="field-input" />
+              <input name="date" type="date" className="field-input" defaultValue={new Date().toISOString().split("T")[0]} />
+              <input name="notes" placeholder={isAr ? "ملاحظات (اختياري)" : "Notes (optional)"} className="field-input md:col-span-3" />
+              <button type="submit" className="primary-button">{isAr ? "إضافة مصروف" : "Add Expense"}</button>
+            </form>
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 text-start">{isAr ? "التصنيف" : "Category"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الوصف" : "Description"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "المبلغ" : "Amount"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "التاريخ" : "Date"}</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {expenses.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">{isAr ? "لا توجد مصاريف مسجلة" : "No expenses recorded"}</td></tr>
+                  )}
+                  {expenses.map((exp) => (
+                    <tr key={exp._id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3"><span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">{expenseCategoryLabel[exp.category]}</span></td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{exp.description}</td>
+                      <td className="px-4 py-3 font-bold text-rose-600">{formatCurrency(exp.amount, language)}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{new Date(exp.date).toLocaleDateString("ar-DZ")}</td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => void adminService.deleteExpense(token, exp._id).then(() => setExpenses((prev) => prev.filter((e) => e._id !== exp._id))).catch(() => undefined)} className="text-xs text-rose-500 hover:text-rose-700">
+                          {isAr ? "حذف" : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                {expenses.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-rose-50">
+                      <td colSpan={2} className="px-4 py-2 text-xs font-bold text-slate-500">{isAr ? "الإجمالي" : "Total"}</td>
+                      <td className="px-4 py-2 font-black text-rose-700">{formatCurrency(totalExpenses, language)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── DEBTS ── */}
+        {financeSubTab === "debts" && (
+          <div className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const amount = Number(fd.get("amount"));
+                const payload = {
+                  type: fd.get("type") as "BORROWED" | "LENT",
+                  personName: fd.get("personName") as string,
+                  description: fd.get("description") as string,
+                  amount,
+                  remainingAmount: amount,
+                  isPaid: false,
+                  dueDate: fd.get("dueDate") as string || undefined,
+                  notes: fd.get("notes") as string || undefined,
+                };
+                void adminService.createDebt(token, payload)
+                  .then((doc) => { setDebts((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(isAr ? "تمت الإضافة ✓" : "Added ✓", "success"); })
+                  .catch(() => pushToast(isAr ? "خطأ" : "Error", "error"));
+              }}
+              className="admin-panel grid gap-3 md:grid-cols-4"
+            >
+              <select name="type" required className="field-select">
+                <option value="BORROWED">{isAr ? "اقترضت (عليّ)" : "Borrowed (I owe)"}</option>
+                <option value="LENT">{isAr ? "أقرضت (لي)" : "Lent (owed to me)"}</option>
+              </select>
+              <input name="personName" required placeholder={isAr ? "اسم الشخص" : "Person name"} className="field-input" />
+              <input name="description" required placeholder={isAr ? "الوصف" : "Description"} className="field-input" />
+              <input name="amount" type="number" min="0" step="1" required placeholder={isAr ? "المبلغ (دج)" : "Amount (DZD)"} className="field-input" />
+              <input name="dueDate" type="date" placeholder={isAr ? "تاريخ الاستحقاق (اختياري)" : "Due date (optional)"} className="field-input" />
+              <input name="notes" placeholder={isAr ? "ملاحظات" : "Notes"} className="field-input md:col-span-2" />
+              <button type="submit" className="primary-button">{isAr ? "إضافة دين" : "Add Debt"}</button>
+            </form>
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 text-start">{isAr ? "النوع" : "Type"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الشخص" : "Person"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الوصف" : "Description"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "المبلغ" : "Amount"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "المتبقي" : "Remaining"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الحالة" : "Status"}</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {debts.length === 0 && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">{isAr ? "لا توجد ديون مسجلة" : "No debts recorded"}</td></tr>
+                  )}
+                  {debts.map((debt) => (
+                    <tr key={debt._id} className={`hover:bg-slate-50 ${debt.isPaid ? "opacity-50" : ""}`}>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${debt.type === "BORROWED" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
+                          {debt.type === "BORROWED" ? (isAr ? "عليّ" : "I owe") : (isAr ? "لي" : "Owed to me")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold">{debt.personName}</td>
+                      <td className="px-4 py-3 text-slate-600">{debt.description}</td>
+                      <td className="px-4 py-3 font-bold">{formatCurrency(debt.amount, language)}</td>
+                      <td className="px-4 py-3 font-bold text-amber-700">{formatCurrency(debt.remainingAmount ?? debt.amount, language)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => void adminService.updateDebt(token, debt._id, { isPaid: !debt.isPaid }).then((d) => setDebts((prev) => prev.map((x) => x._id === d._id ? d : x))).catch(() => undefined)}
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${debt.isPaid ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"}`}
+                        >
+                          {debt.isPaid ? (isAr ? "✓ مسدد" : "✓ Paid") : (isAr ? "تحديد مسدد" : "Mark paid")}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => void adminService.deleteDebt(token, debt._id).then(() => setDebts((prev) => prev.filter((x) => x._id !== debt._id))).catch(() => undefined)} className="text-xs text-rose-500 hover:text-rose-700">
+                          {isAr ? "حذف" : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── STOCK PURCHASES ── */}
+        {financeSubTab === "stock-purchases" && (
+          <div className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const qty = Number(fd.get("quantity"));
+                const unit = Number(fd.get("unitCost"));
+                const payload = {
+                  description: fd.get("description") as string,
+                  supplier: fd.get("supplier") as string || undefined,
+                  quantity: qty,
+                  unitCost: unit,
+                  totalCost: qty * unit,
+                  date: fd.get("date") as string || undefined,
+                  notes: fd.get("notes") as string || undefined,
+                };
+                void adminService.createStockPurchase(token, payload)
+                  .then((doc) => { setStockPurchases((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(isAr ? "تمت الإضافة ✓" : "Added ✓", "success"); })
+                  .catch(() => pushToast(isAr ? "خطأ" : "Error", "error"));
+              }}
+              className="admin-panel grid gap-3 md:grid-cols-4"
+            >
+              <input name="description" required placeholder={isAr ? "الوصف (مثال: 10 لابتوب HP)" : "Description (e.g. 10 HP laptops)"} className="field-input md:col-span-2" />
+              <input name="supplier" placeholder={isAr ? "المورد (اختياري)" : "Supplier (optional)"} className="field-input" />
+              <input name="date" type="date" className="field-input" defaultValue={new Date().toISOString().split("T")[0]} />
+              <input name="quantity" type="number" min="1" required placeholder={isAr ? "الكمية" : "Quantity"} className="field-input" />
+              <input name="unitCost" type="number" min="0" step="1" required placeholder={isAr ? "سعر الوحدة (دج)" : "Unit cost (DZD)"} className="field-input" />
+              <input name="notes" placeholder={isAr ? "ملاحظات" : "Notes"} className="field-input" />
+              <button type="submit" className="primary-button">{isAr ? "إضافة مشترى" : "Add Purchase"}</button>
+            </form>
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 text-start">{isAr ? "الوصف" : "Description"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "المورد" : "Supplier"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الكمية" : "Qty"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "سعر الوحدة" : "Unit Cost"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الإجمالي" : "Total"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "التاريخ" : "Date"}</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {stockPurchases.length === 0 && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">{isAr ? "لا توجد مشتريات مسجلة" : "No purchases recorded"}</td></tr>
+                  )}
+                  {stockPurchases.map((sp) => (
+                    <tr key={sp._id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-medium">{sp.description}</td>
+                      <td className="px-4 py-3 text-slate-500">{sp.supplier || "—"}</td>
+                      <td className="px-4 py-3 font-bold text-slate-700">{sp.quantity}</td>
+                      <td className="px-4 py-3">{formatCurrency(sp.unitCost, language)}</td>
+                      <td className="px-4 py-3 font-black text-violet-700">{formatCurrency(sp.totalCost, language)}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{new Date(sp.date).toLocaleDateString("ar-DZ")}</td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => void adminService.deleteStockPurchase(token, sp._id).then(() => setStockPurchases((prev) => prev.filter((x) => x._id !== sp._id))).catch(() => undefined)} className="text-xs text-rose-500 hover:text-rose-700">
+                          {isAr ? "حذف" : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                {stockPurchases.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-violet-50">
+                      <td colSpan={4} className="px-4 py-2 text-xs font-bold text-slate-500">{isAr ? "الإجمالي" : "Total"}</td>
+                      <td className="px-4 py-2 font-black text-violet-700">{formatCurrency(totalStockCost, language)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── STORE SALES ── */}
+        {financeSubTab === "store-sales" && (
+          <div className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const qty = Number(fd.get("quantity"));
+                const price = Number(fd.get("salePrice"));
+                const payload = {
+                  productName: fd.get("productName") as string,
+                  quantity: qty,
+                  salePrice: price,
+                  total: qty * price,
+                  notes: fd.get("notes") as string || undefined,
+                  date: fd.get("date") as string || undefined,
+                };
+                void adminService.createStoreSale(token, payload)
+                  .then((doc) => { setStoreSales((prev) => [doc, ...prev]); (e.target as HTMLFormElement).reset(); pushToast(isAr ? "تمت الإضافة ✓" : "Added ✓", "success"); })
+                  .catch(() => pushToast(isAr ? "خطأ" : "Error", "error"));
+              }}
+              className="admin-panel grid gap-3 md:grid-cols-4"
+            >
+              <input name="productName" required placeholder={isAr ? "اسم المنتج" : "Product name"} className="field-input md:col-span-2" />
+              <input name="quantity" type="number" min="1" required defaultValue="1" placeholder={isAr ? "الكمية" : "Quantity"} className="field-input" />
+              <input name="salePrice" type="number" min="0" step="1" required placeholder={isAr ? "سعر البيع (دج)" : "Sale price (DZD)"} className="field-input" />
+              <input name="date" type="date" className="field-input" defaultValue={new Date().toISOString().split("T")[0]} />
+              <input name="notes" placeholder={isAr ? "ملاحظات (اختياري)" : "Notes (optional)"} className="field-input md:col-span-2" />
+              <button type="submit" className="primary-button">{isAr ? "تسجيل بيع" : "Record Sale"}</button>
+            </form>
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3 text-start">{isAr ? "المنتج" : "Product"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الكمية" : "Qty"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "سعر الوحدة" : "Unit Price"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "الإجمالي" : "Total"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "التاريخ" : "Date"}</th>
+                    <th className="px-4 py-3 text-start">{isAr ? "ملاحظات" : "Notes"}</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {storeSales.length === 0 && (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">{isAr ? "لا توجد مبيعات مسجلة" : "No store sales recorded"}</td></tr>
+                  )}
+                  {storeSales.map((sl) => (
+                    <tr key={sl._id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-medium">{sl.productName}</td>
+                      <td className="px-4 py-3 font-bold">{sl.quantity}</td>
+                      <td className="px-4 py-3">{formatCurrency(sl.salePrice, language)}</td>
+                      <td className="px-4 py-3 font-black text-teal-700">{formatCurrency(sl.total, language)}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{new Date(sl.date).toLocaleDateString("ar-DZ")}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{sl.notes || "—"}</td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => void adminService.deleteStoreSale(token, sl._id).then(() => setStoreSales((prev) => prev.filter((x) => x._id !== sl._id))).catch(() => undefined)} className="text-xs text-rose-500 hover:text-rose-700">
+                          {isAr ? "حذف" : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                {storeSales.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-teal-50">
+                      <td colSpan={3} className="px-4 py-2 text-xs font-bold text-slate-500">{isAr ? "الإجمالي" : "Total"}</td>
+                      <td className="px-4 py-2 font-black text-teal-700">{formatCurrency(totalStoreSalesTotal, language)}</td>
+                      <td colSpan={3}></td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const currentViewMeta: Record<string, { icon: typeof BarChart3; title: string; description: string }> = {
     dashboard: {
       icon: Sparkles,
@@ -6271,7 +6753,9 @@ export function AdminDashboardPage() {
                                 ? renderCustomers()
                                 : tab === "blacklist"
                                   ? renderBlacklist()
-                                  : renderDashboard();
+                                  : tab === "finance"
+                                    ? renderFinance()
+                                    : renderDashboard();
 
   return (
     <DashboardShell
