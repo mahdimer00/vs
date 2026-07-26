@@ -1766,7 +1766,7 @@ export function AdminDashboardPage() {
         )}
 
         {/* ── TODAY + TOTAL STATS ── */}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {/* Today */}
           <div className="stat-card border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-white">
             <div className="text-xs font-bold uppercase tracking-wider text-teal-600">{isAr ? "اليوم" : "Today"}</div>
@@ -3303,81 +3303,112 @@ export function AdminDashboardPage() {
         <span className="text-xs text-slate-400">{language === "ar" ? `${hideZeroStock ? products.filter(p => p.stock > 0).length : products.length} منتج` : `${hideZeroStock ? products.filter(p => p.stock > 0).length : products.length} products`}</span>
       </div>
 
-      <div className="table-wrap">
-        <table className="table-base">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <table className="min-w-[700px] w-full text-sm">
           <thead>
-            <tr>
-              <th>{translate(language, "products")}</th>
-              <th>{translate(language, "adminBrand")}</th>
-              <th>{translate(language, "adminBasePrice")}</th>
-              <th className="text-amber-600">{language === "ar" ? "التكلفة" : "Cost"}</th>
-              <th className="text-emerald-600">{language === "ar" ? "الربح" : "Margin"}</th>
-              <th>{translate(language, "productStock")}</th>
-              <th>Status</th>
-              <th>{translate(language, "settings")}</th>
+            <tr className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <th className="w-16 px-3 py-3" />
+              <th className="px-4 py-3 text-start">{language === "ar" ? "المنتج" : "Product"}</th>
+              <th className="px-4 py-3 text-start">{translate(language, "adminBrand")}</th>
+              <th className="px-4 py-3 text-end">{translate(language, "adminBasePrice")}</th>
+              <th className="px-4 py-3 text-end text-amber-600">{language === "ar" ? "التكلفة" : "Cost"}</th>
+              <th className="px-4 py-3 text-end text-emerald-600">{language === "ar" ? "الهامش" : "Margin"}</th>
+              <th className="px-4 py-3 text-center">{translate(language, "productStock")}</th>
+              <th className="px-4 py-3 text-start">{language === "ar" ? "الحالة" : "Status"}</th>
+              <th className="px-4 py-3 pe-5 text-end">{language === "ar" ? "إجراءات" : "Actions"}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {products.filter((p) => !hideZeroStock || p.stock > 0).map((product) => {
               const sellPrice = product.discountPrice ?? product.basePrice;
               const margin = product.purchasePrice ? sellPrice - product.purchasePrice : null;
               const marginPct = margin !== null && sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : null;
+              const catName = typeof product.category === "string" ? "" : getLocalizedText(product.category.name, language);
               return (
-              <tr key={product._id}>
-                <td>{getLocalizedText(product.name, language)}</td>
-                <td>{typeof product.brand === "string" ? product.brand : product.brand.name}</td>
-                <td>{formatCurrency(product.basePrice, language)}</td>
-                <td className="text-amber-700">
+              <tr key={product._id} className="group hover:bg-slate-50/60 transition-colors">
+                {/* Image */}
+                <td className="px-3 py-2.5">
+                  {product.images?.[0] ? (
+                    <img src={product.images[0]} alt="" className="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-100" />
+                  ) : (
+                    <div className="grid h-12 w-12 place-items-center rounded-xl bg-slate-100">
+                      <Package className="h-5 w-5 text-slate-300" />
+                    </div>
+                  )}
+                </td>
+                {/* Name + category */}
+                <td className="px-4 py-2.5">
+                  <div className="font-semibold leading-tight text-slate-900">{getLocalizedText(product.name, language)}</div>
+                  {catName && <div className="mt-0.5 text-[11px] text-slate-400">{catName}</div>}
+                </td>
+                {/* Brand */}
+                <td className="px-4 py-2.5 text-sm text-slate-600">
+                  {typeof product.brand === "string" ? product.brand : product.brand.name}
+                </td>
+                {/* Sell price */}
+                <td className="px-4 py-2.5 text-end">
+                  <div className="font-bold text-slate-900">{formatCurrency(sellPrice, language)}</div>
+                  {product.discountPrice && product.basePrice !== product.discountPrice && (
+                    <div className="text-[11px] text-slate-400 line-through">{formatCurrency(product.basePrice, language)}</div>
+                  )}
+                </td>
+                {/* Cost */}
+                <td className="px-4 py-2.5 text-end font-semibold text-amber-700">
                   {product.purchasePrice ? formatCurrency(product.purchasePrice, language) : <span className="text-slate-300">—</span>}
                 </td>
-                <td>
+                {/* Margin */}
+                <td className="px-4 py-2.5 text-end">
                   {margin !== null ? (
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${margin >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-                      {margin >= 0 ? "+" : ""}{formatCurrency(margin, language)}
-                      {marginPct !== null ? <span className="opacity-70">({marginPct}%)</span> : null}
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${margin >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                      {marginPct !== null ? `${marginPct}%` : ""}
+                      <span className="opacity-70 text-[10px]">({margin >= 0 ? "+" : ""}{formatCurrency(margin, language)})</span>
                     </span>
                   ) : <span className="text-slate-300">—</span>}
                 </td>
-                <td>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                {/* Stock */}
+                <td className="px-4 py-2.5 text-center">
+                  <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                     product.stock === 0 ? "bg-rose-100 text-rose-700" :
                     product.stock === 1 ? "bg-orange-100 text-orange-800 ring-1 ring-orange-300" :
                     product.stock <= 3 ? "bg-amber-100 text-amber-800" :
-                    product.stock <= 5 ? "bg-yellow-50 text-yellow-700" :
                     "bg-emerald-50 text-emerald-700"
                   }`}>
-                    {product.stock === 0 ? "نفد" : product.stock === 1 ? `⚠️ آخر 1` : product.stock}
+                    {product.stock === 0 ? (language === "ar" ? "نفد" : "0") : product.stock === 1 ? `⚠ 1` : product.stock}
                   </span>
                 </td>
-                <td>
+                {/* Status badges */}
+                <td className="px-4 py-2.5">
                   <div className="flex flex-wrap gap-1">
-                  {product.isSoldOut ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                      <PackageX className="h-3.5 w-3.5" /> Sold Out
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>
-                  )}
-                  {product.isFeatured && !product.isSoldOut ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">🔥 {language === "ar" ? "عرض حار" : "Hot Deal"}</span>
-                  ) : null}
-                  {product.localPickupOnly ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">متجر فقط</span>
-                  ) : null}
+                    {product.isSoldOut ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                        <PackageX className="h-2.5 w-2.5" /> Sold Out
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        {language === "ar" ? "نشط" : "Active"}
+                      </span>
+                    )}
+                    {product.isFeatured && !product.isSoldOut && (
+                      <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">🔥</span>
+                    )}
+                    {product.localPickupOnly && (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{language === "ar" ? "محل" : "Store"}</span>
+                    )}
                   </div>
                 </td>
-                <td>
-                  <div className="flex items-center gap-3">
+                {/* Actions */}
+                <td className="px-4 py-2.5 pe-5">
+                  <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
                       onClick={() => void adminService.updateProduct(token, product._id, { isSoldOut: !product.isSoldOut }).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))}
-                      className={`text-xs font-semibold ${product.isSoldOut ? "text-emerald-600" : "text-rose-600"}`}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${product.isSoldOut ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-rose-50 text-rose-700 hover:bg-rose-100"}`}
                     >
-                      {product.isSoldOut ? "✓ Activate" : "✗ Sold Out"}
+                      {product.isSoldOut ? (language === "ar" ? "تفعيل" : "Activate") : (language === "ar" ? "إيقاف" : "Deactivate")}
                     </button>
-                    <button onClick={() => startEditProduct(product)} className="text-sm font-semibold text-teal-700">
+                    <button onClick={() => startEditProduct(product)} className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 transition">
                       {translate(language, "adminEdit")}
                     </button>
-                    <button onClick={() => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="text-sm font-semibold text-rose-600">
+                    <button onClick={() => void adminService.deleteProduct(token, product._id).then(loadAll).catch((error: unknown) => pushToast(error instanceof ApiError ? error.message : translate(language, "adminActionError"), "error"))} className="rounded-lg bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 transition">
                       {translate(language, "adminDelete")}
                     </button>
                   </div>

@@ -47,7 +47,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Locale>(() => readStorage(STORAGE_KEYS.language, "ar"));
   const [cart, setCart] = useState<CartItem[]>(() => readStorage(STORAGE_KEYS.cart, []));
   const [adminSession, setAdminSessionState] = useState<AuthSession | null>(() =>
-    readSessionStorage(STORAGE_KEYS.adminSession, null),
+    readStorage(STORAGE_KEYS.adminSession, null),
   );
   const [affiliateSession, setAffiliateSessionState] = useState<AuthSession | null>(() =>
     readSessionStorage(STORAGE_KEYS.affiliateSession, null),
@@ -84,7 +84,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [language]);
 
   useEffect(() => writeStorage(STORAGE_KEYS.cart, cart), [cart]);
-  useEffect(() => writeSessionStorage(STORAGE_KEYS.adminSession, adminSession), [adminSession]);
+  useEffect(() => writeStorage(STORAGE_KEYS.adminSession, adminSession), [adminSession]);
   useEffect(() => writeSessionStorage(STORAGE_KEYS.affiliateSession, affiliateSession), [affiliateSession]);
   useEffect(() => writeStorage(STORAGE_KEYS.affiliateRef, affiliateRef), [affiliateRef]);
   useEffect(() => writeSessionStorage(STORAGE_KEYS.pendingOrder, pendingOrder), [pendingOrder]);

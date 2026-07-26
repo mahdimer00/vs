@@ -139,7 +139,9 @@ export function DashboardShell({
         {!collapsed && (
           <div className="min-w-0">
             <div className="truncate text-[13px] font-bold tracking-tight text-white">{storeName}</div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">Admin</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+              {language === "ar" ? "لوحة التحكم" : language === "fr" ? "Administration" : "Admin Panel"}
+            </div>
           </div>
         )}
       </div>

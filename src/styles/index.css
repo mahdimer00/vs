@@ -125,7 +125,7 @@
   }
 
   .stat-card {
-    @apply rounded-[1.75rem] border border-white/80 bg-white/95 p-5 shadow-[0_16px_45px_rgba(15,23,42,0.06)];
+    @apply rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm;
   }
 
   .table-wrap {
@@ -165,7 +165,7 @@
   }
 
   .admin-panel {
-    @apply relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_1px_4px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.05)];
+    @apply relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_4px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.05)] sm:p-6;
   }
 
   .admin-panel-header {
@@ -173,7 +173,7 @@
   }
 
   .admin-page-header {
-    @apply relative overflow-hidden rounded-2xl border border-slate-900/10 bg-[linear-gradient(135deg,#0f172a_0%,#131c2e_55%,#1c2740_100%)] p-6 text-white shadow-[0_4px_24px_rgba(15,23,42,0.18)];
+    @apply relative overflow-hidden rounded-2xl border border-slate-900/10 bg-[linear-gradient(135deg,#0f172a_0%,#131c2e_55%,#1c2740_100%)] p-4 text-white shadow-[0_4px_24px_rgba(15,23,42,0.18)] sm:p-6;
   }
 
   .admin-page-header::before {
@@ -314,14 +314,20 @@
 .admin-main {
   flex: 1;
   min-height: 100vh;
-  padding: 1.25rem;
-  margin-left: 220px;
+  padding: 1rem;
+  margin-left: 0;
   min-width: 0;
-  transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.admin-main-collapsed {
-  margin-left: 70px;
+@media (min-width: 1024px) {
+  .admin-main {
+    padding: 1.25rem;
+    margin-left: 220px;
+  }
+  .admin-main-collapsed {
+    margin-left: 70px;
+  }
 }
 
 [dir="rtl"] .admin-sidebar {
@@ -333,11 +339,18 @@
 
 [dir="rtl"] .admin-main {
   margin-left: 0;
-  margin-right: 220px;
+  margin-right: 0;
 }
 
-[dir="rtl"] .admin-main-collapsed {
-  margin-right: 70px;
+@media (min-width: 1024px) {
+  [dir="rtl"] .admin-main {
+    margin-left: 0;
+    margin-right: 220px;
+  }
+  [dir="rtl"] .admin-main-collapsed {
+    margin-right: 70px;
+    margin-left: 0;
+  }
 }
 
 /* Collapse toggle button — fixed at the trailing edge of the sidebar */
