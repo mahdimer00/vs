@@ -45,7 +45,7 @@ const upload = multer({
     },
   }),
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 20 * 1024 * 1024,
   },
   fileFilter(_req, file, callback) {
     const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
