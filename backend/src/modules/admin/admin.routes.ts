@@ -155,8 +155,62 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const netProfit = newCapitalInvested > 0 ? netCapital - newCapitalInvested : 0;
   const capitalGrowthPct = newCapitalInvested > 0 ? Math.round(((netCapital - newCapitalInvested) / newCapitalInvested) * 100) : 0;
 
-  // Monthly revenue series (last 6 months)
-  const monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number }> = [];
+  // Cost map for profit calculations
+  const costMap = new Map(
+    products
+      .filter((p) => p.purchasePrice != null && (p.purchasePrice as number) > 0)
+      .map((p) => [String(p._id), p.purchasePrice as number]),
+  );
+  const calcProfit = (orderList: typeof orders) =>
+    orderList
+      .filter((o) => deliveredStatuses.has(o.status))
+      .reduce((sum, o) =>
+        sum + o.items.reduce((s, item) => {
+          const cost = costMap.get(String(item.productId));
+          return s + (cost != null ? (item.unitPrice - cost) * (item.quantity ?? 1) : 0);
+        }, 0),
+      0);
+
+  // Store sales profit — uses productId → costMap when available
+  const calcStoreSalesProfit = (salesList: typeof storeSales) =>
+    salesList
+      .filter((sl) => sl.productId != null)
+      .reduce((sum, sl) => {
+        const cost = costMap.get(String(sl.productId));
+        return sum + (cost != null ? ((sl.salePrice as number) - cost) * (sl.quantity as number) : 0);
+      }, 0);
+
+  const storeSalesForPeriod = (from: Date, to?: Date) =>
+    storeSales.filter((sl) => {
+      const d = new Date((sl.date ?? sl.createdAt) as Date);
+      return d >= from && (to == null || d < to);
+    });
+
+  const todayStoreSalesProfit = calcStoreSalesProfit(storeSalesForPeriod(todayStart));
+  const weekStoreSalesProfit  = calcStoreSalesProfit(storeSalesForPeriod(weekStart));
+  const monthStoreSalesProfit = calcStoreSalesProfit(storeSalesForPeriod(monthStart));
+  const lastMonthStoreSalesProfit = calcStoreSalesProfit(storeSalesForPeriod(lastMonthStart, monthStart));
+  const totalStoreSalesProfit = calcStoreSalesProfit(storeSales);
+
+  const todayProfit = calcProfit(todayOrders) + todayStoreSalesProfit;
+  const weekProfit  = calcProfit(weekOrders)  + weekStoreSalesProfit;
+  const monthProfit = calcProfit(monthOrders) + monthStoreSalesProfit;
+  const lastMonthProfit = calcProfit(lastMonthOrders) + lastMonthStoreSalesProfit;
+
+  // In-transit cost & expected profit (SHIPPED orders not yet delivered)
+  const inTransitCost = inTransitOrders.reduce((sum, o) =>
+    sum + o.items.reduce((s, item) => {
+      const cost = costMap.get(String(item.productId));
+      return s + (cost != null ? cost * (item.quantity ?? 1) : 0);
+    }, 0), 0);
+  const inTransitProfit = inTransitOrders.reduce((sum, o) =>
+    sum + o.items.reduce((s, item) => {
+      const cost = costMap.get(String(item.productId));
+      return s + (cost != null ? (item.unitPrice - cost) * (item.quantity ?? 1) : 0);
+    }, 0), 0);
+
+  // Monthly revenue + profit series (last 6 months) — includes store sales
+  const monthlyRevenueSeries: Array<{ label: string; revenue: number; orders: number; profit: number }> = [];
   for (let i = 5; i >= 0; i--) {
     const mStart = new Date(); mStart.setDate(1); mStart.setHours(0, 0, 0, 0); mStart.setMonth(mStart.getMonth() - i);
     const mEnd = new Date(mStart); mEnd.setMonth(mEnd.getMonth() + 1);
@@ -164,25 +218,44 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
       const d = new Date(o.createdAt as Date);
       return d >= mStart && d < mEnd && deliveredStatuses.has(o.status);
     });
+    const mStoreSales = storeSalesForPeriod(mStart, mEnd);
+    const mStoreSalesRevenue = mStoreSales.reduce((s, sl) => s + (sl.total as number), 0);
     monthlyRevenueSeries.push({
       label: mStart.toLocaleString("ar-DZ", { month: "short" }),
-      revenue: mDelivered.reduce((s, o) => s + o.total, 0),
-      orders: mDelivered.length,
+      revenue: mDelivered.reduce((s, o) => s + o.total, 0) + mStoreSalesRevenue,
+      orders: mDelivered.length + mStoreSales.length,
+      profit: calcProfit(mDelivered) + calcStoreSalesProfit(mStoreSales),
     });
   }
 
   // Top products by actual order count (not just slice)
   const productOrderCount = new Map<string, number>();
+  const productProfitMap = new Map<string, { profit: number; revenue: number; count: number; name: unknown }>();
   for (const order of deliveredOrders) {
     for (const item of order.items) {
       const pid = String(item.productId);
-      productOrderCount.set(pid, (productOrderCount.get(pid) ?? 0) + item.quantity);
+      productOrderCount.set(pid, (productOrderCount.get(pid) ?? 0) + (item.quantity ?? 1));
+      const cost = costMap.get(pid);
+      const itemProfit = cost != null ? (item.unitPrice - cost) * (item.quantity ?? 1) : 0;
+      const ex = productProfitMap.get(pid) ?? { profit: 0, revenue: 0, count: 0, name: item.productName };
+      productProfitMap.set(pid, {
+        profit: ex.profit + itemProfit,
+        revenue: ex.revenue + (item.lineTotal ?? 0),
+        count: ex.count + (item.quantity ?? 1),
+        name: ex.name,
+      });
     }
   }
   const topProductsSorted = products
     .map((p) => ({ ...p, orderCount: productOrderCount.get(String(p._id)) ?? 0 }))
     .filter((p) => p.orderCount > 0)
     .sort((a, b) => b.orderCount - a.orderCount)
+    .slice(0, 5);
+
+  const topProfitProducts = [...productProfitMap.entries()]
+    .map(([productId, d]) => ({ productId, name: d.name, profit: d.profit, revenue: d.revenue, count: d.count }))
+    .filter((p) => p.profit > 0)
+    .sort((a, b) => b.profit - a.profit)
     .slice(0, 5);
 
   return res.json({
@@ -195,14 +268,18 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     // Today
     todayOrders: todayOrders.length,
     todayRevenue: todayOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((sum, o) => sum + o.total, 0),
+    todayProfit,
     // This week
     weekOrders: weekOrders.length,
     weekRevenue: weekOrders.filter((o) => deliveredStatuses.has(o.status)).reduce((sum, o) => sum + o.total, 0),
+    weekProfit,
     // This month vs last month
     monthOrders: monthOrders.length,
     monthRevenue,
     lastMonthRevenue,
     lastMonthOrders: lastMonthOrders.length,
+    monthProfit,
+    lastMonthProfit,
     // Delivery & return rates
     deliveryRate,
     returnRate,
@@ -211,6 +288,7 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     netProfit,
     newCapitalInvested,
     capitalGrowthPct,
+    totalGrossProfit: calcProfit(deliveredOrders) + totalStoreSalesProfit,
     // Monthly revenue chart (last 6 months)
     monthlyRevenueSeries,
     // Abandoned (waiting for call > 24h)
@@ -220,8 +298,9 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
       customerName: o.customer?.fullName, phone: o.customer?.phone,
       total: o.total, hoursAgo: Math.round((Date.now() - new Date(o.createdAt as Date).getTime()) / 3600000),
     })),
-    // Real top products by order count
+    // Real top products by order count and by profit
     topProducts: topProductsSorted,
+    topProfitProducts,
     affiliateSales: affiliates.map((a) => ({ affiliate: a.name, total: a.balancePaid + a.balanceApproved })),
     promoUsage: promos.map((p) => ({ code: p.code, count: p.usedCount })),
     lowStockProducts: products.filter((p) => p.stock > 0 && p.stock <= 5 && !p.isSoldOut),
@@ -241,6 +320,8 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
     // In-transit (shipped but not yet delivered)
     inTransitOrders: inTransitOrders.length,
     inTransitAmount,
+    inTransitCost,
+    inTransitProfit,
   });
 }));
 
@@ -727,18 +808,50 @@ router.post("/admin/store-sales", authMiddleware, permissionMiddleware("dashboar
     total: input.total || input.quantity * input.salePrice,
     date: input.date ? new Date(input.date) : new Date(),
   });
+
+  if (input.productId) {
+    const prod = await ProductModel.findById(input.productId);
+    if (prod) {
+      const newStock = Math.max(0, prod.stock - input.quantity);
+      await ProductModel.findByIdAndUpdate(input.productId, { stock: newStock, isSoldOut: newStock <= 0 });
+    }
+  }
+
   return res.status(201).json(doc);
 }));
 
 router.patch("/admin/store-sales/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const prev = await StoreSaleModel.findById(req.params.id).lean();
   const input = storeSaleCreateSchema.partial().parse(req.body);
   const doc = await StoreSaleModel.findByIdAndUpdate(req.params.id, input, { new: true });
   if (!doc) return res.status(404).json({ message: "Not found" });
+
+  // Adjust stock when quantity changes on the same product
+  const pid = String(input.productId ?? prev?.productId ?? "");
+  if (pid && input.quantity != null && prev?.quantity != null && input.quantity !== prev.quantity) {
+    const delta = (prev.quantity as number) - input.quantity; // positive = stock goes up
+    const prod = await ProductModel.findById(pid);
+    if (prod) {
+      const newStock = Math.max(0, prod.stock + delta);
+      await ProductModel.findByIdAndUpdate(pid, { stock: newStock, isSoldOut: newStock <= 0 });
+    }
+  }
+
   return res.json(doc);
 }));
 
 router.delete("/admin/store-sales/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
+  const sale = await StoreSaleModel.findById(req.params.id).lean();
   await StoreSaleModel.findByIdAndDelete(req.params.id);
+
+  if (sale?.productId) {
+    const prod = await ProductModel.findById(sale.productId);
+    if (prod) {
+      const newStock = prod.stock + (sale.quantity as number);
+      await ProductModel.findByIdAndUpdate(sale.productId, { stock: newStock, isSoldOut: newStock <= 0 });
+    }
+  }
+
   return res.json({ success: true });
 }));
 

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const BATCH_SIZE = 24;
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -59,6 +61,8 @@ export function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [displayCount, setDisplayCount] = useState(BATCH_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filters, setFilters] = useState<ProductFilterState>({
     ...DEFAULT_FILTERS,
@@ -96,6 +100,7 @@ export function ProductsPage() {
 
   const handleFilterChange = useCallback((next: ProductFilterState) => {
     setFilters(next);
+    setDisplayCount(BATCH_SIZE);
     syncUrl(next);
   }, [syncUrl]);
 
@@ -157,6 +162,23 @@ export function ProductsPage() {
   }, [filters, products, showLaptopFilters]);
 
   const soldOutProducts = useMemo(() => products.filter((p) => p.isSoldOut), [products]);
+  const displayedProducts = filtered.slice(0, displayCount);
+  const hasMore = displayCount < filtered.length;
+
+  // Reset to first batch whenever filters produce a different list
+  useEffect(() => { setDisplayCount(BATCH_SIZE); }, [filtered]);
+
+  // Infinite scroll — load next batch when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) setDisplayCount((c) => c + BATCH_SIZE); },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore]);
 
   if (loading) {
     return <LoadingState label={translate(language, "loading")} />;
@@ -206,9 +228,23 @@ export function ProductsPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 xl:grid-cols-3">
-            {filtered.map((product) => (
+            {displayedProducts.map((product) => (
               <ProductCard key={product._id} product={product} language={language} />
             ))}
+          </div>
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="flex justify-center py-4">
+            {hasMore ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:300ms]" />
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">
+                {language === "ar" ? `${filtered.length} منتج — تم عرض الكل` : `${filtered.length} produits — tout affiché`}
+              </p>
+            )}
           </div>
         </div>
       )}

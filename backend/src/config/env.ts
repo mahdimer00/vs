@@ -31,6 +31,7 @@ const schema = z.object({
   // ZR Express shipping integration
   ZR_EXPRESS_TENANT_ID: z.string().optional(),
   ZR_EXPRESS_SECRET_KEY: z.string().optional(),
+  ZR_WEBHOOK_SECRET: z.string().optional(), // Svix signing secret (whsec_xxx)
   // WhatsApp OTP via self-hosted Baileys API
   BAILEYS_API_URL: z.string().min(1).optional(),
   BAILEYS_API_KEY: z.string().optional(),

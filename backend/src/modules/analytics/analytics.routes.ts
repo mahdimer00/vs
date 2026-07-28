@@ -91,12 +91,15 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
 
   const dateFilter = { $gte: fromDate, $lte: toDate };
 
-  const [events, todayPageViews, orders, todayOrders] = await Promise.all([
+  const [events, todayPageViews, orders, todayOrders, allProducts] = await Promise.all([
     AnalyticsEventModel.find({ createdAt: dateFilter }).lean(),
     AnalyticsEventModel.countDocuments({ eventType: "page_view", createdAt: { $gte: todayStart } }),
     OrderModel.find({ createdAt: dateFilter }).lean(),
     OrderModel.find({ createdAt: { $gte: todayStart } }).lean(),
+    ProductModel.find({ purchasePrice: { $gt: 0 } }).select("_id purchasePrice").lean(),
   ]);
+
+  const costMap = new Map(allProducts.map((p) => [String(p._id), p.purchasePrice as number]));
 
   const totalVisitors = events.filter((e) => e.eventType === "page_view").length;
   const productViews = events.filter((e) => e.eventType === "product_view").length;
@@ -194,21 +197,25 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
     return { date: d, count: visitDayMap[d] ?? 0 };
   });
 
-  // Sales per day
-  const salesDayMap: Record<string, { revenue: number; orders: number }> = {};
+  // Sales per day (with profit)
+  const salesDayMap: Record<string, { revenue: number; orders: number; profit: number }> = {};
   for (const order of orders) {
     const day = new Date(order.createdAt).toISOString().slice(0, 10);
-    const entry = salesDayMap[day] ?? { revenue: 0, orders: 0 };
+    const entry = salesDayMap[day] ?? { revenue: 0, orders: 0, profit: 0 };
     entry.orders += 1;
     if (deliveredStatuses.has(order.status)) {
       entry.revenue += order.total;
+      entry.profit += order.items.reduce((s, item) => {
+        const cost = costMap.get(String(item.productId));
+        return s + (cost != null ? (item.unitPrice - cost) * (item.quantity ?? 1) : 0);
+      }, 0);
     }
     salesDayMap[day] = entry;
   }
 
   const salesByDay = Array.from({ length: dayCount }, (_, i) => {
     const d = new Date(fromDate.getTime() + i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    return { date: d, ...(salesDayMap[d] ?? { revenue: 0, orders: 0 }) };
+    return { date: d, ...(salesDayMap[d] ?? { revenue: 0, orders: 0, profit: 0 }) };
   });
 
   // ── LAST HOUR (live stats) ──
@@ -226,9 +233,20 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
   }
   const funnel = funnelEvents.map((step) => ({ step, count: funnelCounts[step] ?? 0 }));
 
-  // ── AVERAGE ORDER VALUE ──
+  // ── AVERAGE ORDER VALUE + PROFIT ──
   const completedOrders = orders.filter((o) => deliveredStatuses.has(o.status));
   const avgOrderValue = completedOrders.length > 0 ? Math.round(completedOrders.reduce((s, o) => s + o.total, 0) / completedOrders.length) : 0;
+
+  const calcOrdersProfit = (orderList: typeof orders) =>
+    orderList.filter((o) => deliveredStatuses.has(o.status)).reduce((sum, o) =>
+      sum + o.items.reduce((s, item) => {
+        const cost = costMap.get(String(item.productId));
+        return s + (cost != null ? (item.unitPrice - cost) * (item.quantity ?? 1) : 0);
+      }, 0), 0);
+
+  const profitTotal = calcOrdersProfit(orders);
+  const profitToday = calcOrdersProfit(todayOrders);
+  const avgMargin = revenueTotal > 0 ? Math.round((profitTotal / revenueTotal) * 100) : 0;
 
   // ── ORDERS BY HOUR (24h heatmap) ──
   const ordersByHour = new Array(24).fill(0) as number[];
@@ -293,7 +311,6 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
     ordersByStatus,
     visitorsByDay,
     salesByDay,
-    // New
     lastHourVisitors,
     lastHourOrders,
     avgOrderValue,
@@ -301,6 +318,10 @@ router.get("/admin/analytics", authMiddleware, permissionMiddleware("dashboard")
     ordersByHour,
     revenueByWilaya,
     conversionByProduct,
+    // Profit data
+    profitTotal,
+    profitToday,
+    avgMargin,
   });
 }));
 

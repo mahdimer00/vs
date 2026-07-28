@@ -46,6 +46,13 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "/gestion/customers": Users,
   "/gestion/blacklist": Shield,
   "/affiliate": LayoutDashboard,
+  "/affiliate/products": Package,
+  "/affiliate/orders": ShoppingCart,
+  "/affiliate/commissions": TrendingUp,
+  "/affiliate/withdrawals": Wallet,
+  "/affiliate/promo-codes": TicketPercent,
+  "/affiliate/team": Users,
+  "/affiliate/profile": Settings,
 };
 
 const NAV_GROUPS: { ar: string; fr: string; en: string; paths: string[] }[] = [
@@ -55,6 +62,10 @@ const NAV_GROUPS: { ar: string; fr: string; en: string; paths: string[] }[] = [
   { ar: "الشركاء", fr: "Affiliés", en: "Affiliates", paths: ["/gestion/affiliates", "/gestion/commissions", "/gestion/withdrawals"] },
   { ar: "العمليات", fr: "Opérations", en: "Operations", paths: ["/gestion/shipping", "/gestion/finance", "/gestion/analytics", "/gestion/customers"] },
   { ar: "الإدارة", fr: "Administration", en: "Admin", paths: ["/gestion/admins", "/gestion/blacklist", "/gestion/settings"] },
+  // Affiliate panel groups
+  { ar: "المنتجات والطلبات", fr: "Produits & Commandes", en: "Products & Orders", paths: ["/affiliate/products", "/affiliate/orders"] },
+  { ar: "الأرباح", fr: "Gains", en: "Earnings", paths: ["/affiliate/commissions", "/affiliate/withdrawals", "/affiliate/promo-codes"] },
+  { ar: "الفريق والحساب", fr: "Équipe & Compte", en: "Team & Account", paths: ["/affiliate/team", "/affiliate/profile"] },
 ];
 
 function NavItem({ link, collapsed, onNav }: { link: LinkItem; collapsed: boolean; onNav?: () => void }) {

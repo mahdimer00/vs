@@ -124,6 +124,12 @@ const bannerSchema = new Schema(
   { timestamps: true },
 );
 
+// Indexes for catalog queries
+productSchema.index({ status: 1, _id: -1 });
+productSchema.index({ status: 1, stock: 1, isSoldOut: 1 });
+productSchema.index({ slug: 1 });
+productVariantSchema.index({ productId: 1 });
+
 export const CategoryModel = model("Category", categorySchema);
 export const BrandModel = model("Brand", brandSchema);
 export const ProductModel = model("Product", productSchema);
