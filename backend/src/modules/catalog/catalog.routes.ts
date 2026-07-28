@@ -83,11 +83,12 @@ router.get(
 router.get(
   "/products",
   asyncHandler(async (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
     // Hide 0-stock products from public catalog unless admin explicitly marked isSoldOut=true
     const products = await ProductModel.find({
       status: "ACTIVE",
       $or: [{ stock: { $gt: 0 } }, { isSoldOut: true }],
-    }).populate("category").populate("brand").lean();
+    }).sort({ _id: -1 }).populate("category").populate("brand").lean();
     const variants = await ProductVariantModel.find({ productId: { $in: products.map((product) => product._id) } }).lean();
     return res.json(
       products.map((product) => {
@@ -241,6 +242,36 @@ router.get("/geo/check", asyncHandler(async (req, res) => {
   const ip = String(req.ip ?? req.headers["x-forwarded-for"] ?? "");
   const result = await isIpAllowed(ip);
   return res.json({ allowed: result.allowed, country: result.country });
+}));
+
+// PC request — visitor submits desired PC specs, admin gets Telegram alert
+router.post("/request-pc", asyncHandler(async (req, res) => {
+  const { name, phone, wilaya, brand, cpu, ram, screen, storage, budget, notes } = req.body as Record<string, string>;
+  const hasSpec = brand || cpu || ram || notes?.trim();
+  if (!hasSpec) {
+    return res.status(400).json({ message: "يرجى تحديد المواصفات المطلوبة" });
+  }
+  const { sendTelegramMessage } = await import("../../utils/telegram.js");
+  const lines = [
+    "🖥️ <b>طلب لابتوب جديد</b>",
+    "",
+    ...(name?.trim() ? [`👤 الاسم: ${name.trim()}`] : []),
+    ...(phone?.trim() ? [`📞 الهاتف: ${phone.trim()}`] : []),
+    ...(wilaya?.trim() ? [`📍 الولاية: ${wilaya.trim()}`] : []),
+    "",
+    "📋 <b>المواصفات المطلوبة:</b>",
+    ...(brand ? [`• العلامة: ${brand}`] : []),
+    ...(cpu ? [`• المعالج: ${cpu}`] : []),
+    ...(ram ? [`• الرام: ${ram}`] : []),
+    ...(screen ? [`• الشاشة: ${screen}`] : []),
+    ...(storage ? [`• التخزين: ${storage}`] : []),
+    ...(budget?.trim() ? [`• الميزانية: ${budget.trim()} دج`] : []),
+    ...(notes?.trim() ? [`• ملاحظات: ${notes.trim()}`] : []),
+    "",
+    `⏰ ${new Date().toLocaleString("fr-DZ")}`,
+  ];
+  await sendTelegramMessage(lines.join("\n"));
+  return res.json({ success: true });
 }));
 
 export default router;

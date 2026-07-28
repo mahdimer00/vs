@@ -1,4 +1,4 @@
-import { ArrowRight, BadgePercent, ChevronLeft, ChevronRight, Clock, Facebook, Heart, MessageCircle, Minus, Phone, Play, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, Battery, ChevronLeft, ChevronRight, Clock, Cpu, Database, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -16,6 +16,54 @@ import { pixelViewContent } from "@/utils/pixel";
 import { ttqAddToWishlist, ttqViewContent } from "@/utils/tiktok";
 import { trackEvent } from "@/utils/tracking";
 import { addRecentlyViewed } from "@/utils/recentlyViewed";
+
+function computePcScore(specs: [string, string][]): number {
+  let score = 0;
+  const find = (keys: string[]) => specs.find(([k]) => keys.some((key) => k.toLowerCase().includes(key)))?.[1] ?? "";
+
+  // CPU (40 pts)
+  const cpuText = (find(["معالج", "cpu"]) + " " + find(["جيل", "gen"])).toLowerCase();
+  const genMatch = cpuText.match(/(\d+)ᵉ|(\d+)ème|(\d+)th|(\d+)e gen|gen\s*(\d+)/i);
+  const gen = genMatch ? parseInt(genMatch.slice(1).find((m) => m && /^\d+$/.test(m)) ?? "0") : 0;
+  if (gen >= 12) score += 38; else if (gen >= 10) score += 33; else if (gen >= 8) score += 28;
+  else if (gen >= 6) score += 22; else if (gen >= 4) score += 17; else if (gen >= 2) score += 12;
+  else if (gen >= 1) score += 8; else if (cpuText.includes("amd") || cpuText.includes("intel")) score += 10;
+  if (cpuText.includes("i7") || cpuText.includes("ryzen 7")) score += 5;
+  else if (cpuText.includes("i5") || cpuText.includes("ryzen 5")) score += 2;
+
+  // RAM (30 pts)
+  const ramText = find(["رام", "ram", "mémoire"]);
+  const ram = parseInt(ramText.match(/(\d+)/)?.[1] ?? "0");
+  if (ram >= 32) score += 30; else if (ram >= 16) score += 26; else if (ram >= 12) score += 22;
+  else if (ram >= 8) score += 18; else if (ram >= 6) score += 14; else if (ram >= 4) score += 10;
+  else if (ram >= 2) score += 5;
+
+  // Storage (20 pts)
+  const storageText = find(["تخزين", "ssd", "hdd", "stockage"]).toLowerCase();
+  if (storageText.includes("nvme")) score += 20;
+  else if (storageText.includes("ssd")) score += 16;
+  else if (storageText) score += 8;
+
+  // GPU (10 pts)
+  const gpuText = find(["كرت", "gpu", "graphique"]).toLowerCase();
+  if (gpuText && !gpuText.includes("intel hd") && !gpuText.includes("intel uhd") && !gpuText.includes("iris")) {
+    if (gpuText.includes("rtx") || gpuText.includes("rx 6") || gpuText.includes("rx 7")) score += 10;
+    else if (gpuText.includes("gtx") || gpuText.includes("radeon") || gpuText.includes("mx")) score += 7;
+    else score += 4;
+  } else if (gpuText) {
+    score += 2;
+  }
+
+  return Math.min(100, score);
+}
+
+function getPcScoreStyle(score: number) {
+  if (score >= 80) return { label: { ar: "أداء عالٍ", fr: "Haute performance" }, bar: "from-emerald-500 to-emerald-400", badge: "bg-emerald-100 text-emerald-800", tag: "bg-emerald-50 border-emerald-200 text-emerald-700", uses: { ar: ["تحرير الفيديو", "الألعاب الثقيلة", "برامج التصميم", "المهام المتعددة"], fr: ["Montage vidéo", "Jeux lourds", "Design", "Multitâche"] }, equiv: { ar: "مستوى Core i7 / Ryzen 7 حديث", fr: "Équivalent Core i7 / Ryzen 7 récent" } };
+  if (score >= 65) return { label: { ar: "أداء جيد", fr: "Bonne performance" }, bar: "from-teal-500 to-teal-400", badge: "bg-teal-100 text-teal-800", tag: "bg-teal-50 border-teal-200 text-teal-700", uses: { ar: ["الألعاب الخفيفة", "التصميم البسيط", "البرمجة", "العمل"], fr: ["Jeux légers", "Design", "Programmation", "Travail"] }, equiv: { ar: "مستوى Core i5 جيل 8 فما فوق", fr: "Équivalent Core i5 Gen 8+" } };
+  if (score >= 50) return { label: { ar: "أداء متوسط", fr: "Performance moyenne" }, bar: "from-blue-500 to-blue-400", badge: "bg-blue-100 text-blue-800", tag: "bg-blue-50 border-blue-200 text-blue-700", uses: { ar: ["المكتب", "التصفح", "يوتيوب", "الدراسة"], fr: ["Bureautique", "Navigation", "YouTube", "Études"] }, equiv: { ar: "مستوى Core i5 قديم أو Core i3 حديث", fr: "Équivalent Core i5 ancien / Core i3 récent" } };
+  if (score >= 35) return { label: { ar: "استخدام يومي", fr: "Usage quotidien" }, bar: "from-amber-500 to-amber-400", badge: "bg-amber-100 text-amber-800", tag: "bg-amber-50 border-amber-200 text-amber-700", uses: { ar: ["التصفح", "يوتيوب", "البريد الإلكتروني", "الوثائق"], fr: ["Navigation", "YouTube", "Email", "Documents"] }, equiv: { ar: "مستوى Core i3 / Pentium", fr: "Équivalent Core i3 / Pentium" } };
+  return { label: { ar: "استخدام أساسي", fr: "Usage basique" }, bar: "from-slate-400 to-slate-300", badge: "bg-slate-100 text-slate-700", tag: "bg-slate-50 border-slate-200 text-slate-600", uses: { ar: ["تصفح الإنترنت", "المهام البسيطة"], fr: ["Navigation web", "Tâches simples"] }, equiv: { ar: "مستوى Celeron / Atom", fr: "Équivalent Celeron / Atom" } };
+}
 
 function getTimeUntilMidnight(): { hours: number; minutes: number; seconds: number } {
   const now = new Date();
@@ -65,6 +113,9 @@ export function ProductDetailsPage() {
   const [countdown, setCountdown] = useState(getTimeUntilMidnight());
   const [activeTab, setActiveTab] = useState<"description" | "specs">("description");
   const [showDirectForm, setShowDirectForm] = useState(false);
+  const [showRequestPc, setShowRequestPc] = useState(false);
+  const [requestPcForm, setRequestPcForm] = useState({ name: "", phone: "", wilaya: "", brand: "", cpu: "", ram: "", screen: "", storage: "", budget: "", notes: "" });
+  const [requestPcStatus, setRequestPcStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const autoSlideTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -855,30 +906,44 @@ export function ProductDetailsPage() {
           </div>
           ) : null /* end !directOrderMode */}
 
-          {/* Affiliate earnings hint — shown when product has affiliate commission */}
-          {product.affiliateEnabled && product.commissionValue > 0 ? (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
-              <div className="flex items-start gap-3 p-4">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-400 text-slate-900">
-                  <BadgePercent className="h-4.5 w-4.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-amber-900 text-sm">
-                    {language === "ar" ? "اربح من مشاركة هذا المنتج 💰" : language === "fr" ? "Gagnez en partageant ce produit 💰" : "Earn by sharing this product 💰"}
+          {/* Affiliate earnings hint — computed from commissionTiers for consistent display */}
+          {product.affiliateEnabled ? (() => {
+            type Tier = { maxPrice: number | null; amount: number };
+            const tiers = siteSettings?.commissionTiers as Tier[] | undefined;
+            let displayCommission: string | null = null;
+            if (product.commissionType === "PERCENTAGE" && product.commissionValue > 0) {
+              displayCommission = product.commissionValue + "%";
+            } else if (tiers && tiers.length > 0) {
+              const tier = tiers.find((t) => t.maxPrice === null || t.maxPrice >= price) ?? tiers[tiers.length - 1]!;
+              displayCommission = formatCurrency(tier.amount, language);
+            } else if (product.commissionValue > 0) {
+              displayCommission = formatCurrency(product.commissionValue, language);
+            }
+            if (!displayCommission) return null;
+            return (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+                <div className="flex items-start gap-3 p-4">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-400 text-slate-900">
+                    <BadgePercent className="h-4.5 w-4.5" />
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-amber-700">
-                    {language === "ar"
-                      ? `شارك رابطك الخاص لهذا المنتج — تكسب ${product.commissionType === "PERCENTAGE" ? product.commissionValue + "%" : formatCurrency(product.commissionValue, language)} على كل طلب يكتمل عبر رابطك.`
-                      : `Share your affiliate link for this product — earn ${product.commissionType === "PERCENTAGE" ? product.commissionValue + "%" : formatCurrency(product.commissionValue, language)} on every completed order.`}
-                  </p>
-                  <Link to="/earn-money" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-900 underline underline-offset-2">
-                    {language === "ar" ? "انضم مجاناً وابدأ الكسب" : "Join free and start earning"}
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
+                  <div className="min-w-0">
+                    <div className="font-bold text-amber-900 text-sm">
+                      {language === "ar" ? "اربح من مشاركة هذا المنتج 💰" : language === "fr" ? "Gagnez en partageant ce produit 💰" : "Earn by sharing this product 💰"}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-amber-700">
+                      {language === "ar"
+                        ? `شارك رابطك الخاص لهذا المنتج — تكسب ${displayCommission} على كل طلب يكتمل عبر رابطك.`
+                        : `Share your affiliate link for this product — earn ${displayCommission} on every completed order.`}
+                    </p>
+                    <Link to="/earn-money" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-900 underline underline-offset-2">
+                      {language === "ar" ? "انضم مجاناً وابدأ الكسب" : "Join free and start earning"}
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : null}
+            );
+          })() : null}
 
           {(siteSettings?.whatsapp || siteSettings?.phone || siteSettings?.socialLinks?.facebook || siteSettings?.socialLinks?.tiktok) ? (
             <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
@@ -986,19 +1051,206 @@ export function ProductDetailsPage() {
             <p className="whitespace-pre-line break-words text-sm leading-8 text-slate-600">{productDescription}</p>
           </div>
         ) : (
-          <div className="p-6 md:p-7">
-            <div className="grid gap-3">
-              {specifications.map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between rounded-[1.35rem] border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm"
-                >
-                  <span className="font-medium text-slate-500">{key}</span>
-                  <span className="font-semibold text-slate-900">{value}</span>
+          <div className="p-6 md:p-7 space-y-5">
+            {/* PC Performance Score */}
+            {(() => {
+              const score = computePcScore(specifications);
+              if (score < 5) return null;
+              const st = getPcScoreStyle(score);
+              const lang = language === "fr" ? "fr" : "ar";
+              const uses = st.uses[lang];
+              return (
+                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-700">
+                        {language === "ar" ? "مستوى الأداء" : language === "fr" ? "Niveau de performance" : "Performance level"}
+                      </span>
+                    </div>
+                    <span className={`rounded-full px-3 py-0.5 text-xs font-bold ${st.badge}`}>
+                      {language === "fr" ? st.label.fr : st.label.ar}
+                    </span>
+                  </div>
+                  <div className="relative h-3 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className={`absolute inset-y-0 start-0 rounded-full bg-gradient-to-r ${st.bar} transition-all duration-700`}
+                      style={{ width: `${score}%` }}
+                    />
+                  </div>
+                  <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                    <span>{language === "ar" ? "أساسي" : "Basique"}</span>
+                    <span className="font-bold text-slate-600">{score}/100</span>
+                    <span>{language === "ar" ? "محترف" : "Pro"}</span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        {language === "ar" ? "مناسب لـ" : language === "fr" ? "Idéal pour" : "Good for"}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {uses.map((u) => (
+                          <span key={u} className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${st.tag}`}>{u}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <span className="font-semibold text-slate-600">{language === "ar" ? "≈ " : "≈ "}</span>
+                      <span>{language === "fr" ? st.equiv.fr : st.equiv.ar}</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              );
+            })()}
+
+            {/* Specifications grid */}
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              {specifications.map(([key, value]) => {
+                const k = key.toLowerCase();
+                const isBatteryWarn = k.includes("بطار") && /لاش|ضعيف|faible/i.test(value);
+                const isBatteryGood = k.includes("بطار") && /bonne|good|جيد/i.test(value);
+                const Icon = k.includes("معالج") || k.includes("cpu") ? Cpu
+                  : k.includes("رام") || k.includes("ram") || k.includes("mémoire") ? Database
+                  : k.includes("تخزين") || k.includes("ssd") || k.includes("hdd") || k.includes("stockage") ? HardDrive
+                  : k.includes("شاشة") || k.includes("écran") || k.includes("screen") ? Monitor
+                  : k.includes("بطار") || k.includes("batter") ? Battery
+                  : k.includes("كرت") || k.includes("gpu") || k.includes("graphique") ? Zap
+                  : k.includes("نظام") || k.includes("os") || k.includes("système") ? Settings
+                  : null;
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
+                      isBatteryWarn
+                        ? "border-rose-200 bg-rose-50"
+                        : isBatteryGood
+                          ? "border-emerald-200 bg-emerald-50"
+                          : "border-slate-100 bg-slate-50/80"
+                    }`}
+                  >
+                    {Icon && (
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                        isBatteryWarn ? "bg-rose-100 text-rose-600"
+                        : isBatteryGood ? "bg-emerald-100 text-emerald-600"
+                        : "bg-slate-200 text-slate-600"
+                      }`}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{key}</div>
+                      <div className={`mt-0.5 font-bold leading-snug ${
+                        isBatteryWarn ? "text-rose-700"
+                        : isBatteryGood ? "text-emerald-700"
+                        : "text-slate-900"
+                      }`}>{value}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <p className="mt-4 text-sm leading-7 text-slate-500">{translate(language, "productSupportNote")}</p>
+
+            <p className="text-sm leading-7 text-slate-500">{translate(language, "productSupportNote")}</p>
+
+            {/* Request PC — inline form */}
+            <div className="rounded-2xl border border-dashed border-teal-300 bg-teal-50/40 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setShowRequestPc((v) => !v); setRequestPcStatus("idle"); }}
+                className="flex w-full items-center gap-3 px-4 py-3.5 transition hover:bg-teal-50/60"
+              >
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-600 text-white text-lg">🔍</div>
+                <div className="min-w-0 flex-1 text-start">
+                  <div className="text-sm font-bold text-slate-800">
+                    {language === "ar" ? "لم تجد اللابتوب المناسب؟" : language === "fr" ? "Pas trouvé ce que vous cherchez?" : "Didn't find the right laptop?"}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {language === "ar" ? "اطلب بمواصفاتك وسنبحث لك" : language === "fr" ? "Demandez par specs, on cherche pour vous" : "Request by specs and we'll find it"}
+                  </div>
+                </div>
+                <ArrowRight className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${showRequestPc ? "rotate-90" : ""}`} />
+              </button>
+
+              {showRequestPc ? (
+                requestPcStatus === "sent" ? (
+                  <div className="border-t border-teal-200 bg-emerald-50 px-5 py-5 text-center">
+                    <div className="text-2xl">✅</div>
+                    <div className="mt-2 font-bold text-emerald-800">
+                      {language === "ar" ? "تم إرسال طلبك بنجاح!" : "Demande envoyée avec succès!"}
+                    </div>
+                    <div className="mt-1 text-xs text-emerald-600">
+                      {language === "ar" ? "سيتواصل معك فريقنا في أقرب وقت ممكن" : "Notre équipe vous contactera dès que possible"}
+                    </div>
+                  </div>
+                ) : (() => {
+                    const sel = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white";
+                    const inp = sel;
+                    const wilayas = ["الجزائر","وهران","قسنطينة","عنابة","سطيف","بجاية","بليدة","باتنة","تلمسان","تيزي وزو","الشلف","بسكرة","تيبازة","جيجل","برج بوعريريج","بومرداس","ميلة","المدية","معسكر","سكيكدة","الوادي","مستغانم","سيدي بلعباس","خنشلة","ورقلة","الأغواط","أم البواقي","المسيلة","تبسة","قالمة","سوق أهراس","الجلفة","تيارت","النعامة","البيض","غرداية","غليزان","المسيلة","تيسمسيلت","عين الدفلى","عين تموشنت","بشار","تندوف","إليزي","تمنراست","أدرار","البويرة","الطارف","خنشلة","تيمقاد","ميلة","الوادي","سعيدة","برج بوعريريج","عين صالح","تقرت","أولاد جلال","تيميمون","المغير","المنيعة","جانت","بني عباس","عين قزام","برج باجي مختار","أولاد جلال"];
+                    const uniqueWilayas = [...new Set(wilayas)].sort();
+                    const canSubmit = (requestPcForm.brand || requestPcForm.cpu || requestPcForm.ram || requestPcForm.notes.trim()) && requestPcStatus !== "sending";
+                    return (
+                      <div className="border-t border-teal-200 bg-white px-4 py-4 space-y-3">
+                        {/* Contact */}
+                        <div className="grid gap-2 grid-cols-2">
+                          <input type="text" placeholder={language === "ar" ? "الاسم (اختياري)" : "Nom"} value={requestPcForm.name} onChange={(e) => setRequestPcForm((f) => ({ ...f, name: e.target.value }))} className={inp} />
+                          <input type="tel" placeholder={language === "ar" ? "الهاتف (اختياري)" : "Téléphone"} value={requestPcForm.phone} onChange={(e) => setRequestPcForm((f) => ({ ...f, phone: e.target.value }))} className={inp} />
+                        </div>
+                        {/* Wilaya */}
+                        <select value={requestPcForm.wilaya} onChange={(e) => setRequestPcForm((f) => ({ ...f, wilaya: e.target.value }))} className={sel}>
+                          <option value="">{language === "ar" ? "اختر الولاية" : "Choisir la wilaya"}</option>
+                          {uniqueWilayas.map((w) => <option key={w} value={w}>{w}</option>)}
+                        </select>
+                        {/* Specs row 1 */}
+                        <div className="grid gap-2 grid-cols-2">
+                          <select value={requestPcForm.brand} onChange={(e) => setRequestPcForm((f) => ({ ...f, brand: e.target.value }))} className={sel}>
+                            <option value="">{language === "ar" ? "العلامة التجارية" : "Marque"}</option>
+                            {["HP","Dell","Lenovo","Asus","Acer","Toshiba","Sony","Samsung","MSI","Apple","Huawei"].map((b) => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                          <select value={requestPcForm.cpu} onChange={(e) => setRequestPcForm((f) => ({ ...f, cpu: e.target.value }))} className={sel}>
+                            <option value="">{language === "ar" ? "نوع المعالج" : "Processeur"}</option>
+                            {["Intel Core i3","Intel Core i5","Intel Core i7","Intel Core i9","Intel Pentium","Intel Celeron","AMD Ryzen 3","AMD Ryzen 5","AMD Ryzen 7","AMD A-Series"].map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        {/* Specs row 2 */}
+                        <div className="grid gap-2 grid-cols-2">
+                          <select value={requestPcForm.ram} onChange={(e) => setRequestPcForm((f) => ({ ...f, ram: e.target.value }))} className={sel}>
+                            <option value="">{language === "ar" ? "الرام" : "RAM"}</option>
+                            {["4 GB","6 GB","8 GB","12 GB","16 GB","32 GB"].map((r) => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <select value={requestPcForm.screen} onChange={(e) => setRequestPcForm((f) => ({ ...f, screen: e.target.value }))} className={sel}>
+                            <option value="">{language === "ar" ? "حجم الشاشة" : "Taille écran"}</option>
+                            {['11"','12"','13"','14"','15.6"','17.3"'].map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        {/* Specs row 3 */}
+                        <div className="grid gap-2 grid-cols-2">
+                          <select value={requestPcForm.storage} onChange={(e) => setRequestPcForm((f) => ({ ...f, storage: e.target.value }))} className={sel}>
+                            <option value="">{language === "ar" ? "نوع التخزين" : "Stockage"}</option>
+                            {["SSD 128 GB","SSD 256 GB","SSD 512 GB","SSD 1 TB","HDD 250 GB","HDD 500 GB","HDD 1 TB"].map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <input type="text" placeholder={language === "ar" ? "الميزانية بالدج" : "Budget DZD"} value={requestPcForm.budget} onChange={(e) => setRequestPcForm((f) => ({ ...f, budget: e.target.value }))} className={inp} />
+                        </div>
+                        {/* Notes */}
+                        <textarea rows={2} placeholder={language === "ar" ? "ملاحظات إضافية (الجيل، الاستخدام، الحالة...)" : "Remarques (génération, usage, état...)"} value={requestPcForm.notes} onChange={(e) => setRequestPcForm((f) => ({ ...f, notes: e.target.value }))} className={"w-full resize-none " + inp} />
+                        {requestPcStatus === "error" && <p className="text-xs text-rose-600">{language === "ar" ? "حدث خطأ، حاول مرة أخرى" : "Erreur, réessayez"}</p>}
+                        <button
+                          type="button"
+                          disabled={!canSubmit}
+                          onClick={async () => {
+                            setRequestPcStatus("sending");
+                            try {
+                              const r = await fetch("/api/request-pc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestPcForm) });
+                              setRequestPcStatus(r.ok ? "sent" : "error");
+                            } catch { setRequestPcStatus("error"); }
+                          }}
+                          className="w-full rounded-xl bg-teal-600 py-3 text-sm font-bold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {requestPcStatus === "sending" ? (language === "ar" ? "جارٍ الإرسال..." : "Envoi...") : (language === "ar" ? "إرسال الطلب" : language === "fr" ? "Envoyer" : "Send")}
+                        </button>
+                      </div>
+                    );
+                  })()
+              ) : null}
+            </div>
           </div>
         )}
       </section>

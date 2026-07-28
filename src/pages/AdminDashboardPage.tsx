@@ -35,6 +35,7 @@ import {
   Truck,
   DollarSign,
   Scale,
+  Search,
   Users,
   Video,
   Wallet,
@@ -453,6 +454,7 @@ export function AdminDashboardPage() {
   const [storeSalePrice, setStoreSalePrice] = useState("");
   const [financeSubTab, setFinanceSubTab] = useState<"expenses" | "debts" | "stock-purchases" | "store-sales">("expenses");
   const [hideZeroStock, setHideZeroStock] = useState(true);
+  const [productSearch, setProductSearch] = useState("");
   const [debtPaymentOpen, setDebtPaymentOpen] = useState<string | null>(null);
   const [debtPaymentAmount, setDebtPaymentAmount] = useState("");
   const [debtPaymentDate, setDebtPaymentDate] = useState(new Date().toISOString().split("T")[0]);
@@ -481,6 +483,8 @@ export function AdminDashboardPage() {
     onConfirm: () => void;
   } | null>(null);
   const [showAddProductForm, setShowAddProductForm] = useState(false);
+  const [pcBuilder, setPcBuilder] = useState({ open: false, cpuBrand: "Intel", cpuModel: "", cpuGen: "8th", ram: "8GB DDR4", storageSize: "256GB", storageType: "SSD", screenSize: '15.6"', screenRes: "Full HD", gpu: "", os: "Windows 11", battery: "Bonne" });
+  const [showAiTemplate, setShowAiTemplate] = useState(false);
 
   const [productForm, setProductForm] = useState<ProductFormState>(defaultProductForm);
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([{ ...defaultVariantDraft }]);
@@ -1218,16 +1222,34 @@ export function AdminDashboardPage() {
     setProductForm((current) => ({ ...current, specifications: [...current.specifications, { key: "", value: "" }] }));
   };
 
-  const fillLaptopSpecTemplate = () => {
-    const laptopKeys = ["المعالج", "الجيل", "الرام", "التخزين", "الشاشة", "البطارية", "كرت الشاشة", "الحالة"];
-    setProductForm((current) => {
-      const existingKeys = current.specifications.map((s) => s.key.trim());
-      const toAdd = laptopKeys
-        .filter((k) => !existingKeys.includes(k))
-        .map((k) => ({ key: k, value: "" }));
-      const base = current.specifications.filter((s) => s.key.trim() || s.value.trim());
-      return { ...current, specifications: [...base, ...toAdd] };
-    });
+  const applyPcBuilder = () => {
+    const cpu = `${pcBuilder.cpuBrand} ${pcBuilder.cpuModel}`.trim();
+    const storage = `${pcBuilder.storageSize} ${pcBuilder.storageType}`;
+    const screen = `${pcBuilder.screenSize} ${pcBuilder.screenRes}`;
+    const specs = [
+      { key: "المعالج", value: cpu },
+      { key: "الجيل", value: pcBuilder.cpuGen },
+      { key: "الرام", value: pcBuilder.ram },
+      { key: "التخزين", value: storage },
+      { key: "الشاشة", value: screen },
+      { key: "كرت الشاشة", value: pcBuilder.gpu },
+      { key: "نظام التشغيل", value: pcBuilder.os },
+      { key: "البطارية", value: pcBuilder.battery },
+    ].filter((s) => s.value.trim());
+
+    // Auto-generate descriptions if fields are empty
+    const descAr = `لابتوب بمعالج ${cpu} الجيل ${pcBuilder.cpuGen}، ذاكرة رام ${pcBuilder.ram}، تخزين ${storage}، شاشة ${screen}. نظام التشغيل: ${pcBuilder.os}. حالة البطارية: ${pcBuilder.battery}.`;
+    const descFr = `Ordinateur portable avec processeur ${cpu} ${pcBuilder.cpuGen}, ${pcBuilder.ram} de RAM, stockage ${storage}, écran ${screen}. Système: ${pcBuilder.os}. Batterie: ${pcBuilder.battery}.`;
+    const descEn = `Laptop with ${cpu} ${pcBuilder.cpuGen} processor, ${pcBuilder.ram} RAM, ${storage} storage, ${screen} screen. OS: ${pcBuilder.os}. Battery: ${pcBuilder.battery}.`;
+
+    setProductForm((current) => ({
+      ...current,
+      specifications: specs,
+      descriptionAr: current.descriptionAr.trim() || descAr,
+      descriptionFr: current.descriptionFr.trim() || descFr,
+      descriptionEn: current.descriptionEn.trim() || descEn,
+    }));
+    setPcBuilder((b) => ({ ...b, open: false }));
   };
 
   const removeProductSpec = (index: number) => {
@@ -3170,7 +3192,20 @@ export function AdminDashboardPage() {
           </div>
         ) : null}
         <form onSubmit={submitProduct} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <input value={productForm.nameAr} onChange={(event) => setProductForm({ ...productForm, nameAr: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameAr")} />
+          <input
+            value={productForm.nameAr}
+            onChange={(event) => {
+              const v = event.target.value;
+              setProductForm((f) => ({
+                ...f,
+                nameAr: v,
+                nameFr: f.nameFr || v,
+                nameEn: f.nameEn || v,
+              }));
+            }}
+            className="field-input"
+            placeholder={language === "ar" ? "الاسم بالعربية (مطلوب)" : "Nom en arabe (requis)"}
+          />
           <input value={productForm.nameFr} onChange={(event) => setProductForm({ ...productForm, nameFr: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameFr")} />
           <input value={productForm.nameEn} onChange={(event) => setProductForm({ ...productForm, nameEn: event.target.value })} className="field-input" placeholder={translate(language, "adminProductNameEn")} />
           <div className="md:col-span-2 xl:col-span-1">
@@ -3301,14 +3336,102 @@ export function AdminDashboardPage() {
           <div className="admin-soft-card md:col-span-2 xl:col-span-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="text-sm font-semibold text-slate-700">{translate(language, "adminProductSpecifications")}</div>
-              <button
-                type="button"
-                onClick={fillLaptopSpecTemplate}
-                className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
-              >
-                💻 {language === "ar" ? "قالب لابتوب/PC سريع" : "Laptop/PC quick template"}
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setPcBuilder((b) => ({ ...b, open: !b.open }))}
+                  className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
+                >
+                  💻 {language === "ar" ? "منشئ PC سريع" : "PC Builder rapide"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAiTemplate(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                >
+                  🤖 {language === "ar" ? "قالب الذكاء الاصطناعي" : "Template AI"}
+                </button>
+              </div>
             </div>
+
+            {pcBuilder.open && (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide">💻 {language === "ar" ? "منشئ مواصفات PC / لابتوب" : "PC / Laptop Spec Builder"}</p>
+                <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "نوع المعالج" : "CPU Brand"}</label>
+                    <select value={pcBuilder.cpuBrand} onChange={(e) => setPcBuilder((b) => ({ ...b, cpuBrand: e.target.value }))} className="field-select text-sm">
+                      <option>Intel</option>
+                      <option>AMD</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "موديل المعالج" : "CPU Model"}</label>
+                    <input value={pcBuilder.cpuModel} onChange={(e) => setPcBuilder((b) => ({ ...b, cpuModel: e.target.value }))} className="field-input text-sm" placeholder="Core i5-1235U / Ryzen 5 5500U" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "الجيل" : "Génération"}</label>
+                    <select value={pcBuilder.cpuGen} onChange={(e) => setPcBuilder((b) => ({ ...b, cpuGen: e.target.value }))} className="field-select text-sm">
+                      {["4th Gen","5th Gen","6th Gen","7th Gen","8th Gen","9th Gen","10th Gen","11th Gen","12th Gen","13th Gen","14th Gen","5000 Series","6000 Series","7000 Series"].map((g) => <option key={g}>{g}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "الرام" : "RAM"}</label>
+                    <select value={pcBuilder.ram} onChange={(e) => setPcBuilder((b) => ({ ...b, ram: e.target.value }))} className="field-select text-sm">
+                      {["4GB DDR3","4GB DDR4","8GB DDR3","8GB DDR4","8GB DDR5","12GB DDR4","16GB DDR4","16GB DDR5","32GB DDR4","32GB DDR5","64GB DDR5"].map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "حجم التخزين" : "Stockage"}</label>
+                    <select value={pcBuilder.storageSize} onChange={(e) => setPcBuilder((b) => ({ ...b, storageSize: e.target.value }))} className="field-select text-sm">
+                      {["128GB","256GB","512GB","1TB","2TB"].map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "نوع التخزين" : "Type stockage"}</label>
+                    <select value={pcBuilder.storageType} onChange={(e) => setPcBuilder((b) => ({ ...b, storageType: e.target.value }))} className="field-select text-sm">
+                      {["HDD","SSD","NVMe SSD","eMMC"].map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "الشاشة" : "Écran"}</label>
+                    <select value={pcBuilder.screenSize} onChange={(e) => setPcBuilder((b) => ({ ...b, screenSize: e.target.value }))} className="field-select text-sm">
+                      {['11.6"','13.3"','14"','15.6"','17.3"'].map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "دقة الشاشة" : "Résolution"}</label>
+                    <select value={pcBuilder.screenRes} onChange={(e) => setPcBuilder((b) => ({ ...b, screenRes: e.target.value }))} className="field-select text-sm">
+                      {["HD (1366x768)","Full HD (1920x1080)","QHD (2560x1440)","4K (3840x2160)"].map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "كرت الشاشة" : "GPU"}</label>
+                    <input value={pcBuilder.gpu} onChange={(e) => setPcBuilder((b) => ({ ...b, gpu: e.target.value }))} className="field-input text-sm" placeholder="Intel UHD / NVIDIA GTX 1650" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "نظام التشغيل" : "OS"}</label>
+                    <select value={pcBuilder.os} onChange={(e) => setPcBuilder((b) => ({ ...b, os: e.target.value }))} className="field-select text-sm">
+                      {["Windows 11","Windows 10","Windows 11 Pro","Sans OS / بدون نظام","Linux","macOS"].map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">{language === "ar" ? "البطارية" : "Batterie"}</label>
+                    <select value={pcBuilder.battery} onChange={(e) => setPcBuilder((b) => ({ ...b, battery: e.target.value }))} className="field-select text-sm">
+                      <option>Bonne</option>
+                      <option>Très bonne</option>
+                      <option>لاشة</option>
+                      <option>ضعيفة</option>
+                      <option>Faible</option>
+                    </select>
+                  </div>
+                </div>
+                <button type="button" onClick={applyPcBuilder} className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-bold text-white hover:bg-indigo-700 transition">
+                  ✅ {language === "ar" ? "تطبيق المواصفات" : "Appliquer les specs"}
+                </button>
+              </div>
+            )}
+
             <p className="text-xs text-slate-400">{language === "ar" ? "البطارية: اكتب «لاشة» أو «ضعيفة» لتظهر تحذير لون أحمر للزبون" : "Battery: type «lache» or «faible» to show a red warning to customers"}</p>
             <div className="grid gap-3">
               {productForm.specifications.map((spec, index) => (
@@ -3502,6 +3625,16 @@ export function AdminDashboardPage() {
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-48 max-w-xs">
+          <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            placeholder={language === "ar" ? "ابحث عن منتج..." : "Rechercher un produit..."}
+            className="w-full rounded-full border border-slate-200 bg-white py-1.5 ps-8 pe-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+          />
+        </div>
         <button
           type="button"
           onClick={() => setHideZeroStock((v) => !v)}
@@ -3515,7 +3648,7 @@ export function AdminDashboardPage() {
 
       {/* ── MOBILE CARD LIST (hidden on md+) ── */}
       <div className="flex flex-col gap-3 md:hidden">
-        {products.filter((p) => !hideZeroStock || p.stock > 0).map((product) => {
+        {products.filter((p) => (!hideZeroStock || p.stock > 0) && (!productSearch || `${p.name.ar} ${p.name.fr} ${p.name.en} ${typeof p.brand === "string" ? p.brand : p.brand.name}`.toLowerCase().includes(productSearch.toLowerCase()))).map((product) => {
           const sellPrice = product.discountPrice ?? product.basePrice;
           const margin = product.purchasePrice ? sellPrice - product.purchasePrice : null;
           const marginPct = margin !== null && sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : null;
@@ -3641,7 +3774,7 @@ export function AdminDashboardPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {products.filter((p) => !hideZeroStock || p.stock > 0).map((product) => {
+            {products.filter((p) => (!hideZeroStock || p.stock > 0) && (!productSearch || `${p.name.ar} ${p.name.fr} ${p.name.en} ${typeof p.brand === "string" ? p.brand : p.brand.name}`.toLowerCase().includes(productSearch.toLowerCase()))).map((product) => {
               const sellPrice = product.discountPrice ?? product.basePrice;
               const margin = product.purchasePrice ? sellPrice - product.purchasePrice : null;
               const marginPct = margin !== null && sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : null;
@@ -4391,9 +4524,9 @@ export function AdminDashboardPage() {
                           className="field-select w-full"
                         >
                           <option value="">{language === "ar" ? "— اختر منتجاً —" : "— Select a product —"}</option>
-                          {products.filter((p) => p.status === "ACTIVE").map((p) => (
+                          {products.map((p) => (
                             <option key={p._id} value={p._id}>
-                              {getLocalizedText(p.name, language)} — {formatCurrency(p.discountPrice ?? p.basePrice, language)} {p.stock <= 1 ? `(${language === "ar" ? "آخر قطعة" : "last unit"})` : ""}
+                              {getLocalizedText(p.name, language)} — {formatCurrency(p.discountPrice ?? p.basePrice, language)} {p.stock === 0 || p.isSoldOut ? `(${language === "ar" ? "نفد المخزون" : "out of stock"})` : p.stock <= 1 ? `(${language === "ar" ? "آخر قطعة" : "last unit"})` : ""}
                             </option>
                           ))}
                         </select>
@@ -7841,6 +7974,60 @@ export function AdminDashboardPage() {
               >
                 {confirmModal.confirmLabel ?? (language === "ar" ? "تأكيد" : language === "fr" ? "Confirmer" : "Confirm")}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showAiTemplate ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4" onClick={() => setShowAiTemplate(false)}>
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <h2 className="text-base font-bold text-slate-950">🤖 {language === "ar" ? "قالب الذكاء الاصطناعي لإضافة منتج PC" : "Template AI — Ajouter un PC"}</h2>
+              <button type="button" onClick={() => setShowAiTemplate(false)} className="ghost-button text-sm">✕</button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-xs text-slate-500">{language === "ar" ? "انسخ هذا القالب وأرسله لأي ذكاء اصطناعي (ChatGPT, Claude, Gemini...) واستبدل المعلومات:" : "Copiez ce template, envoyez-le à un AI (ChatGPT, Claude...) et remplacez les infos :"}</p>
+              <div className="relative">
+                <pre className="rounded-xl bg-slate-950 p-4 text-xs text-emerald-300 overflow-x-auto leading-6 whitespace-pre-wrap select-all">{`أريد إضافة منتج PC/لابتوب على متجري. أعطني هذه المعلومات بالتنسيق التالي:
+
+اسم المنتج: [ضع اسم الجهاز هنا، مثال: HP EliteBook 840 G8]
+
+الاسم بالعربية: [الاسم بالعربية]
+الاسم بالفرنسية: [Le nom en français]
+الاسم بالإنجليزية: [Name in English]
+
+الوصف بالعربية: [وصف مختصر جذاب 2-3 جمل يشمل: المواصفات الرئيسية + لمن هو مناسب + أبرز ميزة]
+الوصف بالفرنسية: [Description courte 2-3 phrases: specs principales + pour qui + point fort]
+الوصف بالإنجليزية: [Short description 2-3 sentences: main specs + who it's for + key advantage]
+
+المواصفات:
+المعالج: [CPU: مثال Intel Core i5-1235U]
+الجيل: [مثال 12ᵉ Gen]
+الرام: [مثال 8 GB DDR4]
+التخزين: [مثال 256 GB SSD]
+الشاشة: [مثال 15.6 بوصة Full HD (1920×1080)]
+كرت الشاشة: [مثال Intel UHD Graphics / NVIDIA GeForce...]
+نظام التشغيل: [مثال Windows 11]
+البطارية: [Bonne / لاشة / ضعيفة — فقط إذا ذُكرت]
+
+--- معلومات إضافية للعرض ---
+
+مناسب لـ: [قائمة 3-5 استخدامات: مثال الدراسة، العمل المكتبي، التصفح، يوتيوب، الألعاب الخفيفة...]
+
+الأداء الأقصى: [جملة واحدة تصف حد الأداء: مثال "يشغّل ألعاب خفيفة مثل FIFA وMinecraft بسلاسة، لكن ليس للألعاب الثقيلة"]
+
+مقارنة سريعة: [مثال "أقوى من Core i3 بنسبة 30%، وأبطأ من Core i7 بنسبة 20%"]
+المعالج المكافئ: [مثال "يعادل أداء Core i5-8265U" أو "أقل قوة من Ryzen 5 5500U"]`}</pre>
+                <button
+                  type="button"
+                  onClick={() => { void navigator.clipboard.writeText(`أريد إضافة منتج PC/لابتوب على متجري. أعطني هذه المعلومات بالتنسيق التالي:\n\nاسم المنتج: [ضع اسم الجهاز هنا]\n\nالاسم بالعربية:\nالاسم بالفرنسية:\nالاسم بالإنجليزية:\n\nالوصف بالعربية: [2-3 جمل: المواصفات + لمن هو + أبرز ميزة]\nالوصف بالفرنسية: [2-3 phrases: specs + pour qui + point fort]\nالوصف بالإنجليزية: [2-3 sentences: specs + who it's for + key advantage]\n\nالمواصفات:\nالمعالج:\nالجيل:\nالرام:\nالتخزين:\nالشاشة:\nكرت الشاشة:\nنظام التشغيل:\nالبطارية: [Bonne / لاشة / ضعيفة — فقط إذا ذُكرت]\n\n--- معلومات إضافية ---\n\nمناسب لـ: [3-5 استخدامات]\nالأداء الأقصى: [جملة واحدة]\nمقارنة سريعة: [مقارنة بـ i3/i5/i7]\nالمعالج المكافئ: [مثال "يعادل أداء Core i5-8265U"]`); pushToast(language === "ar" ? "تم النسخ!" : "Copié!", "success"); }}
+                  className="absolute top-3 end-3 rounded-lg bg-white/10 px-3 py-1 text-[11px] font-bold text-white hover:bg-white/20 transition"
+                >
+                  {language === "ar" ? "نسخ" : "Copier"}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400">{language === "ar" ? "بعد ما تحصل على الجواب، انسخ المعلومات في الحقول يدوياً أو استخدم منشئ PC السريع. معلومات 'مناسب لـ' تظهر تلقائياً في صفحة المنتج كعلامات." : "Après la réponse, copiez les infos dans les champs ou utilisez le PC Builder. Les 'mناسب لـ' apparaissent comme tags sur la page produit."}</p>
             </div>
           </div>
         </div>
