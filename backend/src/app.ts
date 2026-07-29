@@ -23,6 +23,7 @@ import feedRoutes from "./modules/feed/feed.routes.js";
 import couponCampaignRoutes from "./modules/coupon-campaign/coupon-campaign.routes.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { roleMiddleware } from "./middleware/role.middleware.js";
+import { adminRateLimitMiddleware } from "./middleware/rateLimit.middleware.js";
 import { AppError } from "./utils/app-error.js";
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
@@ -187,7 +188,7 @@ app.use("/api", orderRoutes);
 app.use("/api", otpRoutes);
 app.use("/api", promoRoutes);
 app.use("/api", affiliateRoutes);
-app.use("/api", adminRoutes);
-app.use("/api", analyticsRoutes);
+app.use("/api", adminRateLimitMiddleware, adminRoutes);
+app.use("/api", adminRateLimitMiddleware, analyticsRoutes);
 
 app.use(errorMiddleware);

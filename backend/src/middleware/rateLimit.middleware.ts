@@ -1,8 +1,22 @@
 import rateLimit from "express-rate-limit";
+import type { Request } from "express";
+
+// Admin routes are protected by JWT auth — skip global rate limit so admins aren't throttled
+const isAdminRoute = (req: Request) =>
+  req.path.startsWith("/api/admin") || req.path.startsWith("/api/analytics");
 
 export const rateLimitMiddleware = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 400,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: isAdminRoute,
+});
+
+// Relaxed limit specifically for admin/analytics routes — JWT auth is the real gatekeeper
+export const adminRateLimitMiddleware = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3000,
   standardHeaders: true,
   legacyHeaders: false,
 });
