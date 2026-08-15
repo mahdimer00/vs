@@ -891,6 +891,57 @@ export function ProductsPage() {
         )}
       </section>
 
+      {/* Laptop trust section — shown only on laptop category */}
+      {showLaptopFilters && (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-800">
+          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-white/10 sm:grid-cols-4">
+            {([
+              {
+                Icon: Banknote,
+                iconCls: "text-emerald-400",
+                bgCls: "bg-emerald-500/20",
+                ar: { title: "الدفع عند الاستلام", sub: "لا دفع مسبق إطلاقاً" },
+                fr: { title: "Paiement à la livraison", sub: "Aucun paiement d'avance" },
+              },
+              {
+                Icon: Phone,
+                iconCls: "text-sky-400",
+                bgCls: "bg-sky-500/20",
+                ar: { title: "نتصل قبل الشحن", sub: "نأكد الطلب معك شخصياً" },
+                fr: { title: "Appel avant envoi", sub: "On confirme avec vous" },
+              },
+              {
+                Icon: ShieldCheck,
+                iconCls: "text-violet-400",
+                bgCls: "bg-violet-500/20",
+                ar: { title: "المواصفات مضمونة", sub: "أي اختلاف = حل فوري" },
+                fr: { title: "Specs garanties", sub: "Écart = solution immédiate" },
+              },
+              {
+                Icon: Truck,
+                iconCls: "text-amber-400",
+                bgCls: "bg-amber-500/20",
+                ar: { title: "58 ولاية", sub: "توصيل لكل الجزائر" },
+                fr: { title: "58 wilayas", sub: "Livraison partout en Algérie" },
+              },
+            ] as Array<{ Icon: React.ElementType; iconCls: string; bgCls: string; ar: { title: string; sub: string }; fr: { title: string; sub: string } }>).map((item) => {
+              const txt = language === "fr" ? item.fr : item.ar;
+              return (
+                <div key={txt.title} className="flex flex-col items-center gap-2 px-3 py-4 text-center">
+                  <div className={`grid h-9 w-9 place-items-center rounded-xl ${item.bgCls}`}>
+                    <item.Icon className={`h-4 w-4 ${item.iconCls}`} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-white">{txt.title}</div>
+                    <div className="mt-0.5 text-[10px] text-slate-400">{txt.sub}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <ProductFilters
         categories={categories.map((category) => ({
           value: category.slug,

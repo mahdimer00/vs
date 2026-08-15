@@ -360,16 +360,6 @@ export function ProductCard({ product, language }: { product: Product; language:
             </span>
           ) : null)}
 
-          {/* Condition badge */}
-          <span className={`absolute end-2 bottom-2 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
-            product.condition === "NEW"
-              ? "bg-teal-500/90 text-white"
-              : "bg-amber-500/90 text-white"
-          }`}>
-            {product.condition === "NEW"
-              ? (language === "ar" ? "جديد" : language === "fr" ? "Neuf" : "New")
-              : (language === "ar" ? "مستعمل" : language === "fr" ? "Occasion" : "Used")}
-          </span>
 
           {/* Wishlist */}
           <button
