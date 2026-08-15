@@ -1,7 +1,7 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const BATCH_SIZE = 24;
-import { ArrowDownUp, Banknote, CheckCircle2, Laptop, MessageCircle, Search, Send, SlidersHorizontal, Star, Truck, X } from "lucide-react";
+import { ArrowDownUp, Banknote, CheckCircle2, Laptop, MessageCircle, Phone, Search, Send, ShieldCheck, SlidersHorizontal, Star, Truck, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
