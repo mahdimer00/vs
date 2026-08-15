@@ -168,11 +168,14 @@ router.post("/affiliate/withdrawals", authMiddleware, roleMiddleware(["AFFILIATE
       accountInfo: z.string().min(3),
     })
     .parse(req.body);
-  const affiliate = await AffiliateModel.findById(req.user?.sub);
+  const affiliate = await AffiliateModel.findOneAndUpdate(
+    { _id: req.user?.sub, balanceApproved: { $gte: input.amount } },
+    { $inc: { balanceApproved: -input.amount } },
+    { new: false },
+  );
   if (!affiliate) {
-    return res.status(404).json({ message: "Affiliate not found" });
-  }
-  if (input.amount > affiliate.balanceApproved) {
+    const exists = await AffiliateModel.findById(req.user?.sub);
+    if (!exists) return res.status(404).json({ message: "Affiliate not found" });
     return res.status(400).json({ message: "Insufficient approved balance" });
   }
   await WithdrawalRequestModel.create({ affiliate: affiliate._id, ...input });

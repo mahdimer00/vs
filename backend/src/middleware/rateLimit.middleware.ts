@@ -64,3 +64,12 @@ export const orderTrackRateLimitMiddleware = rateLimit({
   legacyHeaders: false,
   message: { message: "Too many tracking attempts. Please try again later." },
 });
+
+// 10 PC/software requests per hour per IP — prevents Telegram spam
+export const requestPcRateLimitMiddleware = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests. Please try again later." },
+});

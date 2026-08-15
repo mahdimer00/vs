@@ -6,7 +6,7 @@ import { permissionMiddleware } from "../../middleware/permission.middleware.js"
 import { asyncHandler } from "../../utils/async-handler.js";
 import { AffiliateClickModel, AffiliateModel, CommissionModel, CouponRequestModel, WithdrawalRequestModel } from "../../models/affiliate.model.js";
 import { OrderModel, PromoCodeModel } from "../../models/orders.model.js";
-import { ProductModel, WebsiteSettingModel } from "../../models/catalog.model.js";
+import { ProductModel, ProductVariantModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 import { UserModel } from "../../models/user.model.js";
 import { syncCommissionForOrder } from "../../utils/commission.js";
 import { sendAffiliateCommissionUpdateEmail } from "../../utils/email.js";
@@ -19,6 +19,66 @@ import { PhoneBlacklistModel } from "../../models/blacklist.model.js";
 import { ExpenseModel, DebtModel, StockPurchaseModel, StoreSaleModel } from "../../models/finance.model.js";
 
 const router = Router();
+
+async function syncProductStockFromVariants(productId: string): Promise<void> {
+  const variants = await ProductVariantModel.find({ productId }).select("stock").lean();
+  if (variants.length === 0) {
+    const product = await ProductModel.findById(productId).select("stock").lean();
+    if (product) {
+      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: product.stock <= 0 });
+    }
+    return;
+  }
+
+  const totalStock = variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
+  await ProductModel.findByIdAndUpdate(productId, {
+    stock: totalStock,
+    isSoldOut: totalStock <= 0,
+  });
+}
+
+async function deductStoreSaleStock(productId: string, quantity: number): Promise<void> {
+  const variants = await ProductVariantModel.find({ productId, stock: { $gt: 0 } }).sort({ stock: -1 });
+
+  if (variants.length === 0) {
+    const product = await ProductModel.findById(productId).select("stock");
+    if (!product) throw new AppError("Product not found", 404);
+    if ((product.stock ?? 0) < quantity) throw new AppError("Not enough stock for this product", 409);
+
+    product.stock = Math.max(0, (product.stock ?? 0) - quantity);
+    product.isSoldOut = product.stock <= 0;
+    await product.save();
+    return;
+  }
+
+  const availableStock = variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
+  if (availableStock < quantity) {
+    throw new AppError("Not enough stock for this product", 409);
+  }
+
+  let remaining = quantity;
+  for (const variant of variants) {
+    if (remaining <= 0) break;
+    const decrement = Math.min(variant.stock ?? 0, remaining);
+    if (decrement > 0) {
+      await ProductVariantModel.findByIdAndUpdate(variant._id, { $inc: { stock: -decrement } });
+      remaining -= decrement;
+    }
+  }
+
+  await syncProductStockFromVariants(productId);
+}
+
+async function restoreStoreSaleStock(productId: string, quantity: number): Promise<void> {
+  const variant = await ProductVariantModel.findOne({ productId }).sort({ _id: -1 });
+  if (variant) {
+    await ProductVariantModel.findByIdAndUpdate(variant._id, { $inc: { stock: quantity } });
+    await syncProductStockFromVariants(productId);
+    return;
+  }
+
+  await ProductModel.findByIdAndUpdate(productId, { $inc: { stock: quantity }, isSoldOut: false });
+}
 
 const subAdminCreateSchema = z.object({
   name: z.string().min(2),
@@ -91,14 +151,16 @@ router.get("/admin/stats", authMiddleware, permissionMiddleware("dashboard"), as
   const lastMonthStart = new Date(monthStart); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
 
   const [orders, promos, affiliates, products, expenses, debts, stockPurchases, storeSales] = await Promise.all([
-    OrderModel.find().lean(),
-    PromoCodeModel.find().lean(),
-    AffiliateModel.find().lean(),
-    ProductModel.find().lean(),
-    ExpenseModel.find().lean(),
-    DebtModel.find({ isPaid: false }).lean(),
-    StockPurchaseModel.find().lean(),
-    StoreSaleModel.find().lean(),
+    OrderModel.find()
+      .select("orderNumber status total createdAt customer.fullName customer.phone items.productId items.quantity items.unitPrice items.lineTotal items.productName")
+      .lean(),
+    PromoCodeModel.find().select("code usedCount").lean(),
+    AffiliateModel.find().select("name balancePaid balanceApproved").lean(),
+    ProductModel.find().select("name slug images status isSoldOut stock purchasePrice basePrice discountPrice excludeFromProfits").lean(),
+    ExpenseModel.find().select("amount").lean(),
+    DebtModel.find({ isPaid: false }).select("type amount remainingAmount").lean(),
+    StockPurchaseModel.find().select("totalCost fundedByRevenue").lean(),
+    StoreSaleModel.find().select("total productId salePrice quantity date createdAt").lean(),
   ]);
 
   const deliveredStatuses = new Set(["DELIVERED", "PICKED_UP"]);
@@ -398,10 +460,12 @@ router.patch("/admin/affiliates/:id", authMiddleware, permissionMiddleware("affi
 router.post("/admin/affiliates/notify-commission-update", authMiddleware, roleMiddleware(["SUPER_ADMIN", "ADMIN"]), asyncHandler(async (_req, res) => {
   const settings = await WebsiteSettingModel.findOne().lean();
   const tiers = (settings?.commissionTiers as Array<{ maxPrice: number | null; amount: number }> | undefined) ?? [
-    { maxPrice: 23500, amount: 500 },
-    { maxPrice: 35000, amount: 750 },
-    { maxPrice: 45000, amount: 1000 },
-    { maxPrice: null, amount: 1500 },
+    { maxPrice: 20000, amount: 500 },
+    { maxPrice: 28500, amount: 750 },
+    { maxPrice: 35000, amount: 1000 },
+    { maxPrice: 45000, amount: 1250 },
+    { maxPrice: 55000, amount: 1500 },
+    { maxPrice: null, amount: 2000 },
   ];
 
   const affiliates = await AffiliateModel.find({ status: "ACTIVE" }).select("name email").lean();
@@ -803,18 +867,27 @@ router.get("/admin/store-sales", authMiddleware, permissionMiddleware("dashboard
 
 router.post("/admin/store-sales", authMiddleware, permissionMiddleware("dashboard"), asyncHandler(async (req, res) => {
   const input = storeSaleCreateSchema.parse(req.body);
-  const doc = await StoreSaleModel.create({
-    ...input,
-    total: input.total || input.quantity * input.salePrice,
-    date: input.date ? new Date(input.date) : new Date(),
-  });
+  const productId = input.productId?.trim();
+  let stockDeducted = false;
+  if (productId) {
+    await deductStoreSaleStock(productId, input.quantity);
+    stockDeducted = true;
+  }
 
-  if (input.productId) {
-    const prod = await ProductModel.findById(input.productId);
-    if (prod) {
-      const newStock = Math.max(0, prod.stock - input.quantity);
-      await ProductModel.findByIdAndUpdate(input.productId, { stock: newStock, isSoldOut: newStock <= 0 });
+  let doc;
+  try {
+    doc = await StoreSaleModel.create({
+      ...input,
+      productId: productId || undefined,
+      total: input.total || input.quantity * input.salePrice,
+      date: input.date ? new Date(input.date) : new Date(),
+      stockDeducted,
+    });
+  } catch (error) {
+    if (productId && stockDeducted) {
+      await restoreStoreSaleStock(productId, input.quantity);
     }
+    throw error;
   }
 
   return res.status(201).json(doc);
@@ -823,19 +896,28 @@ router.post("/admin/store-sales", authMiddleware, permissionMiddleware("dashboar
 router.patch("/admin/store-sales/:id", authMiddleware, permissionMiddleware("dashboard"), validateObjectId, asyncHandler(async (req, res) => {
   const prev = await StoreSaleModel.findById(req.params.id).lean();
   const input = storeSaleCreateSchema.partial().parse(req.body);
+  const prevProductId = prev?.productId ? String(prev.productId) : "";
+  const nextProductId = input.productId?.trim() ?? prevProductId;
+  const prevQuantity = prev?.quantity as number | undefined;
+  const nextQuantity = input.quantity ?? prevQuantity ?? 0;
+
+  if (prev?.stockDeducted && prevProductId && (prevProductId !== nextProductId || nextQuantity !== prevQuantity)) {
+    await restoreStoreSaleStock(prevProductId, prevQuantity ?? 0);
+    if (nextProductId) {
+      await deductStoreSaleStock(nextProductId, nextQuantity);
+      input.productId = nextProductId;
+      (input as typeof input & { stockDeducted: boolean }).stockDeducted = true;
+    } else {
+      (input as typeof input & { stockDeducted: boolean }).stockDeducted = false;
+    }
+  } else if (!prev?.stockDeducted && nextProductId && nextQuantity > 0) {
+    await deductStoreSaleStock(nextProductId, nextQuantity);
+    input.productId = nextProductId;
+    (input as typeof input & { stockDeducted: boolean }).stockDeducted = true;
+  }
+
   const doc = await StoreSaleModel.findByIdAndUpdate(req.params.id, input, { new: true });
   if (!doc) return res.status(404).json({ message: "Not found" });
-
-  // Adjust stock when quantity changes on the same product
-  const pid = String(input.productId ?? prev?.productId ?? "");
-  if (pid && input.quantity != null && prev?.quantity != null && input.quantity !== prev.quantity) {
-    const delta = (prev.quantity as number) - input.quantity; // positive = stock goes up
-    const prod = await ProductModel.findById(pid);
-    if (prod) {
-      const newStock = Math.max(0, prod.stock + delta);
-      await ProductModel.findByIdAndUpdate(pid, { stock: newStock, isSoldOut: newStock <= 0 });
-    }
-  }
 
   return res.json(doc);
 }));
@@ -844,12 +926,8 @@ router.delete("/admin/store-sales/:id", authMiddleware, permissionMiddleware("da
   const sale = await StoreSaleModel.findById(req.params.id).lean();
   await StoreSaleModel.findByIdAndDelete(req.params.id);
 
-  if (sale?.productId) {
-    const prod = await ProductModel.findById(sale.productId);
-    if (prod) {
-      const newStock = prod.stock + (sale.quantity as number);
-      await ProductModel.findByIdAndUpdate(sale.productId, { stock: newStock, isSoldOut: newStock <= 0 });
-    }
+  if (sale?.productId && sale.stockDeducted) {
+    await restoreStoreSaleStock(String(sale.productId), sale.quantity as number);
   }
 
   return res.json({ success: true });

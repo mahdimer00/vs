@@ -41,8 +41,10 @@ const ORGANIZATION_SCHEMA = {
 };
 
 export function Seo({ title, description, image, path, type = "website", noindex, jsonLd, keywords, breadcrumbs }: SeoProps) {
-  const { siteSettings } = useApp();
+  const { siteSettings, language } = useApp();
   const siteName = siteSettings?.storeName || FALLBACK_NAME;
+  const htmlLang = language === "ar" ? "ar" : language === "fr" ? "fr" : "en";
+  const htmlDir = language === "ar" ? "rtl" : "ltr";
   const fullTitle = title ? `${title} | ${siteName}` : siteName;
   const canonical = path ? `${SITE_URL}${path}` : undefined;
   const ogImage = image || siteSettings?.logo || DEFAULT_IMAGE;
@@ -71,7 +73,7 @@ export function Seo({ title, description, image, path, type = "website", noindex
 
   return (
     <Helmet>
-      <html lang="ar" dir="rtl" />
+      <html lang={htmlLang} dir={htmlDir} />
       <title>{fullTitle}</title>
       <meta name="google-site-verification" content="ewcLY-cX6iUc1Tgu978_kt9Gf7RHzJXHUud3lrhttuI" />
       {description ? <meta name="description" content={description} /> : null}

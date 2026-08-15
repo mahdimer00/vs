@@ -4,7 +4,7 @@ import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { orderCreateRateLimitMiddleware, orderTrackRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
-import { OrderModel, PromoCodeUsageModel } from "../../models/orders.model.js";
+import { OrderModel, PromoCodeModel, PromoCodeUsageModel } from "../../models/orders.model.js";
 import { ProductModel, ProductVariantModel } from "../../models/catalog.model.js";
 import { WilayaModel } from "../../models/shipping.model.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -145,6 +145,14 @@ function hasReservedStock(order: { stockReserved?: boolean; aiConfirmed?: boolea
   return Boolean(order.stockReserved || order.aiConfirmed);
 }
 
+function shouldReleaseStockOnStatusChange(previousStatus: string, nextStatus: string) {
+  return RESTOCKABLE_STATUSES.has(nextStatus) && STOCK_RESERVED_STATUSES.has(previousStatus);
+}
+
+function shouldKeepReservedStockFlag(wasReserved: boolean, previousStatus: string, nextStatus: string) {
+  return wasReserved && !STOCK_RESERVED_STATUSES.has(nextStatus) && !shouldReleaseStockOnStatusChange(previousStatus, nextStatus);
+}
+
 function maskPhone(phone: string) {
   return phone.length >= 4 ? `${phone.slice(0, 2)}******${phone.slice(-2)}` : phone;
 }
@@ -161,15 +169,43 @@ async function autoMarkSoldOutIfNeeded(productId: string): Promise<void> {
   const variants = await ProductVariantModel.find({ productId }).select("stock").lean();
   if (variants.length > 0) {
     const totalStock = variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
-    if (totalStock <= 0) {
-      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: true });
-    }
+    await ProductModel.findByIdAndUpdate(productId, {
+      stock: totalStock,
+      isSoldOut: totalStock <= 0,
+    });
   } else {
     const product = await ProductModel.findById(productId).select("stock").lean();
-    if (product && product.stock <= 0) {
-      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: true });
+    if (product) {
+      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: product.stock <= 0 });
     }
   }
+}
+
+async function syncProductStockFromVariants(productId: string): Promise<void> {
+  const variants = await ProductVariantModel.find({ productId }).select("stock").lean();
+  if (variants.length === 0) {
+    const product = await ProductModel.findById(productId).select("stock").lean();
+    if (product) {
+      await ProductModel.findByIdAndUpdate(productId, { isSoldOut: product.stock <= 0 });
+    }
+    return;
+  }
+
+  const totalStock = variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
+  await ProductModel.findByIdAndUpdate(productId, {
+    stock: totalStock,
+    isSoldOut: totalStock <= 0,
+  });
+}
+
+async function restoreStockForDeletedVariant(productId: string, quantity: number): Promise<void> {
+  const replacementVariant = await ProductVariantModel.findOne({ productId }).sort({ _id: -1 });
+  if (replacementVariant) {
+    await ProductVariantModel.findByIdAndUpdate(replacementVariant._id, { $inc: { stock: quantity } });
+  } else {
+    await ProductModel.findByIdAndUpdate(productId, { $inc: { stock: quantity } });
+  }
+  await syncProductStockFromVariants(productId);
 }
 
 async function reserveStockForOrder(order: {
@@ -181,7 +217,13 @@ async function reserveStockForOrder(order: {
     if (!variant) {
       // Variant was deleted/recreated — skip stock reservation for this item
       console.warn(`[Stock] Variant ${item.variantId} not found for order item "${item.productName.en}" — skipping stock reservation`);
-      continue;
+      throw new AppError(`Cannot reserve stock: option no longer exists for ${item.productName.en}`, 409);
+    }
+    if (String(variant.productId) !== String(item.productId)) {
+      throw new AppError(`Cannot reserve stock: option does not match ${item.productName.en}`, 409);
+    }
+    if (variant.stock < item.quantity) {
+      throw new AppError(`Cannot reserve stock: only ${variant.stock} left for ${item.productName.en}`, 409);
     }
     const decrement = Math.min(item.quantity, variant.stock);
     if (decrement > 0) {
@@ -191,7 +233,7 @@ async function reserveStockForOrder(order: {
   }
 
   for (const productId of affectedProductIds) {
-    void autoMarkSoldOutIfNeeded(productId);
+    await autoMarkSoldOutIfNeeded(productId);
   }
 }
 
@@ -199,8 +241,17 @@ async function releaseStockForOrder(order: { items: Array<{ variantId?: string; 
   const affectedProductIds = new Set<string>();
   for (const item of order.items) {
     if (item.variantId) {
-      await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-      if (item.productId) affectedProductIds.add(String(item.productId));
+      const variant = await ProductVariantModel.findByIdAndUpdate(
+        item.variantId,
+        { $inc: { stock: item.quantity } },
+        { new: true },
+      ).select("productId");
+      if (variant?.productId) {
+        affectedProductIds.add(String(variant.productId));
+      } else if (item.productId) {
+        await restoreStockForDeletedVariant(String(item.productId), item.quantity);
+        affectedProductIds.add(String(item.productId));
+      }
     } else if (item.productId) {
       await ProductModel.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
       affectedProductIds.add(String(item.productId));
@@ -208,27 +259,26 @@ async function releaseStockForOrder(order: { items: Array<{ variantId?: string; 
   }
   // Clear isSoldOut for any product that now has stock
   for (const productId of affectedProductIds) {
-    const variants = await ProductVariantModel.find({ productId }).select("stock").lean();
-    let hasStock: boolean;
-    if (variants.length > 0) {
-      hasStock = variants.reduce((s, v) => s + (v.stock ?? 0), 0) > 0;
-    } else {
-      const p = await ProductModel.findById(productId).select("stock").lean();
-      hasStock = !!p && (p.stock ?? 0) > 0;
-    }
-    if (hasStock) await ProductModel.findByIdAndUpdate(productId, { isSoldOut: false });
+    await syncProductStockFromVariants(productId);
   }
 }
 
 async function reconcileReservedStockForOrderEdit(
-  existingItems: Array<{ variantId: string; quantity: number }>,
-  nextItems: Array<{ variantId: string; quantity: number; productName: { en?: string; fr?: string; ar?: string } }>,
+  existingItems: Array<{ variantId: string; productId?: string; quantity: number }>,
+  nextItems: Array<{ variantId: string; productId?: string; quantity: number; productName: { en?: string; fr?: string; ar?: string } }>,
 ) {
   const existingByVariant = new Map<string, number>();
   const nextByVariant = new Map<string, { quantity: number; productName: { en?: string; fr?: string; ar?: string } }>();
+  const variantProductIds = new Map<string, string>();
+  const affectedProductIds = new Set<string>();
 
   for (const item of existingItems) {
     existingByVariant.set(item.variantId, (existingByVariant.get(item.variantId) ?? 0) + item.quantity);
+    if (item.productId) {
+      const productId = String(item.productId);
+      affectedProductIds.add(productId);
+      variantProductIds.set(item.variantId, productId);
+    }
   }
 
   for (const item of nextItems) {
@@ -237,6 +287,11 @@ async function reconcileReservedStockForOrderEdit(
       quantity: (current?.quantity ?? 0) + item.quantity,
       productName: item.productName,
     });
+    if (item.productId) {
+      const productId = String(item.productId);
+      affectedProductIds.add(productId);
+      variantProductIds.set(item.variantId, productId);
+    }
   }
 
   const variantIds = new Set([...existingByVariant.keys(), ...nextByVariant.keys()]);
@@ -251,13 +306,31 @@ async function reconcileReservedStockForOrderEdit(
     const variant = await ProductVariantModel.findById(variantId);
     if (!variant) {
       // Variant deleted — skip silently
-      continue;
+      if (delta < 0) {
+        const productId = variantProductIds.get(variantId);
+        if (productId) {
+          await restoreStockForDeletedVariant(productId, -delta);
+          affectedProductIds.add(productId);
+        }
+        continue;
+      }
+      const productName = nextByVariant.get(variantId)?.productName.en || "selected product";
+      throw new AppError(`Cannot reserve stock: option no longer exists for ${productName}`, 409);
+    }
+    if (variant.productId) affectedProductIds.add(String(variant.productId));
+    if (delta > 0 && variant.stock < delta) {
+      const productName = nextByVariant.get(variantId)?.productName.en || "selected product";
+      throw new AppError(`Cannot reserve stock: only ${variant.stock} left for ${productName}`, 409);
     }
     // Cap decrement at available stock (don't go negative)
     const safeDecrement = delta > 0 ? Math.min(delta, variant.stock) : delta;
     if (safeDecrement !== 0) {
       await ProductVariantModel.findByIdAndUpdate(variantId, { $inc: { stock: -safeDecrement } });
     }
+  }
+
+  for (const productId of affectedProductIds) {
+    await syncProductStockFromVariants(productId);
   }
 }
 
@@ -455,8 +528,6 @@ router.post(
       discount = promoResult.discount;
       promoAffiliateId = promoResult.promo.affiliate ? String(promoResult.promo.affiliate) : undefined;
       promoDocumentId = String(promoResult.promo._id);
-      promoResult.promo.usedCount += 1;
-      await promoResult.promo.save();
     }
 
     const affiliate = await resolveAffiliate(input.affiliateRef, promoAffiliateId);
@@ -470,6 +541,7 @@ router.post(
         wilaya: wilaya._id,
         commune: input.customer.commune,
         address: input.customer.address,
+        deliveryNotes: input.customer.deliveryNotes ?? null,
       },
       items,
       subtotal,
@@ -491,6 +563,7 @@ router.post(
     });
 
     if (promoDocumentId) {
+      await PromoCodeModel.findByIdAndUpdate(promoDocumentId, { $inc: { usedCount: 1 } });
       await PromoCodeUsageModel.create({
         promoCode: promoDocumentId,
         order: order._id,
@@ -838,15 +911,18 @@ router.patch(
 
     const wasReserved = hasReservedStock(existing);
     const willBeReserved = STOCK_RESERVED_STATUSES.has(input.status);
+    const keepReservedStock = shouldKeepReservedStockFlag(wasReserved, existing.status, input.status);
+    const shouldReleaseStock = wasReserved && shouldReleaseStockOnStatusChange(existing.status, input.status);
 
     if (!wasReserved && willBeReserved) {
       await reserveStockForOrder(existing);
-    } else if (wasReserved && !willBeReserved) {
+    } else if (shouldReleaseStock) {
       await releaseStockForOrder(existing);
     }
 
     existing.status = input.status;
-    existing.stockReserved = willBeReserved;
+    existing.stockReserved = willBeReserved || keepReservedStock;
+    if (shouldReleaseStock) existing.aiConfirmed = false;
 
     // Cancel ZR Express parcel when order is cancelled / returned / failed
     const ZR_CANCEL_STATUSES = new Set(["CANCELLED", "RETURNED", "FAILED"]);
@@ -913,7 +989,7 @@ router.patch(
     }
 
     // Send WhatsApp notification to customer on key status changes
-    const WA_NOTIFY_STATUSES = new Set(["SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED"]);
+    const WA_NOTIFY_STATUSES = new Set(["SHIPPED", "PICKED_UP", "CANCELLED", "RETURNED"]);
     if (WA_NOTIFY_STATUSES.has(input.status) && isWhatsAppConfigured() && existing.customer?.phone) {
       void sendWhatsAppStatusUpdate(
         existing.customer.phone,
@@ -1189,16 +1265,19 @@ router.post(
     if (newStatus && newStatus !== order.status && newRank > currentRank) {
       const wasReserved = hasReservedStock(order);
       const willBeReserved = STOCK_RESERVED_STATUSES.has(newStatus);
-      if (wasReserved && !willBeReserved) await releaseStockForOrder(order);
+      const keepReservedStock = shouldKeepReservedStockFlag(wasReserved, order.status, newStatus);
+      const shouldReleaseStock = wasReserved && shouldReleaseStockOnStatusChange(order.status, newStatus);
+      if (shouldReleaseStock) await releaseStockForOrder(order);
       order.status = newStatus;
-      order.stockReserved = willBeReserved;
+      order.stockReserved = willBeReserved || keepReservedStock;
+      if (shouldReleaseStock) order.aiConfirmed = false;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
       // Push real-time update to connected admin dashboard clients
       emitOrderUpdate(String(order._id), newStatus);
 
       // Send WhatsApp notification to customer (ZR-triggered)
-      const ZR_WA_STATUSES = new Set(["SHIPPED", "DELIVERED", "PICKED_UP", "CANCELLED", "RETURNED"]);
+      const ZR_WA_STATUSES = new Set(["SHIPPED", "PICKED_UP", "CANCELLED", "RETURNED"]);
       if (ZR_WA_STATUSES.has(newStatus) && isWhatsAppConfigured() && order.customer?.phone) {
         void sendWhatsAppStatusUpdate(
           order.customer.phone,
@@ -1206,16 +1285,6 @@ router.post(
           order.zrTrackingNumber ?? "",
           newStatus,
         );
-      }
-
-      // Auto-restock on RETURNED (zr-sync)
-      if (newStatus === "RETURNED") {
-        for (const item of order.items) {
-          if (item.variantId) {
-            await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-          }
-          await ProductModel.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
-        }
       }
     }
 
@@ -1368,23 +1437,17 @@ router.post(
 
     if (newStatus && newStatus !== order.status && newRank > currentRank) {
       const resolvedStatus = newStatus;
-      order.status = resolvedStatus as typeof order.status;
+      const previousStatus = order.status;
       const wasReserved = hasReservedStock(order);
       const willBeReserved = STOCK_RESERVED_STATUSES.has(resolvedStatus as (typeof ORDER_STATUS_VALUES)[number]);
-      if (wasReserved && !willBeReserved) await releaseStockForOrder(order);
-      order.stockReserved = willBeReserved;
+      const keepReservedStock = shouldKeepReservedStockFlag(wasReserved, previousStatus, resolvedStatus);
+      const shouldReleaseStock = wasReserved && shouldReleaseStockOnStatusChange(previousStatus, resolvedStatus);
+      if (shouldReleaseStock) await releaseStockForOrder(order);
+      order.status = resolvedStatus as typeof order.status;
+      order.stockReserved = willBeReserved || keepReservedStock;
+      if (shouldReleaseStock) order.aiConfirmed = false;
       await order.save();
       await syncCommissionForOrder(String(order._id), "admin");
-
-      // Auto-restock on RETURNED (webhook)
-      if (resolvedStatus === "RETURNED") {
-        for (const item of order.items) {
-          if (item.variantId) {
-            await ProductVariantModel.findByIdAndUpdate(item.variantId, { $inc: { stock: item.quantity } });
-          }
-          await ProductModel.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
-        }
-      }
 
       // Notify customer via WhatsApp (best-effort)
       if (order.customer?.phone) {

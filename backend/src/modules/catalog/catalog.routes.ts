@@ -4,6 +4,7 @@ import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { permissionMiddleware } from "../../middleware/permission.middleware.js";
 import { validateObjectId } from "../../middleware/objectId.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
+import { requestPcRateLimitMiddleware } from "../../middleware/rateLimit.middleware.js";
 import { BannerModel, BrandModel, CategoryModel, ProductModel, ProductVariantModel, WebsiteSettingModel } from "../../models/catalog.model.js";
 
 const router = Router();
@@ -84,11 +85,49 @@ router.get(
   "/products",
   asyncHandler(async (_req, res) => {
     res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
-    // Hide 0-stock products from public catalog unless admin explicitly marked isSoldOut=true
     const products = await ProductModel.find({
       status: "ACTIVE",
-      $or: [{ stock: { $gt: 0 } }, { isSoldOut: true }],
-    }).sort({ _id: -1 }).populate("category").populate("brand").lean();
+      isSoldOut: { $ne: true },
+    }).select("-purchasePrice").sort({ _id: -1 }).populate("category").populate("brand").lean();
+    const variants = await ProductVariantModel.find({ productId: { $in: products.map((product) => product._id) } }).lean();
+    return res.json(
+      products
+        .map((product) => {
+          const productVariants = variants.filter((variant) => String(variant.productId) === String(product._id));
+          const stock = productVariants.reduce((sum, variant) => sum + variant.stock, 0);
+          return { ...product, variants: productVariants, stock, isSoldOut: product.isSoldOut || stock <= 0 };
+        })
+        .filter((product) => !product.isSoldOut && product.stock > 0),
+    );
+  }),
+);
+
+router.get(
+  "/products/:slug",
+  asyncHandler(async (req, res) => {
+    const product = await ProductModel.findOne({ slug: req.params.slug }).select("-purchasePrice").populate("category").populate("brand").lean();
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    if (product.status !== "ACTIVE") {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    const variants = await ProductVariantModel.find({ productId: product._id }).lean();
+    const stock = variants.reduce((sum, variant) => sum + variant.stock, 0);
+    return res.json({ ...product, variants, stock, isSoldOut: product.isSoldOut || stock <= 0 });
+  }),
+);
+
+router.get(
+  "/admin/products",
+  authMiddleware,
+  permissionMiddleware("products"),
+  asyncHandler(async (_req, res) => {
+    const products = await ProductModel.find()
+      .sort({ _id: -1 })
+      .populate("category")
+      .populate("brand")
+      .lean();
     const variants = await ProductVariantModel.find({ productId: { $in: products.map((product) => product._id) } }).lean();
     return res.json(
       products.map((product) => {
@@ -97,19 +136,6 @@ router.get(
         return { ...product, variants: productVariants, stock, isSoldOut: product.isSoldOut || stock <= 0 };
       }),
     );
-  }),
-);
-
-router.get(
-  "/products/:slug",
-  asyncHandler(async (req, res) => {
-    const product = await ProductModel.findOne({ slug: req.params.slug }).populate("category").populate("brand").lean();
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-    const variants = await ProductVariantModel.find({ productId: product._id }).lean();
-    const stock = variants.reduce((sum, variant) => sum + variant.stock, 0);
-    return res.json({ ...product, variants, stock, isSoldOut: product.isSoldOut || stock <= 0 });
   }),
 );
 
@@ -132,16 +158,21 @@ router.patch(
   validateObjectId,
   asyncHandler(async (req, res) => {
     const input = productSchema.partial().parse(req.body);
+    if (input.purchasePrice === undefined) {
+      delete input.purchasePrice;
+    }
 
-    // Keep isSoldOut and stock in sync
-    if (typeof input.stock === "number" && input.stock <= 0) {
+    const forceSoldOut = input.isSoldOut === true || (typeof input.stock === "number" && input.stock <= 0);
+
+    // Keep product and variant stock in sync when admin marks a product sold out.
+    if (forceSoldOut) {
       input.isSoldOut = true;
-    }
-    if (input.variants !== undefined && input.variants.length > 0 && input.variants.every((v) => v.stock <= 0)) {
+      input.stock = 0;
+      if (input.variants !== undefined) {
+        input.variants = input.variants.map((variant) => ({ ...variant, stock: 0 }));
+      }
+    } else if (input.variants !== undefined && input.variants.length > 0 && input.variants.every((v) => v.stock <= 0)) {
       input.isSoldOut = true;
-    }
-    // When admin explicitly marks isSoldOut=true, zero out the stock so calcs stay consistent
-    if (input.isSoldOut === true) {
       input.stock = 0;
     }
 
@@ -153,6 +184,8 @@ router.patch(
     if (input.variants) {
       await ProductVariantModel.deleteMany({ productId: product._id });
       await ProductVariantModel.insertMany(input.variants.map((variant) => ({ ...variant, productId: product._id })));
+    } else if (forceSoldOut) {
+      await ProductVariantModel.updateMany({ productId: product._id }, { stock: 0 });
     }
 
     return res.json(await serializeProduct(String(product._id)));
@@ -245,9 +278,30 @@ router.get("/geo/check", asyncHandler(async (req, res) => {
 }));
 
 // PC request — visitor submits desired PC specs, admin gets Telegram alert
-router.post("/request-pc", asyncHandler(async (req, res) => {
-  const { name, phone, wilaya, brand, cpu, ram, screen, storage, budget, notes } = req.body as Record<string, string>;
-  const hasSpec = brand || cpu || ram || notes?.trim();
+router.post("/request-pc", requestPcRateLimitMiddleware, asyncHandler(async (req, res) => {
+  const raw = req.body as Record<string, string>;
+  const clean = (value?: string) =>
+    String(value ?? "")
+      .trim()
+      .slice(0, 500)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  const name = clean(raw.name);
+  const phone = clean(raw.phone);
+  const wilaya = clean(raw.wilaya);
+  const brand = clean(raw.brand);
+  const cpu = clean(raw.cpu);
+  const ram = clean(raw.ram);
+  const screen = clean(raw.screen);
+  const storage = clean(raw.storage);
+  const budget = clean(raw.budget);
+  const usage = clean(raw.usage);
+  const battery = clean(raw.battery);
+  const notes = clean(raw.notes);
+
+  const hasSpec = brand || cpu || ram || screen || storage || budget || usage || battery || notes;
   if (!hasSpec) {
     return res.status(400).json({ message: "يرجى تحديد المواصفات المطلوبة" });
   }
@@ -255,9 +309,9 @@ router.post("/request-pc", asyncHandler(async (req, res) => {
   const lines = [
     "🖥️ <b>طلب لابتوب جديد</b>",
     "",
-    ...(name?.trim() ? [`👤 الاسم: ${name.trim()}`] : []),
-    ...(phone?.trim() ? [`📞 الهاتف: ${phone.trim()}`] : []),
-    ...(wilaya?.trim() ? [`📍 الولاية: ${wilaya.trim()}`] : []),
+    ...(name ? [`👤 الاسم: ${name}`] : []),
+    ...(phone ? [`📞 الهاتف: ${phone}`] : []),
+    ...(wilaya ? [`📍 الولاية: ${wilaya}`] : []),
     "",
     "📋 <b>المواصفات المطلوبة:</b>",
     ...(brand ? [`• العلامة: ${brand}`] : []),
@@ -265,8 +319,43 @@ router.post("/request-pc", asyncHandler(async (req, res) => {
     ...(ram ? [`• الرام: ${ram}`] : []),
     ...(screen ? [`• الشاشة: ${screen}`] : []),
     ...(storage ? [`• التخزين: ${storage}`] : []),
-    ...(budget?.trim() ? [`• الميزانية: ${budget.trim()} دج`] : []),
-    ...(notes?.trim() ? [`• ملاحظات: ${notes.trim()}`] : []),
+    ...(budget ? [`• الميزانية: ${budget} دج`] : []),
+    ...(notes ? [`• ملاحظات: ${notes}`] : []),
+    "",
+    `⏰ ${new Date().toLocaleString("fr-DZ")}`,
+  ];
+  await sendTelegramMessage(lines.join("\n"));
+  return res.json({ success: true });
+}));
+
+router.post("/request-software", asyncHandler(async (req, res) => {
+  const { name, phone, wilaya, businessType, softwareNeed, devices, printer, budget, notes } = req.body as Record<string, string>;
+  if (!phone?.trim() || phone.replace(/\D/g, "").length < 9) {
+    return res.status(400).json({ message: "رقم الهاتف مطلوب" });
+  }
+
+  const clean = (value?: string) =>
+    String(value ?? "")
+      .trim()
+      .slice(0, 500)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  const { sendTelegramMessage } = await import("../../utils/telegram.js");
+  const lines = [
+    "💼 <b>طلب برنامج تسيير جديد</b>",
+    "",
+    ...(clean(name) ? [`👤 الاسم: ${clean(name)}`] : []),
+    `📞 الهاتف: ${clean(phone)}`,
+    ...(clean(wilaya) ? [`📍 الولاية: ${clean(wilaya)}`] : []),
+    "",
+    "📋 <b>معلومات النشاط:</b>",
+    ...(clean(businessType) ? [`• النشاط: ${clean(businessType)}`] : []),
+    ...(clean(softwareNeed) ? [`• المطلوب: ${clean(softwareNeed)}`] : []),
+    ...(clean(devices) ? [`• الأجهزة: ${clean(devices)}`] : []),
+    ...(clean(printer) ? [`• الطابعة: ${clean(printer)}`] : []),
+    ...(clean(budget) ? [`• الميزانية: ${clean(budget)} DA`] : []),
+    ...(clean(notes) ? [`• ملاحظات: ${clean(notes)}`] : []),
     "",
     `⏰ ${new Date().toLocaleString("fr-DZ")}`,
   ];

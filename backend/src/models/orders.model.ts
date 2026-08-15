@@ -27,6 +27,7 @@ const orderSchema = new Schema(
       wilaya: { type: Schema.Types.ObjectId, ref: "Wilaya", required: true },
       commune: { type: String, required: true },
       address: { type: String, required: true },
+      deliveryNotes: { type: String, default: null },
     },
     items: [orderItemSchema],
     subtotal: { type: Number, required: true },

@@ -13,6 +13,7 @@ const AffiliateLoginPage = lazy(() => import("@/pages/AffiliateLoginPage").then(
 const AffiliateRegisterPage = lazy(() => import("@/pages/AffiliateRegisterPage").then((module) => ({ default: module.AffiliateRegisterPage })));
 const AffiliateForgotPasswordPage = lazy(() => import("@/pages/AffiliateForgotPasswordPage").then((module) => ({ default: module.AffiliateForgotPasswordPage })));
 const GetCouponPage = lazy(() => import("@/pages/GetCouponPage").then((module) => ({ default: module.GetCouponPage })));
+const LogicielsPage = lazy(() => import("@/pages/LogicielsPage").then((module) => ({ default: module.LogicielsPage })));
 const CartPage = lazy(() => import("@/pages/CartPage").then((module) => ({ default: module.CartPage })));
 const CategoriesPage = lazy(() => import("@/pages/CategoriesPage").then((module) => ({ default: module.CategoriesPage })));
 const CheckoutPage = lazy(() => import("@/pages/CheckoutPage").then((module) => ({ default: module.CheckoutPage })));
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "logiciels", element: <LogicielsPage /> },
       { path: "r/:ref", element: <AffiliateRedirectPage /> },
       { path: "r/:ref/*", element: <AffiliateRedirectPage /> },
       { path: "products", element: <ProductsPage /> },

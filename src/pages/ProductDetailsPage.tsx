@@ -1,4 +1,4 @@
-import { ArrowRight, BadgePercent, Battery, ChevronLeft, ChevronRight, Clock, Cpu, Database, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgePercent, Battery, ChevronLeft, ChevronRight, Clock, Cpu, Database, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -9,7 +9,7 @@ import { Seo } from "@/components/Seo";
 import { useApp } from "@/hooks/useApp";
 import { productService } from "@/services/product.service";
 import type { Product, ProductVariant } from "@/types";
-import { buildVariantLabel, formatCurrency, formatLegacyDinarHint, getLocalizedText } from "@/utils/format";
+import { buildVariantLabel, formatCurrency, getLocalizedText } from "@/utils/format";
 import { DirectOrderForm } from "@/components/DirectOrderForm";
 import { translate } from "@/utils/i18n";
 import { pixelViewContent } from "@/utils/pixel";
@@ -28,8 +28,11 @@ function computePcScore(specs: [string, string][]): number {
   if (gen >= 12) score += 38; else if (gen >= 10) score += 33; else if (gen >= 8) score += 28;
   else if (gen >= 6) score += 22; else if (gen >= 4) score += 17; else if (gen >= 2) score += 12;
   else if (gen >= 1) score += 8; else if (cpuText.includes("amd") || cpuText.includes("intel")) score += 10;
-  if (cpuText.includes("i7") || cpuText.includes("ryzen 7")) score += 5;
-  else if (cpuText.includes("i5") || cpuText.includes("ryzen 5")) score += 2;
+  if (cpuText.includes("i7") || cpuText.includes("ryzen 7")) score += gen ? 5 : 24;
+  else if (cpuText.includes("i5") || cpuText.includes("ryzen 5")) score += gen ? 2 : 18;
+  else if (cpuText.includes("i3") || cpuText.includes("ryzen 3")) score += gen ? 0 : 13;
+  else if (cpuText.includes("pentium") || cpuText.includes("athlon") || /\bamd\s*a\d/i.test(cpuText)) score += 9;
+  else if (cpuText.includes("celeron")) score += 6;
 
   // RAM (30 pts)
   const ramText = find(["رام", "ram", "mémoire"]);
@@ -48,13 +51,31 @@ function computePcScore(specs: [string, string][]): number {
   const gpuText = find(["كرت", "gpu", "graphique"]).toLowerCase();
   if (gpuText && !gpuText.includes("intel hd") && !gpuText.includes("intel uhd") && !gpuText.includes("iris")) {
     if (gpuText.includes("rtx") || gpuText.includes("rx 6") || gpuText.includes("rx 7")) score += 10;
-    else if (gpuText.includes("gtx") || gpuText.includes("radeon") || gpuText.includes("mx")) score += 7;
+    else if (gpuText.includes("gtx") || gpuText.includes("geforce") || gpuText.includes("nvidia") || gpuText.includes("radeon") || gpuText.includes("mx") || gpuText.includes("quadro")) score += 7;
     else score += 4;
   } else if (gpuText) {
     score += 2;
   }
 
   return Math.min(100, score);
+}
+
+function extractImportantProductNotes(product: Product, description: string, specs: [string, string][]): string[] {
+  const notes: string[] = [];
+  const risky = /ملاحظة|تنبيه|مشكل|مشكلة|عيب|كسر|مكسور|خدش|لا\s*تشحن|لا\s*يعمل|لاش|لاشة|لش|ضعيف|متوسط|بدون|faible|moyen(?:ne)?|lache|l[aâ]che|bat(?:t)?er(?:y|ie|i|ire)?|dead|sans|problem|issue|broken|crack|scratch|defaut|défaut|cass[eé]|rayure/i;
+  if (product.adminNote?.trim()) notes.push(product.adminNote.trim());
+
+  description
+    .split(/\n|\.|؛|;/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 4 && risky.test(line))
+    .forEach((line) => notes.push(line));
+
+  specs
+    .filter(([key, value]) => risky.test(`${key} ${value}`))
+    .forEach(([key, value]) => notes.push(`${key}: ${value}`));
+
+  return [...new Set(notes)].slice(0, 4);
 }
 
 function getPcScoreStyle(score: number) {
@@ -112,6 +133,7 @@ export function ProductDetailsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(getTimeUntilMidnight());
   const [activeTab, setActiveTab] = useState<"description" | "specs">("description");
+  const [descExpanded, setDescExpanded] = useState(false);
   const [showDirectForm, setShowDirectForm] = useState(false);
   const [showRequestPc, setShowRequestPc] = useState(false);
   const [requestPcForm, setRequestPcForm] = useState({ name: "", phone: "", wilaya: "", brand: "", cpu: "", ram: "", screen: "", storage: "", budget: "", notes: "" });
@@ -224,7 +246,9 @@ export function ProductDetailsPage() {
       .getProducts()
       .then((all) => {
         setRelatedProducts(
-          all.filter((entry) => entry._id !== product._id && categoryKey(entry.category) === currentCategory).slice(0, 4),
+          all
+            .filter((entry) => entry._id !== product._id && categoryKey(entry.category) === currentCategory && !entry.isSoldOut && entry.stock > 0 && entry.status === "ACTIVE")
+            .slice(0, 4),
         );
       })
       .catch(() => setRelatedProducts([]));
@@ -279,7 +303,6 @@ export function ProductDetailsPage() {
   }
 
   const price = selectedVariant.price || product.discountPrice || product.basePrice;
-  const legacyHint = formatLegacyDinarHint(price, language);
   const gallery = selectedVariant.images.length ? selectedVariant.images : product.images;
   const saving = Math.max(0, product.basePrice - price);
   const adminSoldOut = !!product.isSoldOut;
@@ -317,16 +340,15 @@ export function ProductDetailsPage() {
     keyName: "ram" | "storage" | "color",
   ) => {
     if (!options.length) return null;
+    // Single option — already auto-selected, no need to show a selector
+    if (options.length === 1) return null;
 
     return (
       <div>
-        {/* Label with required selection indicator */}
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-2.5 flex items-center gap-2">
           <label className="text-sm font-bold text-slate-800">{label}</label>
           {selected ? (
-            <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-800">
-              ✓ {selected}
-            </span>
+            <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-800">✓ {selected}</span>
           ) : (
             <span className="animate-pulse rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
               {language === "ar" ? "← اختر" : language === "fr" ? "← Choisir" : "← Choose"}
@@ -338,7 +360,6 @@ export function ProductDetailsPage() {
           {options.map((option) => {
             const active = selected === option;
             const available = isOptionAvailable({ [keyName]: option });
-            // Find price for this option (if variants have different prices)
             const variantForOption = product.variants.find((v) =>
               keyName === "ram" ? v.ram === option :
               keyName === "storage" ? v.storage === option :
@@ -363,9 +384,7 @@ export function ProductDetailsPage() {
                 }`}
               >
                 {active && (
-                  <span className="absolute -end-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-[10px] text-white">
-                    ✓
-                  </span>
+                  <span className="absolute -end-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-teal-500 text-[10px] text-white">✓</span>
                 )}
                 <span>{option}</span>
                 {showPrice ? (
@@ -393,6 +412,8 @@ export function ProductDetailsPage() {
   const productName = getLocalizedText(product.name, language);
   const productDescription = getLocalizedText(product.description, language);
   const specifications = Object.entries(product.specifications ?? {});
+  const importantNotes = extractImportantProductNotes(product, productDescription, specifications);
+  const hasImportantNotes = importantNotes.length > 0;
 
   return (
     <div className="w-full min-w-0 space-y-8 pb-24 lg:pb-0">
@@ -445,7 +466,7 @@ export function ProductDetailsPage() {
             "@type": "Offer",
             price: price.toFixed(2),
             priceCurrency: "DZD",
-            availability: selectedVariant.stock > 0
+            availability: !adminSoldOut && selectedVariant.stock > 0
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
             url: `https://visadz.store/products/${product.slug}`,
@@ -571,7 +592,7 @@ export function ProductDetailsPage() {
                             aria-label="الصورة السابقة"
                             className="absolute start-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90"
                           >
-                            <ChevronRight className="h-6 w-6 text-slate-700" />
+                            <ChevronLeft className="h-6 w-6 text-slate-700" />
                           </button>
                           <button
                             type="button"
@@ -579,7 +600,7 @@ export function ProductDetailsPage() {
                             aria-label="الصورة التالية"
                             className="absolute end-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-full bg-white/90 shadow-lg transition hover:bg-white active:scale-90"
                           >
-                            <ChevronLeft className="h-6 w-6 text-slate-700" />
+                            <ChevronRight className="h-6 w-6 text-slate-700" />
                           </button>
                         </>
                       ) : null}
@@ -653,7 +674,6 @@ export function ProductDetailsPage() {
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
             <span className="text-3xl font-bold text-slate-950 sm:text-4xl">{formatCurrency(price, language)}</span>
-            {legacyHint ? <span className="text-sm font-normal text-slate-400">({legacyHint})</span> : null}
             {product.discountPrice ? (
               <span className="text-lg text-slate-400 line-through">{formatCurrency(product.basePrice, language)}</span>
             ) : null}
@@ -719,10 +739,29 @@ export function ProductDetailsPage() {
             </div>
           ) : null}
 
-          {product.adminNote ? (
-            <div className="mt-4 rounded-[1.4rem] border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
-              <span className="font-semibold">⚠️ {translate(language, "productAdminNoteTitle")}: </span>
-              <span className="break-words whitespace-pre-line">{product.adminNote}</span>
+          {importantNotes.length > 0 ? (
+            <div className="mt-4 overflow-hidden rounded-2xl border-2 border-amber-300 bg-white shadow-[0_14px_34px_rgba(245,158,11,0.18)]">
+              <div className="flex items-center gap-3 bg-amber-500 px-4 py-3 text-white">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20">
+                  <AlertTriangle className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-base font-black">
+                    {language === "ar" ? "ملاحظة مهمة قبل الطلب" : language === "fr" ? "Note importante avant commande" : "Important note before ordering"}
+                  </div>
+                  <div className="text-xs font-semibold text-white/85">
+                    {language === "ar" ? "اقرأ هذه النقطة حتى تعرف حالة الجهاز بوضوح" : language === "fr" ? "À lire pour bien comprendre l’état du produit" : "Read this so the product condition is clear"}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 px-4 py-3">
+                {importantNotes.map((note) => (
+                  <div key={note} className="flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold leading-7 text-amber-950">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                    <span className="break-words whitespace-pre-line">{note}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
 
@@ -746,13 +785,12 @@ export function ProductDetailsPage() {
             </a>
           ) : null}
 
-          {/* Shipping + return info */}
+          {/* Shipping info */}
           {!localPickupOnly && (
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               {[
                 { icon: "🚚", text: language === "ar" ? "توصيل لجميع الولايات" : "All 58 wilayas" },
                 { icon: "💵", text: language === "ar" ? "دفع عند الاستلام" : "Cash on delivery" },
-                { icon: "↩️", text: language === "ar" ? "إرجاع خلال 7 أيام" : "7-day returns" },
               ].map((item) => (
                 <div key={item.text} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                   <span>{item.icon}</span>
@@ -762,9 +800,210 @@ export function ProductDetailsPage() {
             </div>
           )}
 
+          {/* Specs — professional tiered layout */}
+          {specifications.length > 0 && (() => {
+            const specsMap = Object.fromEntries(specifications);
+
+            // Color scheme + Lucide icon per primary spec
+            const specStyle: Record<string, { border: string; bg: string; iconBg: string; iconCls: string; label: string; accent: string; Icon: React.ElementType }> = {
+              "المعالج":  { border: "border-blue-200",   bg: "bg-blue-50",    iconBg: "bg-blue-100",    iconCls: "text-blue-600",   label: "text-blue-600",   accent: "text-blue-900",    Icon: Cpu },
+              "الرام":    { border: "border-emerald-200", bg: "bg-emerald-50", iconBg: "bg-emerald-100", iconCls: "text-emerald-600", label: "text-emerald-600", accent: "text-emerald-900", Icon: Database },
+              "التخزين":  { border: "border-orange-200",  bg: "bg-orange-50",  iconBg: "bg-orange-100",  iconCls: "text-orange-600",  label: "text-orange-600",  accent: "text-orange-900",  Icon: HardDrive },
+              "الشاشة":   { border: "border-violet-200",  bg: "bg-violet-50",  iconBg: "bg-violet-100",  iconCls: "text-violet-600",  label: "text-violet-600",  accent: "text-violet-900",  Icon: Monitor },
+            };
+
+            const primary: Array<{ key: string }> = [
+              { key: "المعالج" },
+              { key: "الرام" },
+              { key: "التخزين" },
+              { key: "الشاشة" },
+            ].filter((s) => specsMap[s.key]);
+
+            const secondary: Array<{ key: string; icon: string; chipCls: string }> = [
+              { key: "الجيل",          icon: "📅", chipCls: "border-slate-200 bg-slate-50 text-slate-700" },
+              { key: "كرت الشاشة",    icon: "🎮", chipCls: "border-purple-200 bg-purple-50 text-purple-800" },
+              { key: "نظام التشغيل",  icon: "🪟", chipCls: "border-blue-200 bg-blue-50 text-blue-800" },
+              { key: "اللون",          icon: "🎨", chipCls: "border-pink-200 bg-pink-50 text-pink-800" },
+            ].filter((s) => specsMap[s.key]);
+
+            const batVal  = specsMap["البطارية"] ?? "";
+            const condVal = specsMap["الحالة"]  ?? "";
+            const isBatDead = /لاش|لاشة|لش|لا تشحن|dead|sans|بدون/i.test(batVal);
+            const isBatWarn = !isBatDead && /ضعيف|faible|lache|l[aâ]che|moyen|medium/i.test(batVal);
+            const isBatGood = /bonne|good|جيد/i.test(batVal);
+            const batDisplay = isBatDead ? "لا تشحن — 0٪" : batVal;
+
+            // Parse condition score e.g. "مستعمل — 8/10" → 8
+            const condScoreMatch = condVal.match(/(\d+)\s*\/\s*10/);
+            const condScore = condScoreMatch ? parseInt(condScoreMatch[1]) : null;
+            const condColor = condScore !== null
+              ? condScore >= 8 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : condScore >= 6 ? "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+              : "border-amber-200 bg-amber-50 text-amber-800";
+
+            const knownKeys = new Set(["المعالج","الرام","التخزين","الشاشة","الجيل","كرت الشاشة","نظام التشغيل","اللون","البطارية","الحالة"]);
+            const extras = specifications.filter(([k]) => !knownKeys.has(k));
+
+            if (primary.length === 0 && secondary.length === 0 && !batVal && !condVal) return null;
+
+            return (
+              <div className="mt-4 space-y-3">
+                {/* Primary grid — color-coded per spec type */}
+                {primary.length > 0 && (
+                  <div className={`grid gap-2 ${primary.length >= 4 ? "grid-cols-2" : primary.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+                    {primary.map(({ key }) => {
+                      const s = specStyle[key] ?? { border: "border-slate-200", bg: "bg-slate-50", iconBg: "bg-slate-100", iconCls: "text-slate-500", label: "text-slate-500", accent: "text-slate-900", Icon: Settings };
+                      return (
+                        <div key={key} className={`flex flex-col gap-1 rounded-2xl border ${s.border} ${s.bg} p-3`}>
+                          <div className={`inline-flex h-8 w-8 items-center justify-center rounded-xl ${s.iconBg}`}>
+                            <s.Icon className={`h-4 w-4 ${s.iconCls}`} />
+                          </div>
+                          <span className={`text-[10px] font-bold uppercase tracking-wide ${s.label}`}>{key}</span>
+                          <span className={`text-[13px] font-bold leading-tight ${s.accent}`}>{specsMap[key]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Secondary chips */}
+                {(secondary.length > 0 || extras.length > 0) && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {secondary.map(({ key, icon, chipCls }) => (
+                      <span key={key} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold ${chipCls}`}>
+                        <span>{icon}</span>
+                        <span className="opacity-60">{key}:</span>
+                        <span className="font-bold">{specsMap[key]}</span>
+                      </span>
+                    ))}
+                    {extras.map(([k, v]) => (
+                      <span key={k} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                        <span className="opacity-50">{k}:</span>
+                        <span className="font-bold">{v}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Status row — battery + condition */}
+                {(batVal || condVal) && (
+                  <div className="flex flex-wrap gap-2">
+                    {batVal && (
+                      <div className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold ${
+                        isBatDead ? "border-rose-300 bg-rose-100 text-rose-800"
+                        : isBatWarn ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : isBatGood ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                      }`}>
+                        <span>{isBatDead ? "🪫" : isBatGood ? "🔋" : "🔋"}</span>
+                        <span className="opacity-70">{language === "ar" ? "البطارية:" : "Batterie:"}</span>
+                        <span>{batDisplay}</span>
+                      </div>
+                    )}
+                    {condVal && (
+                      <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold ${condColor}`}>
+                        <span>⭐</span>
+                        <span className="opacity-70">{language === "ar" ? "الحالة:" : "État:"}</span>
+                        <span>{condVal}</span>
+                        {condScore !== null && (
+                          <span className="ms-0.5 flex gap-px">
+                            {[1,2,3,4,5].map((s) => (
+                              <span key={s} className={`text-[10px] ${s <= Math.round(condScore / 2) ? "opacity-100" : "opacity-25"}`}>★</span>
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* PC Performance — visual checklist for simple users */}
+          {specifications.length > 0 && (() => {
+            const score = computePcScore(specifications);
+            if (score === 0) return null;
+            const style = getPcScoreStyle(score);
+            const label = language === "fr" ? style.label.fr : style.label.ar;
+            const stars = score >= 80 ? 5 : score >= 65 ? 4 : score >= 50 ? 3 : score >= 35 ? 2 : 1;
+            const levelEmoji = score >= 80 ? "🚀" : score >= 65 ? "💪" : score >= 50 ? "👍" : score >= 35 ? "✋" : "📖";
+            const headerGrad = score >= 80 ? "from-emerald-500 to-emerald-600" : score >= 65 ? "from-teal-500 to-teal-600" : score >= 50 ? "from-blue-500 to-blue-600" : score >= 35 ? "from-amber-500 to-amber-600" : "from-slate-400 to-slate-500";
+            const borderColor = score >= 80 ? "border-emerald-200" : score >= 65 ? "border-teal-200" : score >= 50 ? "border-blue-200" : score >= 35 ? "border-amber-200" : "border-slate-200";
+
+            const tasks = [
+              { ar: "واتساب وفيسبوك وإنستغرام", fr: "WhatsApp, Facebook, Instagram", icon: "📱", pass: true },
+              { ar: "يوتيوب وأفلام بجودة عالية", fr: "YouTube & films HD", icon: "▶️", pass: true },
+              { ar: "الدراسة (Word, Excel, PowerPoint)", fr: "Études & bureautique", icon: "📚", pass: true },
+              { ar: "زوم وميتينغات أونلاين", fr: "Zoom & réunions en ligne", icon: "🎥", pass: true },
+              { ar: "ألعاب كازوال وبسيطة", fr: "Jeux casual & simples", icon: "🃏", pass: score >= 10 },
+              { ar: "الألعاب الخفيفة (FIFA, Minecraft)", fr: "Jeux légers (FIFA, Minecraft)", icon: "🎮", pass: score >= 25 },
+              { ar: "الفوتوشوب والتصميم", fr: "Photoshop & design", icon: "🎨", pass: score >= 45 },
+              { ar: "الألعاب الثقيلة (GTA V, Warzone)", fr: "Jeux lourds (GTA V, Warzone)", icon: "🕹️", pass: score >= 65 },
+              { ar: "تحرير الفيديو (Premiere, DaVinci)", fr: "Montage vidéo professionnel", icon: "🎬", pass: score >= 80 },
+            ];
+
+            const passCount = tasks.filter((t) => t.pass).length;
+
+            return (
+              <div className={`mt-4 overflow-hidden rounded-2xl border ${borderColor}`}>
+                {/* Colored header */}
+                <div className={`flex items-center gap-3 bg-gradient-to-r ${headerGrad} px-4 py-3`}>
+                  <span className="text-3xl leading-none">{levelEmoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-white/70">
+                      {language === "ar" ? "قوة هذا اللاب توب" : "Niveau de performance"}
+                    </div>
+                    <div className="text-base font-extrabold leading-tight text-white">{label}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-2xl font-extrabold leading-none text-white">{score}<span className="text-sm font-medium opacity-70">/100</span></div>
+                    <div className="mt-1 flex justify-end gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span key={s} className={`text-sm leading-none ${s <= stars ? "text-yellow-300" : "text-white/25"}`}>★</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="bg-white px-4 pt-3 pb-1">
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${style.bar}`} style={{ width: `${score}%` }} />
+                  </div>
+                  <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                    <span>{language === "ar" ? "أساسي" : "Basique"}</span>
+                    <span>{language === "ar" ? "محترف" : "Pro"}</span>
+                  </div>
+                </div>
+
+                {/* Task checklist */}
+                <div className="bg-white px-4 pt-2 pb-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                      {language === "ar" ? "واش يقدر يدير؟" : "Ce PC peut faire :"}
+                    </span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-extrabold text-emerald-700">
+                      {Math.min(passCount, 3)} {language === "ar" ? "استعمالات مناسبة" : "usages adaptés"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tasks.filter((t) => t.pass).slice(0, 3).map((task) => (
+                      <span key={task.ar} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-900">
+                        <span className="text-base leading-none">{task.icon}</span>
+                        <span>{language === "fr" ? task.fr : task.ar}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="my-5 h-px bg-slate-100" />
 
-          {hasVariantOptions ? (
+          {(ramOptions.length > 1 || storageOptions.length > 1 || colorOptions.length > 1) ? (
             <div className="space-y-5">
               {renderOptionGroup(translate(language, "productChooseRam"), ramOptions, selectedVariant.ram, "ram")}
               {renderOptionGroup(translate(language, "productChooseStorage"), storageOptions, selectedVariant.storage, "storage")}
@@ -772,7 +1011,8 @@ export function ProductDetailsPage() {
             </div>
           ) : null}
 
-          {hasVariantOptions ? (
+          {/* Show selected-option summary only when there's a real multi-option choice */}
+          {(ramOptions.length > 1 || storageOptions.length > 1 || colorOptions.length > 1) ? (
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-emerald-50 px-4 py-3">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-500 text-white text-sm font-bold">✓</div>
               <div>
@@ -807,6 +1047,22 @@ export function ProductDetailsPage() {
               </button>
             </div>
           </div>
+
+          {hasImportantNotes ? (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-black text-amber-900">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {language === "ar" ? "ملاحظة على حالة الجهاز" : language === "fr" ? "Note sur l'état du produit" : "Product condition note"}
+              </div>
+              <div className="space-y-1.5">
+                {importantNotes.slice(0, 2).map((note) => (
+                  <div key={note} className="rounded-xl bg-white/85 px-3 py-2 text-sm font-bold leading-7 text-amber-950">
+                    {note}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {localPickupOnly ? (
             <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-center">
@@ -850,6 +1106,7 @@ export function ProductDetailsPage() {
                     variant={selectedVariant}
                     quantity={quantity}
                     shippingFee={0}
+                    importantNotes={importantNotes}
                   />
                 )}
               </div>
@@ -877,7 +1134,9 @@ export function ProductDetailsPage() {
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
             <button
               disabled={adminSoldOut || localPickupOnly || selectedVariant.stock <= 0}
-              onClick={() => addToCart({ product, variant: selectedVariant, quantity })}
+              onClick={() => {
+                addToCart({ product, variant: selectedVariant, quantity });
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ShoppingCart className="h-5 w-5" />
@@ -1048,54 +1307,122 @@ export function ProductDetailsPage() {
 
         {activeTab === "description" ? (
           <div className="p-6 md:p-7">
-            <p className="whitespace-pre-line break-words text-sm leading-8 text-slate-600">{productDescription}</p>
+            {productDescription ? (() => {
+              // Parse "مناسب لـ:" line from description to show as visual chips
+              const useLine = productDescription.match(/مناسب\s*لـ?\s*[:：]?\s*([^\n]+)/i)?.[1];
+              const useTags = useLine ? useLine.split(/[,،\/\|]/).map((t) => t.trim()).filter(Boolean) : [];
+              const cleanDesc = productDescription.replace(/مناسب\s*لـ?\s*[:：]?\s*[^\n]+\n?/i, "").trim();
+              const isLong = cleanDesc.length > 300;
+              const visibleDesc = isLong && !descExpanded ? cleanDesc.slice(0, 300) + "…" : cleanDesc;
+
+              const tagIcons: Record<string, string> = {
+                "الدراسة": "📚", "الألعاب": "🎮", "العمل": "💼", "المكتب": "💼",
+                "البرمجة": "💻", "التصفح": "🌐", "يوتيوب": "▶️", "الفيديو": "🎬",
+                "التصميم": "🎨", "المهام": "⚡", "البريد": "📧",
+              };
+              const getTagIcon = (t: string) => Object.entries(tagIcons).find(([k]) => t.includes(k))?.[1] ?? "✓";
+
+              return (
+                <div className="space-y-4">
+                  {useTags.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                        {language === "ar" ? "مناسب لـ" : "Idéal pour"}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {useTags.map((t) => (
+                          <span key={t} className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
+                            <span>{getTagIcon(t)}</span>{t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="whitespace-pre-line break-words text-sm leading-8 text-slate-600">{visibleDesc}</p>
+                    {isLong && (
+                      <button
+                        type="button"
+                        onClick={() => setDescExpanded((v) => !v)}
+                        className="mt-2 text-xs font-semibold text-teal-600 hover:text-teal-500"
+                      >
+                        {descExpanded
+                          ? (language === "ar" ? "▲ عرض أقل" : "▲ Voir moins")
+                          : (language === "ar" ? "▼ اقرأ المزيد" : "▼ Lire plus")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })() : (
+              <p className="text-sm text-slate-400 italic">{language === "ar" ? "لا يوجد وصف" : "Aucune description"}</p>
+            )}
           </div>
         ) : (
           <div className="p-6 md:p-7 space-y-5">
-            {/* PC Performance Score */}
+            {/* PC Performance Score — specs tab version */}
             {(() => {
               const score = computePcScore(specifications);
               if (score < 5) return null;
               const st = getPcScoreStyle(score);
-              const lang = language === "fr" ? "fr" : "ar";
-              const uses = st.uses[lang];
+              const label = language === "fr" ? st.label.fr : st.label.ar;
+              const stars = score >= 80 ? 5 : score >= 65 ? 4 : score >= 50 ? 3 : score >= 35 ? 2 : 1;
+              const levelEmoji = score >= 80 ? "🚀" : score >= 65 ? "💪" : score >= 50 ? "👍" : score >= 35 ? "✋" : "📖";
+              const headerGrad = score >= 80 ? "from-emerald-500 to-emerald-600" : score >= 65 ? "from-teal-500 to-teal-600" : score >= 50 ? "from-blue-500 to-blue-600" : score >= 35 ? "from-amber-500 to-amber-600" : "from-slate-400 to-slate-500";
+              const borderColor = score >= 80 ? "border-emerald-200" : score >= 65 ? "border-teal-200" : score >= 50 ? "border-blue-200" : score >= 35 ? "border-amber-200" : "border-slate-200";
+              const tasks = [
+                { ar: "واتساب وفيسبوك وتصفح الإنترنت", fr: "WhatsApp, Facebook, navigation", icon: "📱", pass: true },
+                { ar: "يوتيوب وأفلام HD", fr: "YouTube & films HD", icon: "▶️", pass: true },
+                { ar: "الدراسة والوثائق (Word, Excel)", fr: "Études & bureautique", icon: "📚", pass: true },
+                { ar: "الألعاب الخفيفة (FIFA, Minecraft)", fr: "Jeux légers (FIFA, Minecraft)", icon: "🎮", pass: score >= 35 },
+                { ar: "الفوتوشوب والتصميم", fr: "Photoshop & design", icon: "🎨", pass: score >= 50 },
+                { ar: "الألعاب الثقيلة (GTA V, Warzone)", fr: "Jeux lourds (GTA V, Warzone)", icon: "🕹️", pass: score >= 65 },
+                { ar: "تحرير الفيديو (Premiere, DaVinci)", fr: "Montage vidéo professionnel", icon: "🎬", pass: score >= 80 },
+              ];
               return (
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-700">
-                        {language === "ar" ? "مستوى الأداء" : language === "fr" ? "Niveau de performance" : "Performance level"}
-                      </span>
-                    </div>
-                    <span className={`rounded-full px-3 py-0.5 text-xs font-bold ${st.badge}`}>
-                      {language === "fr" ? st.label.fr : st.label.ar}
-                    </span>
-                  </div>
-                  <div className="relative h-3 overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className={`absolute inset-y-0 start-0 rounded-full bg-gradient-to-r ${st.bar} transition-all duration-700`}
-                      style={{ width: `${score}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 flex justify-between text-[10px] text-slate-400">
-                    <span>{language === "ar" ? "أساسي" : "Basique"}</span>
-                    <span className="font-bold text-slate-600">{score}/100</span>
-                    <span>{language === "ar" ? "محترف" : "Pro"}</span>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        {language === "ar" ? "مناسب لـ" : language === "fr" ? "Idéal pour" : "Good for"}
+                <div className={`overflow-hidden rounded-2xl border ${borderColor}`}>
+                  <div className={`flex items-center gap-3 bg-gradient-to-r ${headerGrad} px-4 py-3`}>
+                    <span className="text-3xl leading-none">{levelEmoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-white/70">
+                        {language === "ar" ? "قوة هذا اللاب توب" : "Niveau de performance"}
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {uses.map((u) => (
-                          <span key={u} className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${st.tag}`}>{u}</span>
+                      <div className="text-base font-extrabold leading-tight text-white">{label}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-2xl font-extrabold leading-none text-white">{score}<span className="text-sm font-medium opacity-70">/100</span></div>
+                      <div className="mt-1 flex justify-end gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <span key={s} className={`text-sm leading-none ${s <= stars ? "text-yellow-300" : "text-white/25"}`}>★</span>
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                      <span className="font-semibold text-slate-600">{language === "ar" ? "≈ " : "≈ "}</span>
-                      <span>{language === "fr" ? st.equiv.fr : st.equiv.ar}</span>
+                  </div>
+                  <div className="bg-white px-4 pt-3 pb-1">
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full bg-gradient-to-r ${st.bar}`} style={{ width: `${score}%` }} />
+                    </div>
+                    <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                      <span>{language === "ar" ? "أساسي" : "Basique"}</span>
+                      <span>{language === "ar" ? "محترف" : "Pro"}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white px-4 pt-2 pb-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                        {language === "ar" ? "واش يقدر يدير؟" : "Ce PC peut faire :"}
+                      </span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-extrabold text-emerald-700">
+                        {Math.min(tasks.filter((t) => t.pass).length, 3)} {language === "ar" ? "استعمالات مناسبة" : "usages adaptés"}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {tasks.filter((t) => t.pass).slice(0, 3).map((task) => (
+                        <span key={task.ar} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-900">
+                          <span className="text-base leading-none">{task.icon}</span>
+                          <span>{language === "fr" ? task.fr : task.ar}</span>
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1106,8 +1433,11 @@ export function ProductDetailsPage() {
             <div className="grid gap-2.5 sm:grid-cols-2">
               {specifications.map(([key, value]) => {
                 const k = key.toLowerCase();
-                const isBatteryWarn = k.includes("بطار") && /لاش|ضعيف|faible/i.test(value);
-                const isBatteryGood = k.includes("بطار") && /bonne|good|جيد/i.test(value);
+                const isBatKey = k.includes("بطار");
+                const isBatteryDead = isBatKey && /لاش|لاشة|لش|لا تشحن|dead|sans|بدون/i.test(value);
+                const isBatteryWarn = isBatKey && !isBatteryDead && /ضعيف|faible|lache|l[aâ]che|moyen|medium/i.test(value);
+                const isBatteryGood = isBatKey && /bonne|good|جيد/i.test(value);
+                const displayValue = isBatteryDead ? "لا تشحن (0٪)" : value;
                 const Icon = k.includes("معالج") || k.includes("cpu") ? Cpu
                   : k.includes("رام") || k.includes("ram") || k.includes("mémoire") ? Database
                   : k.includes("تخزين") || k.includes("ssd") || k.includes("hdd") || k.includes("stockage") ? HardDrive
@@ -1120,16 +1450,19 @@ export function ProductDetailsPage() {
                   <div
                     key={key}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
-                      isBatteryWarn
-                        ? "border-rose-200 bg-rose-50"
-                        : isBatteryGood
-                          ? "border-emerald-200 bg-emerald-50"
-                          : "border-slate-100 bg-slate-50/80"
+                      isBatteryDead
+                        ? "border-rose-300 bg-rose-100"
+                        : isBatteryWarn
+                          ? "border-rose-200 bg-rose-50"
+                          : isBatteryGood
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-slate-100 bg-slate-50/80"
                     }`}
                   >
                     {Icon && (
                       <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                        isBatteryWarn ? "bg-rose-100 text-rose-600"
+                        isBatteryDead ? "bg-rose-200 text-rose-700"
+                        : isBatteryWarn ? "bg-rose-100 text-rose-600"
                         : isBatteryGood ? "bg-emerald-100 text-emerald-600"
                         : "bg-slate-200 text-slate-600"
                       }`}>
@@ -1139,10 +1472,11 @@ export function ProductDetailsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{key}</div>
                       <div className={`mt-0.5 font-bold leading-snug ${
-                        isBatteryWarn ? "text-rose-700"
+                        isBatteryDead ? "text-rose-800"
+                        : isBatteryWarn ? "text-rose-700"
                         : isBatteryGood ? "text-emerald-700"
                         : "text-slate-900"
-                      }`}>{value}</div>
+                      }`}>{displayValue}</div>
                     </div>
                   </div>
                 );
@@ -1184,8 +1518,8 @@ export function ProductDetailsPage() {
                 ) : (() => {
                     const sel = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white";
                     const inp = sel;
-                    const wilayas = ["الجزائر","وهران","قسنطينة","عنابة","سطيف","بجاية","بليدة","باتنة","تلمسان","تيزي وزو","الشلف","بسكرة","تيبازة","جيجل","برج بوعريريج","بومرداس","ميلة","المدية","معسكر","سكيكدة","الوادي","مستغانم","سيدي بلعباس","خنشلة","ورقلة","الأغواط","أم البواقي","المسيلة","تبسة","قالمة","سوق أهراس","الجلفة","تيارت","النعامة","البيض","غرداية","غليزان","المسيلة","تيسمسيلت","عين الدفلى","عين تموشنت","بشار","تندوف","إليزي","تمنراست","أدرار","البويرة","الطارف","خنشلة","تيمقاد","ميلة","الوادي","سعيدة","برج بوعريريج","عين صالح","تقرت","أولاد جلال","تيميمون","المغير","المنيعة","جانت","بني عباس","عين قزام","برج باجي مختار","أولاد جلال"];
-                    const uniqueWilayas = [...new Set(wilayas)].sort();
+                    const wilayas = ["01 - أدرار","02 - الشلف","03 - الأغواط","04 - أم البواقي","05 - باتنة","06 - بجاية","07 - بسكرة","08 - بشار","09 - البليدة","10 - البويرة","11 - تمنراست","12 - تبسة","13 - تلمسان","14 - تيارت","15 - تيزي وزو","16 - الجزائر","17 - الجلفة","18 - جيجل","19 - سطيف","20 - سعيدة","21 - سكيكدة","22 - سيدي بلعباس","23 - عنابة","24 - قالمة","25 - قسنطينة","26 - المدية","27 - مستغانم","28 - المسيلة","29 - معسكر","30 - ورقلة","31 - وهران","32 - البيض","33 - إليزي","34 - برج بوعريريج","35 - بومرداس","36 - الطارف","37 - تندوف","38 - تيسمسيلت","39 - الوادي","40 - خنشلة","41 - سوق أهراس","42 - تيبازة","43 - ميلة","44 - عين الدفلى","45 - النعامة","46 - عين تموشنت","47 - غرداية","48 - غليزان","49 - تيميمون","50 - برج باجي مختار","51 - أولاد جلال","52 - بني عباس","53 - عين صالح","54 - عين قزام","55 - تقرت","56 - جانت","57 - المغير","58 - المنيعة"];
+                    const uniqueWilayas = wilayas;
                     const canSubmit = (requestPcForm.brand || requestPcForm.cpu || requestPcForm.ram || requestPcForm.notes.trim()) && requestPcStatus !== "sending";
                     return (
                       <div className="border-t border-teal-200 bg-white px-4 py-4 space-y-3">
@@ -1204,10 +1538,12 @@ export function ProductDetailsPage() {
                           <select value={requestPcForm.brand} onChange={(e) => setRequestPcForm((f) => ({ ...f, brand: e.target.value }))} className={sel}>
                             <option value="">{language === "ar" ? "العلامة التجارية" : "Marque"}</option>
                             {["HP","Dell","Lenovo","Asus","Acer","Toshiba","Sony","Samsung","MSI","Apple","Huawei"].map((b) => <option key={b} value={b}>{b}</option>)}
+                            <option value="أخرى">{language === "ar" ? "أخرى" : "Autre"}</option>
                           </select>
                           <select value={requestPcForm.cpu} onChange={(e) => setRequestPcForm((f) => ({ ...f, cpu: e.target.value }))} className={sel}>
                             <option value="">{language === "ar" ? "نوع المعالج" : "Processeur"}</option>
                             {["Intel Core i3","Intel Core i5","Intel Core i7","Intel Core i9","Intel Pentium","Intel Celeron","AMD Ryzen 3","AMD Ryzen 5","AMD Ryzen 7","AMD A-Series"].map((c) => <option key={c} value={c}>{c}</option>)}
+                            <option value="أخرى">{language === "ar" ? "أخرى" : "Autre"}</option>
                           </select>
                         </div>
                         {/* Specs row 2 */}
@@ -1238,8 +1574,8 @@ export function ProductDetailsPage() {
                           onClick={async () => {
                             setRequestPcStatus("sending");
                             try {
-                              const r = await fetch("/api/request-pc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestPcForm) });
-                              setRequestPcStatus(r.ok ? "sent" : "error");
+                              await productService.requestPc(requestPcForm);
+                              setRequestPcStatus("sent");
                             } catch { setRequestPcStatus("error"); }
                           }}
                           className="w-full rounded-xl bg-teal-600 py-3 text-sm font-bold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
