@@ -1,7 +1,7 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const BATCH_SIZE = 24;
-import { CheckCircle2, MessageCircle, Search, Send, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDownUp, Banknote, CheckCircle2, Laptop, MessageCircle, Search, Send, SlidersHorizontal, Star, Truck, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -717,8 +717,13 @@ export function ProductsPage() {
         : [...list].sort((a, b) => laptopValueScore(b) - laptopValueScore(a));
       case "newest": return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       case "name": return [...list].sort((a, b) => (a.name.ar || a.name.fr || "").localeCompare(b.name.ar || b.name.fr || ""));
-      case "default": if (showLaptopFilters) return [...list].sort(compareLaptopValue);
-      default: return [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      default: {
+        if (showLaptopFilters) return [...list].sort(compareLaptopValue);
+        return [...list].sort((a, b) => {
+          if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+      }
     }
   }, [filters, products, showLaptopFilters]);
 
@@ -867,6 +872,23 @@ export function ProductsPage() {
             <div className="mt-1 text-2xl font-semibold">{filtered.length}</div>
           </div>
         </div>
+
+        {/* Laptop category value props strip */}
+        {showLaptopFilters && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+            {([
+              { Icon: Laptop,      iconCls: "text-slate-600",   ar: `${filtered.length} حاسوب متاح`,      fr: `${filtered.length} PC disponibles` },
+              { Icon: Banknote,    iconCls: "text-emerald-600", ar: "الدفع عند الاستلام",                   fr: "Paiement livraison" },
+              { Icon: Truck,       iconCls: "text-teal-600",    ar: "توصيل لجميع الولايات",                 fr: "Livraison partout" },
+              { Icon: CheckCircle2,iconCls: "text-blue-600",    ar: "ضمان مطابقة المواصفات",                fr: "Conformité garantie" },
+            ] as Array<{ Icon: React.ElementType; iconCls: string; ar: string; fr: string }>).map((item) => (
+              <span key={item.ar} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-700">
+                <item.Icon className={`h-3.5 w-3.5 shrink-0 ${item.iconCls}`} />
+                {language === "fr" ? item.fr : item.ar}
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
       <ProductFilters
@@ -881,6 +903,43 @@ export function ProductsPage() {
         showLaptopFilters={showLaptopFilters}
         laptopOptionCounts={laptopOptionCounts}
       />
+
+      {/* Sort bar — always visible above the grid */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        <ArrowDownUp className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        {(showLaptopFilters
+          ? [
+              { value: "value" as const,      Icon: Star,    label: language === "ar" ? "أفضل قيمة" : "Meilleur rapport" },
+              { value: "price_asc" as const,  Icon: Banknote,label: language === "ar" ? "السعر: الأقل" : "Prix croissant" },
+              { value: "price_desc" as const, Icon: Banknote,label: language === "ar" ? "السعر: الأعلى" : "Prix décroissant" },
+              { value: "newest" as const,     Icon: CheckCircle2, label: language === "ar" ? "الأحدث" : "Récent" },
+            ]
+          : [
+              { value: "default" as const,    Icon: Star,    label: language === "ar" ? "الأبرز" : "Recommandé" },
+              { value: "newest" as const,     Icon: CheckCircle2, label: language === "ar" ? "الأحدث" : "Récent" },
+              { value: "price_asc" as const,  Icon: Banknote,label: language === "ar" ? "السعر: الأقل" : "Prix croissant" },
+              { value: "price_desc" as const, Icon: Banknote,label: language === "ar" ? "السعر: الأعلى" : "Prix décroissant" },
+            ]
+        ).map((opt) => {
+          const active = filters.sort === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => handleFilterChange({ ...filters, sort: opt.value })}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                active
+                  ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <opt.Icon className={`h-3 w-3 ${active ? "text-white" : "text-slate-400"}`} />
+              {opt.label}
+            </button>
+          );
+        })}
+        <span className="ms-auto shrink-0 text-[11px] text-slate-400">{filtered.length} {language === "ar" ? "منتج" : "produits"}</span>
+      </div>
 
       {filtered.length === 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">

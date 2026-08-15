@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, BadgePercent, Battery, ChevronLeft, ChevronRight, Clock, Cpu, Database, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Truck, Plus, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgePercent, Banknote, Battery, BatteryLow, ChevronLeft, ChevronRight, Clock, Cpu, Database, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Star, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -788,43 +788,29 @@ export function ProductDetailsPage() {
           {/* Shipping info */}
           {!localPickupOnly && (
             <div className="mt-4 grid grid-cols-2 gap-2">
-              {[
-                { icon: "🚚", text: language === "ar" ? "توصيل لجميع الولايات" : "All 58 wilayas" },
-                { icon: "💵", text: language === "ar" ? "دفع عند الاستلام" : "Cash on delivery" },
-              ].map((item) => (
-                <div key={item.text} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  <span>{item.icon}</span>
-                  <span className="font-medium">{item.text}</span>
-                </div>
-              ))}
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                <Truck className="h-4 w-4 shrink-0 text-teal-600" />
+                <span className="font-semibold">{language === "ar" ? "توصيل لجميع الولايات" : language === "fr" ? "Toutes les wilayas" : "All 58 wilayas"}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                <Banknote className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="font-semibold">{language === "ar" ? "دفع عند الاستلام" : language === "fr" ? "Paiement livraison" : "Cash on delivery"}</span>
+              </div>
             </div>
           )}
 
-          {/* Specs — professional tiered layout */}
+          {/* Specs — professional table for all products */}
           {specifications.length > 0 && (() => {
             const specsMap = Object.fromEntries(specifications);
 
-            // Color scheme + Lucide icon per primary spec
-            const specStyle: Record<string, { border: string; bg: string; iconBg: string; iconCls: string; label: string; accent: string; Icon: React.ElementType }> = {
-              "المعالج":  { border: "border-blue-200",   bg: "bg-blue-50",    iconBg: "bg-blue-100",    iconCls: "text-blue-600",   label: "text-blue-600",   accent: "text-blue-900",    Icon: Cpu },
-              "الرام":    { border: "border-emerald-200", bg: "bg-emerald-50", iconBg: "bg-emerald-100", iconCls: "text-emerald-600", label: "text-emerald-600", accent: "text-emerald-900", Icon: Database },
-              "التخزين":  { border: "border-orange-200",  bg: "bg-orange-50",  iconBg: "bg-orange-100",  iconCls: "text-orange-600",  label: "text-orange-600",  accent: "text-orange-900",  Icon: HardDrive },
-              "الشاشة":   { border: "border-violet-200",  bg: "bg-violet-50",  iconBg: "bg-violet-100",  iconCls: "text-violet-600",  label: "text-violet-600",  accent: "text-violet-900",  Icon: Monitor },
-            };
-
-            const primary: Array<{ key: string }> = [
-              { key: "المعالج" },
-              { key: "الرام" },
-              { key: "التخزين" },
-              { key: "الشاشة" },
-            ].filter((s) => specsMap[s.key]);
-
-            const secondary: Array<{ key: string; icon: string; chipCls: string }> = [
-              { key: "الجيل",          icon: "📅", chipCls: "border-slate-200 bg-slate-50 text-slate-700" },
-              { key: "كرت الشاشة",    icon: "🎮", chipCls: "border-purple-200 bg-purple-50 text-purple-800" },
-              { key: "نظام التشغيل",  icon: "🪟", chipCls: "border-blue-200 bg-blue-50 text-blue-800" },
-              { key: "اللون",          icon: "🎨", chipCls: "border-pink-200 bg-pink-50 text-pink-800" },
-            ].filter((s) => specsMap[s.key]);
+            // Laptop primary keys with color theming
+            const primaryDefs: Array<{ key: string; border: string; bg: string; iconBg: string; iconCls: string; labelCls: string; accentCls: string; Icon: React.ElementType }> = [
+              { key: "المعالج",  border: "border-blue-200",   bg: "bg-blue-50",    iconBg: "bg-blue-100",    iconCls: "text-blue-600",   labelCls: "text-blue-600",   accentCls: "text-blue-900",    Icon: Cpu },
+              { key: "الرام",    border: "border-emerald-200", bg: "bg-emerald-50", iconBg: "bg-emerald-100", iconCls: "text-emerald-600", labelCls: "text-emerald-600", accentCls: "text-emerald-900", Icon: Database },
+              { key: "التخزين",  border: "border-orange-200",  bg: "bg-orange-50",  iconBg: "bg-orange-100",  iconCls: "text-orange-600",  labelCls: "text-orange-600",  accentCls: "text-orange-900",  Icon: HardDrive },
+              { key: "الشاشة",   border: "border-violet-200",  bg: "bg-violet-50",  iconBg: "bg-violet-100",  iconCls: "text-violet-600",  labelCls: "text-violet-600",  accentCls: "text-violet-900",  Icon: Monitor },
+            ];
+            const primary = primaryDefs.filter((s) => specsMap[s.key]);
 
             const batVal  = specsMap["البطارية"] ?? "";
             const condVal = specsMap["الحالة"]  ?? "";
@@ -832,89 +818,94 @@ export function ProductDetailsPage() {
             const isBatWarn = !isBatDead && /ضعيف|faible|lache|l[aâ]che|moyen|medium/i.test(batVal);
             const isBatGood = /bonne|good|جيد/i.test(batVal);
             const batDisplay = isBatDead ? "لا تشحن — 0٪" : batVal;
-
-            // Parse condition score e.g. "مستعمل — 8/10" → 8
             const condScoreMatch = condVal.match(/(\d+)\s*\/\s*10/);
             const condScore = condScoreMatch ? parseInt(condScoreMatch[1]) : null;
-            const condColor = condScore !== null
-              ? condScore >= 8 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : condScore >= 6 ? "border-amber-200 bg-amber-50 text-amber-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
-              : "border-amber-200 bg-amber-50 text-amber-800";
 
-            const knownKeys = new Set(["المعالج","الرام","التخزين","الشاشة","الجيل","كرت الشاشة","نظام التشغيل","اللون","البطارية","الحالة"]);
-            const extras = specifications.filter(([k]) => !knownKeys.has(k));
-
-            if (primary.length === 0 && secondary.length === 0 && !batVal && !condVal) return null;
+            const highlightedKeys = new Set(["المعالج","الرام","التخزين","الشاشة"]);
+            const tableSpecs = specifications.filter(([k]) => !highlightedKeys.has(k));
 
             return (
-              <div className="mt-4 space-y-3">
-                {/* Primary grid — color-coded per spec type */}
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-slate-400" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    {language === "ar" ? "المواصفات التقنية" : language === "fr" ? "Caractéristiques" : "Specifications"}
+                  </span>
+                </div>
+
+                {/* Primary laptop specs — color cards */}
                 {primary.length > 0 && (
-                  <div className={`grid gap-2 ${primary.length >= 4 ? "grid-cols-2" : primary.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
-                    {primary.map(({ key }) => {
-                      const s = specStyle[key] ?? { border: "border-slate-200", bg: "bg-slate-50", iconBg: "bg-slate-100", iconCls: "text-slate-500", label: "text-slate-500", accent: "text-slate-900", Icon: Settings };
-                      return (
-                        <div key={key} className={`flex flex-col gap-1 rounded-2xl border ${s.border} ${s.bg} p-3`}>
-                          <div className={`inline-flex h-8 w-8 items-center justify-center rounded-xl ${s.iconBg}`}>
-                            <s.Icon className={`h-4 w-4 ${s.iconCls}`} />
-                          </div>
-                          <span className={`text-[10px] font-bold uppercase tracking-wide ${s.label}`}>{key}</span>
-                          <span className={`text-[13px] font-bold leading-tight ${s.accent}`}>{specsMap[key]}</span>
+                  <div className={`grid gap-2 ${primary.length >= 3 ? "grid-cols-2" : "grid-cols-2"}`}>
+                    {primary.map(({ key, border, bg, iconBg, iconCls, labelCls, accentCls, Icon }) => (
+                      <div key={key} className={`flex flex-col gap-1.5 rounded-2xl border ${border} ${bg} p-3`}>
+                        <div className={`inline-flex h-8 w-8 items-center justify-center rounded-xl ${iconBg}`}>
+                          <Icon className={`h-4 w-4 ${iconCls}`} />
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Secondary chips */}
-                {(secondary.length > 0 || extras.length > 0) && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {secondary.map(({ key, icon, chipCls }) => (
-                      <span key={key} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold ${chipCls}`}>
-                        <span>{icon}</span>
-                        <span className="opacity-60">{key}:</span>
-                        <span className="font-bold">{specsMap[key]}</span>
-                      </span>
-                    ))}
-                    {extras.map(([k, v]) => (
-                      <span key={k} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
-                        <span className="opacity-50">{k}:</span>
-                        <span className="font-bold">{v}</span>
-                      </span>
+                        <span className={`text-[10px] font-black uppercase tracking-wide ${labelCls}`}>{key}</span>
+                        <span className={`text-sm font-bold leading-tight ${accentCls}`}>{specsMap[key]}</span>
+                      </div>
                     ))}
                   </div>
                 )}
 
-                {/* Status row — battery + condition */}
+                {/* Battery + Condition row */}
                 {(batVal || condVal) && (
                   <div className="flex flex-wrap gap-2">
                     {batVal && (
-                      <div className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold ${
-                        isBatDead ? "border-rose-300 bg-rose-100 text-rose-800"
+                      <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${
+                        isBatDead ? "border-rose-300 bg-rose-50 text-rose-800"
                         : isBatWarn ? "border-amber-200 bg-amber-50 text-amber-800"
                         : isBatGood ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                         : "border-slate-200 bg-slate-50 text-slate-700"
                       }`}>
-                        <span>{isBatDead ? "🪫" : isBatGood ? "🔋" : "🔋"}</span>
-                        <span className="opacity-70">{language === "ar" ? "البطارية:" : "Batterie:"}</span>
-                        <span>{batDisplay}</span>
+                        {isBatDead
+                          ? <BatteryLow className="h-4 w-4 shrink-0" />
+                          : <Battery className="h-4 w-4 shrink-0" />}
+                        <div>
+                          <div className="text-[10px] font-bold uppercase opacity-60">{language === "ar" ? "البطارية" : "Batterie"}</div>
+                          <div>{batDisplay}</div>
+                        </div>
                       </div>
                     )}
                     {condVal && (
-                      <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold ${condColor}`}>
-                        <span>⭐</span>
-                        <span className="opacity-70">{language === "ar" ? "الحالة:" : "État:"}</span>
-                        <span>{condVal}</span>
-                        {condScore !== null && (
-                          <span className="ms-0.5 flex gap-px">
-                            {[1,2,3,4,5].map((s) => (
-                              <span key={s} className={`text-[10px] ${s <= Math.round(condScore / 2) ? "opacity-100" : "opacity-25"}`}>★</span>
-                            ))}
-                          </span>
-                        )}
+                      <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${
+                        condScore !== null
+                          ? condScore >= 8 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : condScore >= 6 ? "border-amber-200 bg-amber-50 text-amber-800"
+                          : "border-rose-200 bg-rose-50 text-rose-800"
+                          : "border-amber-200 bg-amber-50 text-amber-800"
+                      }`}>
+                        <Star className="h-4 w-4 shrink-0" />
+                        <div>
+                          <div className="text-[10px] font-bold uppercase opacity-60">{language === "ar" ? "الحالة" : "État"}</div>
+                          <div className="flex items-center gap-1">
+                            {condVal}
+                            {condScore !== null && (
+                              <span className="ms-1 flex gap-px">
+                                {[1,2,3,4,5].map((s) => (
+                                  <Star key={s} className={`h-2.5 w-2.5 ${s <= Math.round(condScore / 2) ? "fill-current opacity-100" : "opacity-20"}`} />
+                                ))}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* All remaining specs — clean table */}
+                {tableSpecs.length > 0 && (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    {tableSpecs.map(([key, value], i) => (
+                      <div
+                        key={key}
+                        className={`flex min-h-10 items-start gap-3 px-4 py-2.5 text-sm ${i > 0 ? "border-t border-slate-100" : ""} ${i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}`}
+                      >
+                        <span className="w-28 shrink-0 text-xs font-bold text-slate-400 pt-0.5">{key}</span>
+                        <span className="flex-1 font-semibold leading-relaxed text-slate-900 break-words">{value}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1067,25 +1058,13 @@ export function ProductDetailsPage() {
           {/* Trust strip — visible only when product is orderable */}
           {!adminSoldOut && selectedVariant.stock > 0 && !localPickupOnly && (
             <div className="mt-5 grid grid-cols-3 gap-2">
-              {[
-                {
-                  icon: "🚚",
-                  ar: "توصيل لجميع الولايات الـ58",
-                  fr: "Livraison dans toute l'Algérie",
-                },
-                {
-                  icon: "💵",
-                  ar: "الدفع عند الاستلام",
-                  fr: "Paiement à la livraison",
-                },
-                {
-                  icon: "✅",
-                  ar: "ضمان مطابقة المواصفات",
-                  fr: "Garantie conformité",
-                },
-              ].map((item) => (
-                <div key={item.ar} className="flex flex-col items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 px-2 py-2.5 text-center">
-                  <span className="text-xl leading-none">{item.icon}</span>
+              {([
+                { Icon: Truck,      iconCls: "text-teal-600",    ar: "توصيل لجميع الولايات",     fr: "Livraison partout" },
+                { Icon: Banknote,   iconCls: "text-emerald-600", ar: "الدفع عند الاستلام",         fr: "Paiement livraison" },
+                { Icon: ShieldCheck,iconCls: "text-blue-600",    ar: "ضمان مطابقة المواصفات",      fr: "Garantie conformité" },
+              ] as Array<{ Icon: React.ElementType; iconCls: string; ar: string; fr: string }>).map((item) => (
+                <div key={item.ar} className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2 py-3 text-center">
+                  <item.Icon className={`h-5 w-5 shrink-0 ${item.iconCls}`} />
                   <span className="text-[10px] font-bold leading-tight text-slate-700">
                     {language === "fr" ? item.fr : item.ar}
                   </span>

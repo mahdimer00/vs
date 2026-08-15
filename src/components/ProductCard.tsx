@@ -1,4 +1,4 @@
-import { BatteryCharging, Heart, Monitor, ShieldCheck, Zap } from "lucide-react";
+import { Banknote, BatteryCharging, Heart, Monitor, ShieldCheck, Star, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useApp } from "@/hooks/useApp";
 import type { Locale, Product } from "@/types";
@@ -353,7 +353,23 @@ export function ProductCard({ product, language }: { product: Product; language:
             <span className="absolute start-2 top-2 rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-sm">
               {product.stock === 1 ? (language === "ar" ? "آخر قطعة" : "Last one") : `${product.stock} فقط`}
             </span>
+          ) : isFeatured ? (
+            <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-sm">
+              <Star className="h-3 w-3 fill-current" />
+              {language === "ar" ? "مميز" : language === "fr" ? "Recommandé" : "Featured"}
+            </span>
           ) : null)}
+
+          {/* Condition badge */}
+          <span className={`absolute end-2 bottom-2 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+            product.condition === "NEW"
+              ? "bg-teal-500/90 text-white"
+              : "bg-amber-500/90 text-white"
+          }`}>
+            {product.condition === "NEW"
+              ? (language === "ar" ? "جديد" : language === "fr" ? "Neuf" : "New")
+              : (language === "ar" ? "مستعمل" : language === "fr" ? "Occasion" : "Used")}
+          </span>
 
           {/* Wishlist */}
           <button
@@ -489,10 +505,10 @@ export function ProductCard({ product, language }: { product: Product; language:
 
           {/* COD trust pill */}
           {!soldOut && (
-            <div className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-800">
-              <span>💵</span>
-              <span>{language === "ar" ? "الدفع عند الاستلام" : language === "fr" ? "Paiement à la livraison" : "Cash on delivery"}</span>
-              <span className="ms-auto text-emerald-500">✓</span>
+            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-800">
+              <Banknote className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <span>{language === "ar" ? "الدفع عند الاستلام" : language === "fr" ? "Paiement livraison" : "Cash on delivery"}</span>
+              <ShieldCheck className="ms-auto h-3.5 w-3.5 shrink-0 text-emerald-500" />
             </div>
           )}
 
