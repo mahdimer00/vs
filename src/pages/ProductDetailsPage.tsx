@@ -1064,6 +1064,36 @@ export function ProductDetailsPage() {
             </div>
           ) : null}
 
+          {/* Trust strip — visible only when product is orderable */}
+          {!adminSoldOut && selectedVariant.stock > 0 && !localPickupOnly && (
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {[
+                {
+                  icon: "🚚",
+                  ar: "توصيل لجميع الولايات الـ58",
+                  fr: "Livraison dans toute l'Algérie",
+                },
+                {
+                  icon: "💵",
+                  ar: "الدفع عند الاستلام",
+                  fr: "Paiement à la livraison",
+                },
+                {
+                  icon: "✅",
+                  ar: "ضمان مطابقة المواصفات",
+                  fr: "Garantie conformité",
+                },
+              ].map((item) => (
+                <div key={item.ar} className="flex flex-col items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 px-2 py-2.5 text-center">
+                  <span className="text-xl leading-none">{item.icon}</span>
+                  <span className="text-[10px] font-bold leading-tight text-slate-700">
+                    {language === "fr" ? item.fr : item.ar}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {localPickupOnly ? (
             <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-center">
               <div className="text-2xl">🏪</div>
