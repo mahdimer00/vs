@@ -138,7 +138,7 @@ export async function sendAffiliateCommissionUpdateEmail(
 export async function sendAffiliateOtpEmail(to: string, name: string, code: string): Promise<void> {
   if (!resend) throw new Error("Resend API key not configured");
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: FROM,
     to: [to],
     subject: `رمز التحقق — VisaDZ (${code})`,
@@ -159,4 +159,5 @@ export async function sendAffiliateOtpEmail(to: string, name: string, code: stri
       </div>
     `,
   });
+  if (error) throw new Error(error.message);
 }

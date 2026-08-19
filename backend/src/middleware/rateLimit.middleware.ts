@@ -53,7 +53,7 @@ export const registerRateLimitMiddleware = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many registration attempts. Please try again later." },
+  message: { message: "لقد تجاوزت الحد المسموح به من محاولات التسجيل. حاول مجدداً بعد ساعة." },
 });
 
 // Track-order lookups are customer-facing, but keep them tight to slow scraping.
