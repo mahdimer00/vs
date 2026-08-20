@@ -3,7 +3,7 @@
  * Enabled by siteSettings.directOrderMode toggle in admin.
  * No cart, no OTP, no navigation — order placed directly on product page.
  */
-import { Building2, Check, CheckCircle2, Home, Lock, MapPin, MapPinned, Phone, PhoneCall, ShieldCheck, Truck, UserRound } from "lucide-react";
+import { AlertTriangle, Building2, Check, CheckCircle2, ChevronRight, Home, Lock, MapPin, MapPinned, Phone, PhoneCall, ShieldCheck, Truck, UserRound, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
@@ -27,9 +27,10 @@ interface DirectOrderFormProps {
   variant: ProductVariant;
   quantity: number;
   shippingFee: number;
+  importantNotes?: string[];
 }
 
-export function DirectOrderForm({ product, variant, quantity, shippingFee: initialFee }: DirectOrderFormProps) {
+export function DirectOrderForm({ product, variant, quantity, shippingFee: initialFee, importantNotes = [] }: DirectOrderFormProps) {
   const navigate = useNavigate();
   const { language, affiliateRef, rememberConfirmedOrder, pushToast, siteSettings } = useApp();
 
@@ -54,6 +55,11 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const [discount, setDiscount] = useState(0);
   // Track which fields the user has touched (to show errors only after interaction)
   const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [submitInView, setSubmitInView] = useState(true);
+
+  const partialLeadFiredRef = useRef(false);
+  const partialLeadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
 
   const touch = (field: string) => setTouched((prev) => { const s = new Set(prev); s.add(field); return s; });
 
@@ -87,6 +93,9 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
       commune.trim().length > 0 &&
       address.trim().length >= 5;
   })();
+
+  // Progress: how many of the 4 required fields are filled correctly
+  const completedCount = [nameValid, phoneValid, commune.trim().length > 0, address.trim().length >= 5].filter(Boolean).length;
 
   const price = variant.price * quantity;
   const total = Math.max(0, price + shippingFee - discount);
@@ -124,6 +133,37 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
       pixelAddToCart({ productId: product._id, productName: product.name.fr || product.name.ar || product.name.en || "", value: price });
     }
   }, [phoneValid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Derived: name and phone validity (outside isFormComplete for reuse)
+  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+  const nameValid = nameParts.length >= 2 && nameParts.every((p) => p.length >= 2);
+  const isHighIntent = nameValid && phoneValid;
+
+  // Partial lead capture — fires 5s after name+phone are valid, once per mount
+  useEffect(() => {
+    if (!isHighIntent || partialLeadFiredRef.current) return;
+    if (partialLeadTimerRef.current) clearTimeout(partialLeadTimerRef.current);
+    partialLeadTimerRef.current = setTimeout(() => {
+      if (partialLeadFiredRef.current) return;
+      partialLeadFiredRef.current = true;
+      const productName = product.name.ar || product.name.fr || product.name.en;
+      void fetch("/api/leads/partial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: fullName.trim(), phone: phone.trim(), product: productName, wilaya: wilayaCode }),
+      }).catch(() => undefined);
+    }, 5000);
+    return () => { if (partialLeadTimerRef.current) clearTimeout(partialLeadTimerRef.current); };
+  }, [isHighIntent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Observe submit button visibility for sticky CTA
+  useEffect(() => {
+    const el = submitBtnRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setSubmitInView(entry.isIntersecting), { threshold: 0.5 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Load wilayas + ZR territories once
   useEffect(() => {
@@ -302,6 +342,22 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         <div className="ms-auto text-xl font-extrabold text-teal-700">{formatCurrency(total, language)}</div>
       </div>
 
+      {importantNotes.length > 0 ? (
+        <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="mb-2 flex items-center gap-2 text-sm font-black text-amber-900">
+            <AlertTriangle className="h-4 w-4" />
+            {language === "ar" ? "تأكيد حالة الجهاز" : language === "fr" ? "Confirmation état du produit" : "Product condition confirmation"}
+          </div>
+          <div className="space-y-1.5">
+            {importantNotes.slice(0, 3).map((note) => (
+              <div key={note} className="rounded-xl bg-white px-3 py-2 text-xs font-bold leading-6 text-amber-950">
+                {note}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {/* Error */}
       {errorMessage ? (
         <div id="dof-error" className="flex items-start gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 px-4 py-3">
@@ -463,7 +519,9 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
               : "El Nasr district, street 20, n°5"}
           />
         </IconField>
-        {addressError ? <p className="flex items-center gap-1 ps-1 text-xs font-semibold text-rose-600">⚠️ {addressError}</p> : null}
+        {addressError
+          ? <p className="flex items-center gap-1 ps-1 text-xs font-semibold text-rose-600">⚠️ {addressError}</p>
+          : <p className="ps-1 text-[11px] text-slate-400">{language === "ar" ? "حي أو شارع قريب — المندوب سيتصل لتأكيد التفاصيل" : "Nearby street/district — agent will call to confirm"}</p>}
       </div>
 
       {/* Shipping fee + delivery time */}
@@ -513,13 +571,42 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         )
       ) : null}
 
+      {/* Progress bar — shown once user starts interacting */}
+      {touched.size > 0 && (
+        <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-slate-500">{language === "ar" ? "اكتمال الطلب" : "Order progress"}</span>
+            <span className={completedCount === 4 ? "text-emerald-600" : "text-amber-600"}>{completedCount}/4</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${completedCount === 4 ? "bg-emerald-500" : "bg-gradient-to-r from-amber-400 to-teal-500"}`}
+              style={{ width: `${(completedCount / 4) * 100}%` }}
+            />
+          </div>
+          <div className="grid grid-cols-4 gap-1">
+            {([
+              { done: nameValid,                      label: language === "ar" ? "الاسم" : "Name" },
+              { done: phoneValid,                     label: language === "ar" ? "الهاتف" : "Phone" },
+              { done: commune.trim().length > 0,      label: language === "ar" ? "البلدية" : "Commune" },
+              { done: address.trim().length >= 5,     label: language === "ar" ? "العنوان" : "Address" },
+            ] as Array<{ done: boolean; label: string }>).map((s) => (
+              <div key={s.label} className={`rounded-lg py-1 text-center text-[10px] font-bold transition ${s.done ? "bg-emerald-100 text-emerald-700" : "bg-white text-slate-400 border border-slate-200"}`}>
+                {s.done ? "✓ " : ""}{s.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Submit */}
       <button
+        ref={submitBtnRef}
         id="dof-submit-btn"
         type="button"
         disabled={submitting}
         onClick={() => void submit()}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98] disabled:opacity-60"
+        className={`flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98] disabled:opacity-60 ${isFormComplete && !submitting ? "ring-4 ring-teal-300/60" : ""}`}
       >
         <span className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5" />
@@ -568,6 +655,38 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         }}
         onClose={() => setShowOtpModal(false)}
       />
+    )}
+
+    {/* Sticky floating CTA — appears when submit button scrolls out of view and user has shown intent */}
+    {isHighIntent && !submitInView && !submitting && (
+      <div className="fixed bottom-0 inset-x-0 z-40 px-4 pb-4 pt-6 bg-gradient-to-t from-slate-950/70 via-slate-950/30 to-transparent pointer-events-none">
+        <button
+          type="button"
+          onClick={() => {
+            if (isFormComplete) {
+              void submit();
+            } else {
+              const firstEmpty = !commune.trim() ? "dof-commune" : "dof-address";
+              const el = document.getElementById(firstEmpty);
+              if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
+              else { submitBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }
+            }
+          }}
+          className="pointer-events-auto flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-4 text-sm font-bold text-white shadow-[0_-8px_32px_rgba(20,184,166,0.5)] transition active:scale-[0.98]"
+        >
+          <span className="flex items-center gap-2">
+            {isFormComplete ? <Zap className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+            <span>
+              {isFormComplete
+                ? (language === "ar" ? "أتمم الطلب الآن" : "Place order now")
+                : (language === "ar" ? `أكمل الحقول المتبقية (${4 - completedCount})` : `Complete remaining fields (${4 - completedCount})`)}
+            </span>
+          </span>
+          <span className="shrink-0 rounded-xl bg-white/20 px-3 py-1 text-sm font-extrabold">
+            {formatCurrency(total, language)}
+          </span>
+        </button>
+      </div>
     )}
     </>
   );

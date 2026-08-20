@@ -328,6 +328,26 @@ router.post("/request-pc", requestPcRateLimitMiddleware, asyncHandler(async (req
   return res.json({ success: true });
 }));
 
+router.post("/leads/partial", asyncHandler(async (req, res) => {
+  const schema = z.object({
+    name: z.string().min(2).max(100),
+    phone: z.string().regex(/^(05|06|07)\d{8}$/),
+    product: z.string().max(200).optional(),
+    wilaya: z.string().max(10).optional(),
+  });
+  const input = schema.parse(req.body);
+  const { sendTelegramMessage } = await import("../../utils/telegram.js");
+  void sendTelegramMessage(
+    `⚡ <b>عميل محتمل — لم يكمل الطلب</b>\n` +
+    `📱 الهاتف: <code>${input.phone}</code>\n` +
+    `👤 الاسم: ${input.name}\n` +
+    (input.product ? `📦 المنتج: ${input.product}\n` : "") +
+    (input.wilaya ? `📍 الولاية: ${input.wilaya}\n` : "") +
+    `⏰ ${new Date().toLocaleString("fr-DZ")}`,
+  );
+  return res.status(200).json({ ok: true });
+}));
+
 router.post("/request-software", asyncHandler(async (req, res) => {
   const { name, phone, wilaya, businessType, softwareNeed, devices, printer, budget, notes } = req.body as Record<string, string>;
   if (!phone?.trim() || phone.replace(/\D/g, "").length < 9) {
