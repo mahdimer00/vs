@@ -5,7 +5,7 @@
  */
 import { AlertTriangle, Building2, Check, CheckCircle2, ChevronRight, Home, Lock, MapPin, MapPinned, Phone, PhoneCall, ShieldCheck, Truck, UserRound, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useBlocker, useNavigate } from "react-router-dom";
 import { IconField } from "@/components/IconField";
 import { OtpVerifyModal } from "@/components/OtpVerifyModal";
 import { useApp } from "@/hooks/useApp";
@@ -136,6 +136,19 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const nameValid = nameParts.length >= 2 && nameParts.every((p) => p.length >= 2);
   const isHighIntent = nameValid && phoneValid;
   const completedCount = [nameValid, phoneValid, commune.trim().length > 0, address.trim().length >= 5].filter(Boolean).length;
+
+  const isDirty = touched.size > 0;
+
+  // Block in-app navigation when form is partially filled
+  const blocker = useBlocker(isDirty);
+
+  // Block browser close / refresh / URL change
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   // Partial lead capture — fires 5s after name+phone are valid, once per mount
   useEffect(() => {
@@ -684,6 +697,43 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
             {formatCurrency(total, language)}
           </span>
         </button>
+      </div>
+    )}
+    {/* Exit-confirmation dialog — shown when user tries to navigate away with a dirty form */}
+    {blocker.state === "blocked" && (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm" dir="rtl">
+        <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 px-6 pt-6 pb-4 text-center">
+            <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100">
+              <AlertTriangle className="h-7 w-7 text-amber-500" />
+            </div>
+            <h2 className="text-lg font-black text-slate-950">
+              {language === "ar" ? "لم تكمل طلبك بعد!" : "Commande non terminée !"}
+            </h2>
+            <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600">
+              {language === "ar"
+                ? "لقد أدخلت بياناتك ولم تُرسل الطلب. هل تريد إكمال الشراء؟"
+                : "Vous avez saisi vos informations mais n'avez pas confirmé. Terminer la commande ?"}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-4">
+            <button
+              type="button"
+              onClick={() => blocker.reset()}
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 text-sm font-black text-white shadow-sm transition hover:opacity-90"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {language === "ar" ? "إكمال الطلب" : "Terminer"}
+            </button>
+            <button
+              type="button"
+              onClick={() => blocker.proceed()}
+              className="flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-500 transition hover:bg-slate-100"
+            >
+              {language === "ar" ? "مغادرة" : "Quitter"}
+            </button>
+          </div>
+        </div>
       </div>
     )}
     </>
