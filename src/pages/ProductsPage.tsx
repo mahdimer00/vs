@@ -1,6 +1,4 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-const BATCH_SIZE = 24;
 import { ArrowDownUp, Banknote, CheckCircle2, Laptop, MessageCircle, Phone, Search, Send, ShieldCheck, SlidersHorizontal, Star, Truck, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -14,6 +12,8 @@ import type { Category, Locale, Product } from "@/types";
 import { getLocalizedText } from "@/utils/format";
 import { translate } from "@/utils/i18n";
 import { ttqSearch } from "@/utils/tiktok";
+
+const BATCH_SIZE = 24;
 
 const CPU_PATTERNS: Record<string, RegExp> = {
   intel: /intel|\bcore\b|\bi[3579]\b|pentium|celeron/i,
