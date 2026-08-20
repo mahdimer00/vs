@@ -94,9 +94,6 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
       address.trim().length >= 5;
   })();
 
-  // Progress: how many of the 4 required fields are filled correctly
-  const completedCount = [nameValid, phoneValid, commune.trim().length > 0, address.trim().length >= 5].filter(Boolean).length;
-
   const price = variant.price * quantity;
   const total = Math.max(0, price + shippingFee - discount);
 
@@ -138,6 +135,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
   const nameValid = nameParts.length >= 2 && nameParts.every((p) => p.length >= 2);
   const isHighIntent = nameValid && phoneValid;
+  const completedCount = [nameValid, phoneValid, commune.trim().length > 0, address.trim().length >= 5].filter(Boolean).length;
 
   // Partial lead capture — fires 5s after name+phone are valid, once per mount
   useEffect(() => {
