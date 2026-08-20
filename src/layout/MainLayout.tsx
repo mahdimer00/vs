@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { EarnMoneyFloat } from "@/components/EarnMoneyFloat";
 import { Footer } from "@/components/Footer";
@@ -13,8 +14,11 @@ export function MainLayout() {
   const location = useLocation();
   const isDashboard = location.pathname.startsWith("/gestion") || location.pathname.startsWith("/affiliate");
 
+  const { language } = useApp();
+
   return (
     <div className="min-h-screen overflow-x-hidden text-slate-900">
+      {!isDashboard ? <AnnouncementBar language={language} /> : null}
       {!isDashboard ? <Header /> : null}
       <main className="mx-auto min-h-[calc(100vh-160px)] max-w-7xl overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         <Suspense fallback={<LoadingState />}>

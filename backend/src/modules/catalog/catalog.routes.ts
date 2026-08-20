@@ -84,7 +84,7 @@ router.get(
 router.get(
   "/products",
   asyncHandler(async (_req, res) => {
-    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     const products = await ProductModel.find({
       status: "ACTIVE",
       isSoldOut: { $ne: true },

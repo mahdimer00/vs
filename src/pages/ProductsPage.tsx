@@ -4,7 +4,6 @@ const BATCH_SIZE = 24;
 import { ArrowDownUp, Banknote, CheckCircle2, Laptop, MessageCircle, Phone, Search, Send, ShieldCheck, SlidersHorizontal, Star, Truck, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
-import { LoadingState } from "@/components/LoadingState";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFilters, type LaptopOptionCounts, type ProductFilterState, DEFAULT_FILTERS } from "@/components/ProductFilters";
 import { Seo } from "@/components/Seo";
@@ -839,7 +838,28 @@ export function ProductsPage() {
   }, [hasMore]);
 
   if (loading) {
-    return <LoadingState label={translate(language, "loading")} />;
+    return (
+      <div className="space-y-6" dir="rtl">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 p-5 md:p-8 shadow-sm backdrop-blur">
+          <div className="h-3 w-28 animate-pulse rounded-full bg-slate-200" />
+          <div className="mt-3 h-7 w-56 animate-pulse rounded-lg bg-slate-200" />
+          <div className="mt-2 h-3 w-72 animate-pulse rounded-full bg-slate-200" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="aspect-[4/3] animate-pulse bg-gradient-to-br from-slate-100 to-slate-200" />
+              <div className="space-y-2.5 p-3">
+                <div className="h-3 w-3/4 animate-pulse rounded-full bg-slate-200" />
+                <div className="h-3 w-1/2 animate-pulse rounded-full bg-slate-200" />
+                <div className="mt-2 h-5 w-2/3 animate-pulse rounded-full bg-slate-300" />
+                <div className="h-9 w-full animate-pulse rounded-xl bg-slate-100" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (errorMessage) {

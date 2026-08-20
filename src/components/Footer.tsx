@@ -1,4 +1,4 @@
-import { Facebook, Headset, Instagram, MapPin, MessageCircle, Phone, ShieldCheck, Truck, WalletCards, Youtube } from "lucide-react";
+import { Banknote, Eye, Facebook, Headset, Instagram, MapPin, MessageCircle, Phone, ShieldCheck, Truck, Youtube } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import { useApp } from "@/hooks/useApp";
@@ -10,10 +10,11 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   const trustItems = [
-    { icon: WalletCards, label: translate(language, "trustCod"), color: "text-amber-600" },
-    { icon: Truck, label: translate(language, "trustDelivery"), color: "text-teal-600" },
-    { icon: ShieldCheck, label: translate(language, "trustQuality"), color: "text-emerald-600" },
-    { icon: Headset, label: translate(language, "trustSupport"), color: "text-blue-600" },
+    { icon: Banknote, label: language === "ar" ? "دفع عند الاستلام" : "Paiement à la livraison", color: "text-emerald-500", bg: "bg-emerald-50" },
+    { icon: Eye,      label: language === "ar" ? "معاينة قبل الدفع" : "Inspection avant paiement", color: "text-teal-500", bg: "bg-teal-50" },
+    { icon: Truck,    label: translate(language, "trustDelivery"), color: "text-sky-500", bg: "bg-sky-50" },
+    { icon: ShieldCheck, label: translate(language, "trustQuality"), color: "text-violet-500", bg: "bg-violet-50" },
+    { icon: Headset,  label: translate(language, "trustSupport"), color: "text-amber-500", bg: "bg-amber-50" },
   ];
 
   const phone = siteSettings?.phone;
@@ -90,12 +91,14 @@ export function Footer() {
 
           {/* Trust items */}
           <div>
-            <div className="mb-4 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{translate(language, "trustQuality")}</div>
-            <div className="grid gap-2.5">
+            <div className="mb-4 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{language === "ar" ? "ضمانات الشراء" : "Garanties d'achat"}</div>
+            <div className="grid gap-2">
               {trustItems.map((item) => (
-                <div key={item.label} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3">
-                  <item.icon className={`h-5 w-5 shrink-0 ${item.color}`} />
-                  <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                <div key={item.label} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
+                  <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${item.bg}`}>
+                    <item.icon className={`h-4 w-4 ${item.color}`} />
+                  </div>
+                  <span className="text-sm font-semibold text-slate-700">{item.label}</span>
                 </div>
               ))}
             </div>
@@ -106,6 +109,7 @@ export function Footer() {
             <div className="mb-4 text-xs font-bold uppercase tracking-[0.24em] text-slate-400">{translate(language, "footerLegalTitle")}</div>
             <nav className="flex flex-col gap-2.5 text-sm">
               <Link to="/contact" className="text-slate-600 transition hover:text-teal-700">{translate(language, "contact")}</Link>
+              <Link to="/logiciels" className="text-slate-600 transition hover:text-teal-700">{language === "ar" ? "برامج تسيير" : "Logiciels"}</Link>
               <Link to="/track-order" className="text-slate-600 transition hover:text-teal-700">{translate(language, "trackOrder")}</Link>
               <Link to="/privacy-policy" className="text-slate-600 transition hover:text-teal-700">{translate(language, "privacyPolicyTitle")}</Link>
               <Link to="/terms" className="text-slate-600 transition hover:text-teal-700">{translate(language, "termsTitle")}</Link>

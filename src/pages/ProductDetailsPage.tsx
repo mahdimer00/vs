@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, BadgePercent, Banknote, Battery, BatteryLow, ChevronLeft, ChevronRight, Clock, Cpu, Database, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Star, Truck, Plus, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgePercent, Banknote, Battery, BatteryLow, ChevronLeft, ChevronRight, Clock, Cpu, Database, Eye, Facebook, HardDrive, Heart, MessageCircle, Minus, Monitor, Phone, Play, Settings, ShieldCheck, ShoppingCart, Star, Truck, Plus, Zap } from "lucide-react";
 import { TikTokIcon } from "@/components/TikTokIcon";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -684,6 +684,27 @@ export function ProductDetailsPage() {
             ) : null}
           </div>
 
+          {/* Inspection badge — high-visibility, right under price */}
+          {!adminSoldOut && selectedVariant.stock > 0 && (
+            <div className="mt-3 flex items-center gap-3 rounded-2xl border-2 border-teal-400 bg-gradient-to-r from-teal-50 to-emerald-50 px-4 py-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-500 shadow-sm">
+                <Eye className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-black text-teal-900">
+                  {language === "ar" ? "لا تدفع قبل معاينة الجهاز" : language === "fr" ? "Ne payez qu'après inspection" : "Inspect before you pay"}
+                </div>
+                <div className="mt-0.5 text-[11px] font-semibold leading-4 text-teal-700">
+                  {language === "ar"
+                    ? "افتح الجهاز وتأكد من مواصفاته — ثم ادفع للمندوب"
+                    : language === "fr"
+                      ? "Vérifiez le produit à la réception — payez ensuite"
+                      : "Open and verify the device on delivery — then pay"}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Stock progress bar */}
           {!adminSoldOut && stock > 0 && stock <= 20 && (
             <div className="mt-3 space-y-1.5">
@@ -851,22 +872,63 @@ export function ProductDetailsPage() {
                 {/* Battery + Condition row */}
                 {(batVal || condVal) && (
                   <div className="flex flex-wrap gap-2">
-                    {batVal && (
+                    {batVal && (isBatDead || isBatWarn) ? (
+                      /* Prominent warning banner for weak/dead battery */
+                      <div className={`w-full overflow-hidden rounded-2xl border-2 ${
+                        isBatDead
+                          ? "border-rose-400 bg-gradient-to-r from-rose-50 to-rose-100"
+                          : "border-amber-400 bg-gradient-to-r from-amber-50 to-orange-50"
+                      }`}>
+                        <div className={`flex items-start gap-3 px-4 py-3 ${isBatDead ? "bg-rose-500/10" : "bg-amber-500/10"}`}>
+                          <div className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                            isBatDead ? "bg-rose-500 shadow-[0_4px_12px_rgba(239,68,68,0.4)]" : "bg-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.4)]"
+                          }`}>
+                            {isBatDead
+                              ? <BatteryLow className="h-5 w-5 text-white" />
+                              : <Battery className="h-5 w-5 text-white" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-sm font-black ${isBatDead ? "text-rose-800" : "text-amber-800"}`}>
+                              {isBatDead
+                                ? (language === "ar" ? "تنبيه: البطارية لا تشحن" : "Attention : Batterie hors service")
+                                : (language === "ar" ? "تنبيه: البطارية ضعيفة" : "Attention : Batterie faible")}
+                            </div>
+                            <div className={`mt-0.5 text-xs font-semibold leading-4 ${isBatDead ? "text-rose-700" : "text-amber-700"}`}>
+                              {isBatDead
+                                ? (language === "ar" ? "يعمل فقط عند توصيله بالشاحن — يحتاج استبدال البطارية" : "Fonctionne uniquement branché — remplacement batterie nécessaire")
+                                : (language === "ar" ? "البطارية لا تدوم طويلاً — الاستخدام مع الشاحن أفضل" : "Autonomie limitée — usage branché recommandé")}
+                            </div>
+                          </div>
+                          <div className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
+                            isBatDead
+                              ? "bg-rose-200 text-rose-800 ring-rose-400"
+                              : "bg-amber-200 text-amber-800 ring-amber-400"
+                          }`}>
+                            {language === "ar" ? "مُخفَّض" : "REMISÉ"}
+                          </div>
+                        </div>
+                        <div className={`border-t px-4 py-2 text-[11px] font-bold ${
+                          isBatDead
+                            ? "border-rose-300 bg-rose-100 text-rose-700"
+                            : "border-amber-300 bg-amber-100 text-amber-700"
+                        }`}>
+                          {language === "ar"
+                            ? `حالة البطارية المُسجَّلة: ${batVal}`
+                            : `État batterie enregistré : ${batVal}`}
+                        </div>
+                      </div>
+                    ) : batVal ? (
                       <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${
-                        isBatDead ? "border-rose-300 bg-rose-50 text-rose-800"
-                        : isBatWarn ? "border-amber-200 bg-amber-50 text-amber-800"
-                        : isBatGood ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        isBatGood ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                         : "border-slate-200 bg-slate-50 text-slate-700"
                       }`}>
-                        {isBatDead
-                          ? <BatteryLow className="h-4 w-4 shrink-0" />
-                          : <Battery className="h-4 w-4 shrink-0" />}
+                        <Battery className="h-4 w-4 shrink-0" />
                         <div>
                           <div className="text-[10px] font-bold uppercase opacity-60">{language === "ar" ? "البطارية" : "Batterie"}</div>
                           <div>{batDisplay}</div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                     {condVal && (
                       <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${
                         condScore !== null
@@ -1057,63 +1119,80 @@ export function ProductDetailsPage() {
 
           {/* Psychological trust section — right before CTA */}
           {!adminSoldOut && selectedVariant.stock > 0 && !localPickupOnly && (
-            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-800">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-b from-slate-900 to-slate-950 shadow-xl">
               {/* Header */}
-              <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-500/20">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <div className="flex items-center gap-3 border-b border-white/10 bg-white/5 px-5 py-4">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/25 ring-1 ring-emerald-500/30">
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
                 </div>
                 <div>
-                  <div className="text-sm font-black text-white">
+                  <div className="text-base font-black tracking-tight text-white">
                     {language === "ar" ? "ضمانات شرائك معنا" : language === "fr" ? "Vos garanties d'achat" : "Your purchase guarantees"}
                   </div>
-                  <div className="text-[11px] text-slate-400">
-                    {language === "ar" ? "شراء آمن — لا مخاطر" : language === "fr" ? "Achat sécurisé — sans risque" : "Safe purchase — no risk"}
+                  <div className="text-xs text-slate-400">
+                    {language === "ar" ? "شراء آمن — بدون أي مخاطر" : language === "fr" ? "Achat sécurisé — sans risque" : "Safe purchase — no risk"}
                   </div>
                 </div>
               </div>
               {/* Guarantee items */}
-              <div className="divide-y divide-white/5 px-4">
+              <div className="divide-y divide-white/[0.06] px-5">
                 {([
                   {
+                    Icon: Eye,
+                    iconCls: "text-teal-300",
+                    bgCls: "bg-teal-500/20 ring-1 ring-teal-500/30",
+                    highlight: true,
+                    ar: { title: "المعاينة مسموحة قبل الدفع", sub: "افتح الجهاز وافحص المواصفات — ثم ادفع للمندوب" },
+                    fr: { title: "Inspection avant paiement", sub: "Vérifiez l'appareil à la livraison — payez ensuite" },
+                  },
+                  {
                     Icon: Banknote,
-                    iconCls: "text-emerald-400",
-                    bgCls: "bg-emerald-500/15",
+                    iconCls: "text-emerald-300",
+                    bgCls: "bg-emerald-500/20 ring-1 ring-emerald-500/30",
+                    highlight: false,
                     ar: { title: "تدفع فقط عند استلام الجهاز", sub: "لا دفع مسبق — لا مخاطر مالية" },
-                    fr: { title: "Paiement uniquement à la réception", sub: "Aucun paiement d'avance — sans risque" },
+                    fr: { title: "Paiement à la réception uniquement", sub: "Aucun paiement d'avance — sans risque" },
                   },
                   {
                     Icon: Phone,
-                    iconCls: "text-sky-400",
-                    bgCls: "bg-sky-500/15",
+                    iconCls: "text-sky-300",
+                    bgCls: "bg-sky-500/20 ring-1 ring-sky-500/30",
+                    highlight: false,
                     ar: { title: "نتصل بك قبل الشحن للتأكيد", sub: "طلبك لا يُشحن بدون موافقتك" },
-                    fr: { title: "Nous vous appelons avant l'envoi", sub: "Votre colis ne part pas sans votre accord" },
+                    fr: { title: "On vous appelle avant l'envoi", sub: "Votre colis ne part pas sans votre accord" },
                   },
                   {
                     Icon: ShieldCheck,
-                    iconCls: "text-violet-400",
-                    bgCls: "bg-violet-500/15",
-                    ar: { title: "المواصفات مضمونة", sub: "إذا وجدت اختلافاً في المواصفات — نحل المشكلة" },
-                    fr: { title: "Conformité des specs garantie", sub: "Si les specs ne correspondent pas — on résout le problème" },
+                    iconCls: "text-violet-300",
+                    bgCls: "bg-violet-500/20 ring-1 ring-violet-500/30",
+                    highlight: false,
+                    ar: { title: "المواصفات مضمونة 100%", sub: "إذا وجدت اختلافاً في المواصفات — نحل المشكلة" },
+                    fr: { title: "Specs garanties à 100%", sub: "Si les specs ne correspondent pas — on résout le problème" },
                   },
                   {
                     Icon: Truck,
-                    iconCls: "text-amber-400",
-                    bgCls: "bg-amber-500/15",
+                    iconCls: "text-amber-300",
+                    bgCls: "bg-amber-500/20 ring-1 ring-amber-500/30",
+                    highlight: false,
                     ar: { title: "توصيل لجميع الولايات الـ58", sub: "عبر شركة شحن معتمدة — متابعة الطلب أون لاين" },
-                    fr: { title: "Livraison dans toutes les wilayas", sub: "Via transporteur agréé — suivi en ligne" },
+                    fr: { title: "Livraison dans les 58 wilayas", sub: "Via transporteur agréé — suivi en ligne" },
                   },
-                ] as Array<{ Icon: React.ElementType; iconCls: string; bgCls: string; ar: { title: string; sub: string }; fr: { title: string; sub: string } }>).map((item) => {
+                ] as Array<{ Icon: React.ElementType; iconCls: string; bgCls: string; highlight: boolean; ar: { title: string; sub: string }; fr: { title: string; sub: string } }>).map((item) => {
                   const txt = language === "fr" ? item.fr : item.ar;
                   return (
-                    <div key={txt.title} className="flex items-start gap-3 py-3">
-                      <div className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg ${item.bgCls}`}>
-                        <item.Icon className={`h-3.5 w-3.5 ${item.iconCls}`} />
+                    <div key={txt.title} className={`flex items-center gap-4 py-3.5 ${item.highlight ? "opacity-100" : "opacity-85"}`}>
+                      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.bgCls}`}>
+                        <item.Icon className={`h-5 w-5 ${item.iconCls}`} />
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-bold text-white">{txt.title}</div>
-                        <div className="mt-0.5 text-[11px] leading-4 text-slate-400">{txt.sub}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-sm font-bold leading-tight ${item.highlight ? "text-teal-200" : "text-white"}`}>{txt.title}</div>
+                        <div className="mt-0.5 text-xs leading-4 text-slate-400">{txt.sub}</div>
                       </div>
+                      {item.highlight && (
+                        <div className="shrink-0 rounded-full bg-teal-500/20 px-2 py-0.5 text-[10px] font-bold text-teal-300 ring-1 ring-teal-500/40">
+                          {language === "ar" ? "مهم" : "IMPORTANT"}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1145,16 +1224,18 @@ export function ProductDetailsPage() {
                         document.getElementById("direct-order-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }, 100);
                     }}
-                    className="relative mt-5 flex w-full items-center justify-between gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98] before:absolute before:inset-0 before:rounded-2xl before:shadow-[0_0_0_4px_rgba(20,184,166,0.3)] before:animate-ping before:pointer-events-none"
+                    className="group relative mt-5 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_8px_32px_rgba(16,185,129,0.45)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(16,185,129,0.6)] active:scale-[0.98]"
                   >
-                    <span className="flex items-center gap-2.5">
-                      <ShieldCheck className="h-6 w-6" />
-                      <span>
-                        {language === "ar" ? "أطلب الآن — دفع عند الاستلام" : language === "fr" ? "Commander maintenant" : "Order now — Pay on delivery"}
+                    {/* Shine sweep on hover */}
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/10 transition-transform duration-500 group-hover:translate-x-full" />
+                    <span className="relative flex flex-col items-center justify-center gap-0.5 px-6 py-5">
+                      <span className="flex items-center gap-2.5 text-lg font-black text-white drop-shadow">
+                        <ShieldCheck className="h-6 w-6" />
+                        {language === "ar" ? "أطلب الآن — دفع عند الاستلام" : language === "fr" ? "Commander — Paiement à la livraison" : "Order now — Pay on delivery"}
                       </span>
-                    </span>
-                    <span className="rounded-xl bg-white/20 px-3 py-1.5 text-sm font-extrabold">
-                      {formatCurrency(price, language)}
+                      <span className="text-sm font-bold text-emerald-100 opacity-90">
+                        {formatCurrency(price, language)} &nbsp;·&nbsp; {language === "ar" ? "شحن لجميع الولايات" : language === "fr" ? "Livraison partout" : "Delivery nationwide"}
+                      </span>
                     </span>
                   </button>
                 ) : (

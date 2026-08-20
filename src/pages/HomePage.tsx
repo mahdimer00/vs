@@ -1,4 +1,4 @@
-import { ArrowUpRight, Clock, Headphones, Package, Search, ShieldCheck, Truck, WalletCards } from "lucide-react";
+import { ArrowUpRight, Banknote, Clock, Eye, Headphones, Package, Search, ShieldCheck, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EmptyState } from "@/components/EmptyState";
@@ -19,7 +19,6 @@ export function HomePage() {
   const { language, siteSettings } = useApp();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
-  const [soldOutProducts, setSoldOutProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -35,12 +34,11 @@ export function HomePage() {
   useEffect(() => {
     void Promise.all([productService.getProducts(), adminService.getCategories(), bannerService.getBanners(), adminService.getBrands()])
       .then(([productData, categoryData, bannerData, brandData]) => {
-        const allActive = productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE");
+        const allActive = productData.filter((p) => !p.isSoldOut && p.status === "ACTIVE" && p.stock > 0);
         // Featured products come first, then the rest
         const featured = allActive.filter((p) => p.isFeatured);
         const nonFeatured = allActive.filter((p) => !p.isFeatured);
         setProducts([...featured, ...nonFeatured]);
-        setSoldOutProducts(productData.filter((product) => product.isSoldOut));
         setCategories(categoryData.filter((category) => category.isActive).slice(0, 4));
         setBanners(bannerData);
         setBrands(brandData.filter((brand) => brand.isActive && brand.logo));
@@ -55,11 +53,44 @@ export function HomePage() {
   if (errorMessage) return <EmptyState title={translate(language, "homeLoadErrorTitle")} description={errorMessage} />;
 
   const trustItems = [
-    { icon: WalletCards, label: translate(language, "trustCod"), color: "text-amber-600", bg: "bg-amber-50" },
-    { icon: Truck, label: translate(language, "trustDelivery"), color: "text-teal-600", bg: "bg-teal-50" },
-    { icon: ShieldCheck, label: translate(language, "trustQuality"), color: "text-emerald-600", bg: "bg-emerald-50" },
-    { icon: Headphones, label: translate(language, "trustSupport"), color: "text-blue-600", bg: "bg-blue-50" },
+    {
+      icon: Banknote,
+      iconCls: "text-emerald-300",
+      bg: "bg-emerald-500/15",
+      title: language === "ar" ? "الدفع عند الاستلام" : "Paiement à la livraison",
+      sub: language === "ar" ? "لا دفع مسبق — لا مخاطر" : "Sans risque — payez à la réception",
+    },
+    {
+      icon: Eye,
+      iconCls: "text-teal-300",
+      bg: "bg-teal-500/15",
+      title: language === "ar" ? "معاينة قبل الدفع" : "Inspection avant paiement",
+      sub: language === "ar" ? "افحص الجهاز ثم ادفع للمندوب" : "Vérifiez avant de payer",
+    },
+    {
+      icon: Truck,
+      iconCls: "text-sky-300",
+      bg: "bg-sky-500/15",
+      title: language === "ar" ? "توصيل لـ 58 ولاية" : "Livraison 58 wilayas",
+      sub: language === "ar" ? "عبر شركة شحن معتمدة" : "Via transporteur agréé",
+    },
+    {
+      icon: ShieldCheck,
+      iconCls: "text-violet-300",
+      bg: "bg-violet-500/15",
+      title: language === "ar" ? "مواصفات مضمونة" : "Specs garanties",
+      sub: language === "ar" ? "ما تراه هو ما تحصل عليه" : "Ce que vous voyez = ce que vous recevez",
+    },
+    {
+      icon: Headphones,
+      iconCls: "text-amber-300",
+      bg: "bg-amber-500/15",
+      title: language === "ar" ? "دعم مباشر" : "Support direct",
+      sub: language === "ar" ? "نتصل بك قبل الشحن للتأكيد" : "On vous appelle avant l'envoi",
+    },
   ];
+  const availableProductSlugs = new Set(products.map((product) => product.slug));
+  const visibleRecentlyViewed = recentlyViewed.filter((item) => availableProductSlugs.has(item.slug));
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -109,20 +140,23 @@ export function HomePage() {
       </section>
 
       {/* Trust bar */}
-      <section className="surface-card grid grid-cols-2 gap-0 overflow-hidden p-0 sm:grid-cols-4">
-        {trustItems.map((item, index) => (
-          <div
-            key={item.label}
-            className={`flex flex-col items-center gap-2 px-4 py-5 text-center sm:flex-row sm:gap-3 sm:text-start ${
-              index < trustItems.length - 1 ? "border-b border-slate-100 sm:border-b-0 sm:border-e sm:border-slate-100" : ""
-            } ${index % 2 === 0 && index < 2 ? "border-e border-slate-100 sm:border-e-0" : ""}`}
-          >
-            <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${item.bg}`}>
-              <item.icon className={`h-5 w-5 ${item.color}`} />
+      <section className="overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-b from-slate-900 to-slate-950 shadow-xl">
+        <div className="grid grid-cols-2 divide-x divide-x-reverse divide-white/[0.07] sm:grid-cols-5">
+          {trustItems.map((item, i) => (
+            <div
+              key={item.title}
+              className={`flex flex-col items-center gap-2.5 px-3 py-5 text-center sm:px-4 ${i >= 4 ? "col-span-2 sm:col-span-1" : ""} ${i % 2 === 0 && i < 4 ? "border-b border-white/[0.07] sm:border-b-0" : ""}`}
+            >
+              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.bg} ring-1 ring-white/10`}>
+                <item.icon className={`h-5 w-5 ${item.iconCls}`} />
+              </div>
+              <div>
+                <div className="text-xs font-black text-white sm:text-sm">{item.title}</div>
+                <div className="mt-0.5 text-[10px] leading-4 text-slate-400 sm:text-xs">{item.sub}</div>
+              </div>
             </div>
-            <div className="text-xs font-semibold text-slate-700 sm:text-sm">{item.label}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
 
       {/* Categories */}
@@ -189,27 +223,42 @@ export function HomePage() {
       </section>
 
       {/* CTA Banner */}
-      <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-slate-950 via-slate-900 to-teal-950 px-6 py-10 sm:px-10 sm:py-14">
-        <div className="pointer-events-none absolute -end-20 -top-20 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -start-20 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl" />
+      <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 px-6 py-10 sm:px-10 sm:py-14">
+        <div className="pointer-events-none absolute -end-20 -top-20 h-72 w-72 rounded-full bg-teal-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -start-20 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
         <div className="relative flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-400">
-              <Package className="h-3.5 w-3.5" />
-              {translate(language, "trustDelivery")}
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400">
+              <Banknote className="h-3.5 w-3.5" />
+              {language === "ar" ? "الدفع عند الاستلام" : "Paiement à la livraison"}
             </div>
             <h2 className="mt-3 font-serif text-2xl font-bold text-white sm:text-3xl">
-              {translate(language, "featuredTitle")}
+              {language === "ar" ? "تسوّق بثقة — ادفع فقط عند استلام طلبك" : language === "fr" ? "Achetez en confiance — payez à la livraison" : "Shop with confidence — pay on delivery"}
             </h2>
             <p className="mt-2 max-w-lg text-sm leading-7 text-slate-400">
-              {translate(language, "featuredDescription")}
+              {language === "ar"
+                ? "افحص منتجك عند وصوله، تأكد من مواصفاته، ثم ادفع للمندوب. لا مخاطر مالية — لا بطاقة بنكية مطلوبة."
+                : language === "fr"
+                  ? "Vérifiez votre commande à la livraison, confirmez les specs, puis payez. Aucun risque financier."
+                  : "Check your order on delivery, confirm the specs, then pay the courier. Zero financial risk."}
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                { icon: Package, text: language === "ar" ? "58 ولاية" : "58 wilayas" },
+                { icon: ShieldCheck, text: language === "ar" ? "مواصفات مضمونة" : "Specs garanties" },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">
+                  <Icon className="h-3.5 w-3.5 text-teal-400" />
+                  {text}
+                </div>
+              ))}
+            </div>
           </div>
           <Link
             to="/products"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-[0_12px_30px_rgba(251,191,36,0.3)] transition hover:from-amber-300 hover:to-orange-300"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 px-6 py-4 text-sm font-black text-slate-950 shadow-[0_12px_30px_rgba(251,191,36,0.35)] transition hover:from-amber-300 hover:to-orange-300 active:scale-[0.97]"
           >
-            {translate(language, "viewAll")}
+            {language === "ar" ? "تصفح المنتجات" : language === "fr" ? "Voir les produits" : "Browse products"}
             <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>
@@ -243,7 +292,7 @@ export function HomePage() {
       ) : null}
 
       {/* Recently Viewed */}
-      {recentlyViewed.length > 0 ? (
+      {visibleRecentlyViewed.length > 0 ? (
         <section className="space-y-5">
           <div className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-2xl bg-slate-100">
@@ -255,7 +304,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-            {recentlyViewed.map((item) => (
+            {visibleRecentlyViewed.map((item) => (
               <Link
                 key={item.id}
                 to={`/products/${item.slug}`}
@@ -276,39 +325,6 @@ export function HomePage() {
         </section>
       ) : null}
 
-      {/* Sold Out / Previous Sales — social proof */}
-      {soldOutProducts.length > 0 ? (
-        <section className="space-y-5 rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6">
-          <div>
-            <p className="section-eyebrow text-rose-500">
-              {language === "ar" ? "مباع بالكامل" : language === "fr" ? "Épuisé" : "Sold Out"}
-            </p>
-            <h2 className="mt-1 font-serif text-xl font-semibold text-slate-950 sm:text-2xl">
-              {language === "ar" ? "منتجات تم بيعها — إثبات الثقة" : language === "fr" ? "Produits précédemment vendus" : "Previously Sold Products"}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {language === "ar" ? "هذه المنتجات تم بيعها بالكامل، شكراً لثقتكم" : language === "fr" ? "Ces produits ont été complètement vendus, merci pour votre confiance" : "These products are completely sold out, thank you for your trust"}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-            {soldOutProducts.map((product) => (
-              <div key={product._id} className="relative overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-                <div className="aspect-square overflow-hidden bg-slate-50 p-2">
-                  <img src={product.images[0]} alt={getLocalizedText(product.name, language)} className="h-full w-full object-contain opacity-50 grayscale" loading="lazy" />
-                </div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-slate-950/25">
-                  <span className="rounded-full bg-slate-950/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-sm">
-                    {language === "ar" ? "نفذ" : "Sold Out"}
-                  </span>
-                </div>
-                <div className="p-2.5">
-                  <div className="line-clamp-2 text-xs font-medium leading-snug text-slate-500">{getLocalizedText(product.name, language)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }
