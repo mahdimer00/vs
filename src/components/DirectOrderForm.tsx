@@ -56,6 +56,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   // Track which fields the user has touched (to show errors only after interaction)
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [submitInView, setSubmitInView] = useState(true);
+  const [orderSubmitted, setOrderSubmitted] = useState(false);
 
   const partialLeadFiredRef = useRef(false);
   const partialLeadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -137,7 +138,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const isHighIntent = nameValid && phoneValid;
   const completedCount = [nameValid, phoneValid, commune.trim().length > 0, address.trim().length >= 5].filter(Boolean).length;
 
-  const isDirty = touched.size > 0;
+  const isDirty = touched.size > 0 && !orderSubmitted;
 
   // Block in-app navigation when form is partially filled
   const blocker = useBlocker(isDirty);
@@ -286,7 +287,9 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
       trackEvent({ eventType: "purchase", orderId: order._id });
 
       rememberConfirmedOrder(order);
+      setOrderSubmitted(true);
       navigate("/order/success");
+      return; // skip finally reset — order is done
     } catch (error) {
       const message = error instanceof Error ? error.message : translate(language, "checkoutSubmitting");
       setErrorMessage(message);
@@ -615,7 +618,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
         ref={submitBtnRef}
         id="dof-submit-btn"
         type="button"
-        disabled={submitting}
+        disabled={submitting || orderSubmitted}
         onClick={() => void submit()}
         className={`flex w-full items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-5 text-base font-bold text-white shadow-[0_10px_30px_rgba(20,184,166,0.4)] transition hover:from-teal-500 hover:to-emerald-500 active:scale-[0.98] disabled:opacity-60 ${isFormComplete && !submitting ? "ring-4 ring-teal-300/60" : ""}`}
       >
@@ -669,7 +672,7 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
     )}
 
     {/* Sticky floating CTA — appears when submit button scrolls out of view and user has shown intent */}
-    {isHighIntent && !submitInView && !submitting && (
+    {isHighIntent && !submitInView && !submitting && !orderSubmitted && (
       <div className="fixed bottom-0 inset-x-0 z-40 px-4 pb-4 pt-6 bg-gradient-to-t from-slate-950/70 via-slate-950/30 to-transparent pointer-events-none">
         <button
           type="button"
