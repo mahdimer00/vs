@@ -308,32 +308,6 @@ export function DirectOrderForm({ product, variant, quantity, shippingFee: initi
   const selectClass = (id: string) =>
     `field-select field-input-icon transition ${invalidField === id ? "border-rose-500 ring-2 ring-rose-200" : ""}`;
 
-  // Show instant success screen while navigation is loading
-  if (orderSubmitted) {
-    return (
-      <div className="mt-6 flex flex-col items-center gap-5 rounded-[2rem] border-2 border-emerald-300 bg-gradient-to-b from-emerald-50 to-white px-6 py-12 text-center shadow-[0_8px_32px_rgba(16,185,129,0.18)]" dir="rtl">
-        <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-100">
-          <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-        </div>
-        <div>
-          <div className="text-2xl font-black text-emerald-950">
-            {language === "ar" ? "تم إرسال طلبك!" : "Commande envoyée !"}
-          </div>
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-            {language === "ar"
-              ? "سنتصل بك قريباً لتأكيد التوصيل. الدفع عند الاستلام."
-              : "Nous vous appellerons pour confirmer. Paiement à la livraison."}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400 [animation-delay:0ms]" />
-          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400 [animation-delay:150ms]" />
-          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-400 [animation-delay:300ms]" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
     <div className="mt-6 space-y-4 overflow-hidden rounded-[2rem] border-2 border-teal-200 bg-gradient-to-b from-teal-50/60 to-white shadow-[0_8px_32px_rgba(20,184,166,0.14)]">
